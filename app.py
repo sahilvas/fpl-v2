@@ -12,53 +12,115 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from werkzeug.utils import secure_filename
 import plotly.express as px
+from flask_sqlalchemy import SQLAlchemy
 
 # Configuration
 DATA_REFRESH_INTERVAL = 3600  # Refresh every hour
 EXCEL_FILE_PATH = 'player_mapping.xlsx'  # Static data
-DB_PATH = 'cricbattle_8.db'
+
 UPLOAD_FOLDER = 'static/uploads'
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'pdf'}
-ADMIN_EMAIL = 'admin@example.com'
-EMAIL_HOST = 'smtp.example.com'
-EMAIL_PORT = 587
-EMAIL_USER = 'your_email@example.com'
-EMAIL_PASSWORD = 'your_email_password'
+
+
+# Check if running on Azure (persistent storage available at `/mnt/sqlite`)
+if os.environ.get("WEBSITE_SITE_NAME"):  # This env var exists only in Azure App Service
+    DB_PATH = "/mnt/sqlite/cricbattle.db"
+else:
+    # Local development (stores DB in the instance folder)
+    DB_PATH = "cricbattle.db"
 
 app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.secret_key = 'your_secret_key'
 
+# Configure SQLite URI correctly
+app.config['DATABASE_PATH'] = DB_PATH
+app.config['SQLALCHEMY_DATABASE_URI'] = f"sqlite:///{DB_PATH}"
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.jinja_env.add_extension('jinja2.ext.do')
+
+db = SQLAlchemy(app)
+
+# Define models
+class Payment(db.Model):
+    __tablename__ = 'payments'
+    id = db.Column(db.Integer, primary_key=True)
+    device_id = db.Column(db.String)
+    txn_ref = db.Column(db.String)
+    txn_proof = db.Column(db.LargeBinary)
+    email = db.Column(db.String)
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+    paid = db.Column(db.Integer, default=0)
+    trial_expiry = db.Column(db.DateTime)
+    deleted = db.Column(db.Integer, default=0)
+    approved = db.Column(db.Integer, default=0)
+
+class Player(db.Model):
+    __tablename__ = 'player'
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String)
+    role = db.Column(db.String)
+    category = db.Column(db.String) 
+    ipl_team = db.Column(db.String)
+    base_price = db.Column(db.Float)
+    selling_price = db.Column(db.Float)
+    team_name = db.Column(db.String)
+    is_sold = db.Column(db.Boolean)
+
 # Ensure upload folder exists
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
-# Function to get device ID
+# Import player data from mydatabase.db
+def import_player_data():
+    # Connect to source database
+    src_conn = sqlite3.connect('mydatabase.db')
+    src_cursor = src_conn.cursor()
+    
+    # Get player data
+    src_cursor.execute('SELECT * FROM player')
+    players = src_cursor.fetchall()
+    
+    # Close source connection
+    src_conn.close()
+    
+    # Insert into Player model
+    for player in players:
+        player_obj = Player(
+            id=player[0],
+            name=player[1], 
+            role=player[2],
+            category=player[3],
+            ipl_team=player[4],
+            base_price=player[5],
+            selling_price=player[6],
+            team_name=player[7],
+            is_sold=player[8]
+        )
+        db.session.merge(player_obj)
+    
+    db.session.commit()
+
+# Call import function when app starts
+with app.app_context():
+    db.create_all()
+    import_player_data()
+
 def get_device_id():
     user_agent = request.headers.get('User-Agent', '')
     ip = request.remote_addr
     return hashlib.sha256(f"{user_agent}{ip}".encode()).hexdigest()
 
-# Function to check if the device has been approved
 def is_approved(device_id):
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
-    cursor.execute("SELECT approved FROM payments WHERE deleted=0 and device_id = ?", (device_id,))
-    result = cursor.fetchone()
-    conn.close()
-    return result is not None and result[0] == 1
+    payment = Payment.query.filter_by(deleted=0, device_id=device_id).first()
+    return payment is not None and payment.approved == 1
 
-
-
-# Function to check allowed file extensions
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
-# Route for payment confirmation form
 @app.route('/pay', methods=['GET', 'POST'])
 def pay():
     device_id = get_device_id()
     print(device_id)
-    # check if device is paid and pending approval
 
     if is_paid_but_not_approved(device_id):
         flash("Your payment is under review. Please check back later.", "info")
@@ -86,19 +148,16 @@ def pay():
             file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
             file.save(file_path)
             
-            #send_email_notification(device_id, txn_ref, file_path)
             flash("Your payment confirmation has been submitted. Please wait for admin approval.", "success")
     
     return render_template('pay.html', qr_code="static/paypal_qr.jpeg")
 
-# Route to confirm payment manually (or via PayPal IPN)
 @app.route('/confirm_payment', methods=['POST'])
 def confirm_payment():
     device_id = get_device_id()
     email = request.form.get('email')
     txn_ref = request.form.get('txn_ref')
     txn_proof = request.files.get('txn_proof')
-    print(txn_proof, allowed_file(txn_proof.filename))
 
     if email and txn_ref and txn_proof and allowed_file(txn_proof.filename):
         filename = secure_filename(txn_proof.filename)
@@ -108,37 +167,27 @@ def confirm_payment():
         with open(file_path, 'rb') as f:
             proof_blob = f.read()
 
-        conn = sqlite3.connect(DB_PATH)
-        cursor = conn.cursor()
-        # This SQL statement looks correct for inserting/updating payment records
-        # It uses INSERT OR REPLACE to handle both new inserts and updates
-        # The columns match the table schema defined elsewhere in the code
-        # All parameters are properly bound using ? placeholders
-        # The values tuple matches the number and order of columns
+        payment = Payment(
+            device_id=device_id,
+            email=email,
+            txn_ref=txn_ref,
+            txn_proof=proof_blob,
+            paid=1
+        )
+        db.session.merge(payment)
+        db.session.commit()
 
-        print("inserting data with proof")
-        cursor.execute("INSERT OR REPLACE INTO payments (device_id, email, txn_ref, txn_proof, paid) VALUES (?, ?, ?, ?, 1)", 
-                            (device_id, email, txn_ref, proof_blob))        
-        conn.commit()
-        print("committed data ")
-        conn.close()
         return redirect(url_for('display_leaderboard'))
 
     elif email and txn_ref:
-        conn = sqlite3.connect(DB_PATH)
-        cursor = conn.cursor()
-        # This SQL statement looks correct for inserting/updating payment records
-        # It uses INSERT OR REPLACE to handle both new inserts and updates
-        # The columns match the table schema defined elsewhere in the code
-        # All parameters are properly bound using ? placeholders
-        # The values tuple matches the number and order of columns
-
-        print("inserting data without proof")
-        cursor.execute("INSERT OR REPLACE INTO payments (device_id, email, txn_ref, paid) VALUES (?, ?, ?, 1)", 
-                            (device_id, email, txn_ref))        
-        conn.commit()
-        print("committed data ")
-        conn.close()
+        payment = Payment(
+            device_id=device_id,
+            email=email,
+            txn_ref=txn_ref,
+            paid=1
+        )
+        db.session.merge(payment)
+        db.session.commit()
 
         return redirect(url_for('display_leaderboard'))
     else:
@@ -146,36 +195,12 @@ def confirm_payment():
         flash("Invalid payment proof file", "danger")
     
 def is_paid_but_not_approved(device_id):
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
-    cursor.execute("CREATE TABLE IF NOT EXISTS payments ("
-        "id INTEGER PRIMARY KEY AUTOINCREMENT, "
-        "device_id TEXT,"
-        "txn_ref TEXT, "
-        "txn_proof BLOB, "
-        "email TEXT,"
-        "timestamp DATETIME DEFAULT CURRENT_TIMESTAMP, "
-        "paid INTEGER DEFAULT 0, "
-        "trial_expiry DATETIME DEFAULT NULL,"
-        "deleted INTEGER DEFAULT 0,"    
-        "approved INTEGER DEFAULT 0)")
-    cursor.execute("SELECT paid, approved FROM payments WHERE deleted=0 and device_id = ?", (device_id,))
-    result = cursor.fetchone()
-    print(result)
-    conn.close()
-    if result is None:
-        return False
-    return result is not None and result[0] == 1 and result[1] == 0
+    payment = Payment.query.filter_by(deleted=0, device_id=device_id).first()
+    return payment is not None and payment.paid == 1 and payment.approved == 0
 
 def is_rejected(device_id):
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
-    cursor.execute("SELECT paid, approved FROM payments WHERE deleted=0 and device_id = ?", (device_id,))
-    result = cursor.fetchone()
-    conn.close()
-    if result is None:
-        return False
-    return result is not None and result[0] == 1 and result[1] == 2
+    payment = Payment.query.filter_by(deleted=0, device_id=device_id).first()
+    return payment is not None and payment.paid == 1 and payment.approved == 2
 
 @app.route('/admin/login', methods=['GET', 'POST'])
 def login():
@@ -183,8 +208,6 @@ def login():
         username = request.form.get('username')
         password = request.form.get('password')
         
-        # For demo purposes using hardcoded admin credentials
-        # In production, use proper password hashing and database storage
         if username == 'admin' and password == 'admin123':
             session['admin'] = True
             flash('Successfully logged in as admin', 'success')
@@ -196,56 +219,49 @@ def login():
 
 @app.route('/admin/review', methods=['GET', 'POST'])
 def admin_review():
-    # Check if user is admin (you may want to add proper admin authentication)
     if session.get('admin') != True:
         return redirect(url_for('/admin/login'))
-
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
 
     if request.method == 'POST':
         device_id = request.form.get('device_id')
         action = request.form.get('action')
 
-        if action == 'approve':
-            cursor.execute("UPDATE payments SET approved = 1 WHERE deleted=0 and device_id = ?", (device_id,))
-            flash(f"Payment for device {device_id} approved", "success")
-        elif action == 'reject':
-            cursor.execute("UPDATE payments SET approved = 0 WHERE deleted=0 and device_id = ?", (device_id,))
-            flash(f"Payment for device {device_id} rejected", "danger")
+        payment = Payment.query.filter_by(deleted=0, device_id=device_id).first()
+        if payment:
+            if action == 'approve':
+                payment.approved = 1
+                flash(f"Payment for device {device_id} approved", "success")
+            elif action == 'reject':
+                payment.approved = 0
+                flash(f"Payment for device {device_id} rejected", "danger")
+            db.session.commit()
 
-        conn.commit()
-
-    # Get all paid but not approved payments
-    cursor.execute("""
-        SELECT p.device_id, p.email, p.txn_ref, p.txn_proof, p.timestamp, p.approved , p.deleted, p.trial_expiry
-        FROM payments p 
-    """)
-    pending_payments = cursor.fetchall()
-    #convert pendind_payments to json including file blob
-    #file blob should be converted to downloadable link using uploads dir location
-    for i in range(len(pending_payments)):
-        if pending_payments[i][3] is not None:
-            with open(f"static/uploads/{pending_payments[i][0]}.png", "wb") as f:
-                f.write(pending_payments[i][3])
-                pending_payments[i] = list(pending_payments[i])
-                pending_payments[i][3] = url_for('static', filename=f"uploads/{pending_payments[i][0]}.png")  
-                pending_payments[i] = tuple(pending_payments[i])
-                print(pending_payments[i])
-                print(pending_payments[i][3])
-
+    pending_payments = Payment.query.all()
     
+    for payment in pending_payments:
+        if payment.txn_proof:
+            with open(f"static/uploads/{payment.device_id}.png", "wb") as f:
+                f.write(payment.txn_proof)
+                payment.txn_proof = url_for('static', filename=f"uploads/{payment.device_id}.png")
+
+    print(pending_payments)
     
-    conn.close()
+    return render_template('paid_not_approved.html', payments=[{
+    'device_id': payment.device_id,
+    'txn_ref': payment.txn_ref, 
+    'email': payment.email,
+    'timestamp': payment.timestamp,
+    'paid': payment.paid,
+    'approved': payment.approved,
+    'txn_proof': payment.txn_proof,
+    'trial_expiry': payment.trial_expiry.strftime('%Y-%m-%d %H:%M:%S') if payment.trial_expiry else None,
+    'deleted': payment.deleted
+} for payment in pending_payments])
 
-    return render_template('paid_not_approved.html', payments=pending_payments)
-
-# Route for Leaderboard
 @app.route('/')
 def display_leaderboard():
     device_id = get_device_id()
     print(device_id)
-    # check if device is paid and pending approval
 
     if is_paid_but_not_approved(device_id):
         flash("Your payment is under review. Please check back later.", "info")
@@ -260,19 +276,17 @@ def display_leaderboard():
         print("Your payment is not found")
         return redirect(url_for('pay'))
     
-    return redirect(url_for('show_insights')) 
+    return redirect(url_for('show_insights'))
 
 @app.route('/admin/approve/<device_id>', methods=['POST'])
 def approve_payment(device_id):
     if session.get('admin') != True:
         return {'error': 'Unauthorized'}, 401
         
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
-    
-    cursor.execute("UPDATE payments SET approved = 1 WHERE deleted = 0  and device_id = ?", (device_id,))
-    conn.commit()
-    conn.close()
+    payment = Payment.query.filter_by(deleted=0, device_id=device_id).first()
+    if payment:
+        payment.approved = 1
+        db.session.commit()
     
     return {'message': f'Payment for device {device_id} approved'}, 200
 
@@ -281,12 +295,10 @@ def reject_payment(device_id):
     if session.get('admin') != True:
         return {'error': 'Unauthorized'}, 401
         
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
-    
-    cursor.execute("UPDATE payments SET approved = 2 WHERE deleted = 0 and device_id = ?", (device_id,))
-    conn.commit()
-    conn.close()
+    payment = Payment.query.filter_by(deleted=0, device_id=device_id).first()
+    if payment:
+        payment.approved = 2
+        db.session.commit()
     
     return {'message': f'Payment for device {device_id} rejected'}, 200
          
@@ -295,28 +307,30 @@ def reset_payment():
     device_id = get_device_id()
     print(device_id)
         
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
-    
-    cursor.execute("UPDATE payments SET deleted = 1 WHERE deleted = 0 and device_id = ?", (device_id,))
-    conn.commit()
-    conn.close()
+    payment = Payment.query.filter_by(deleted=0, device_id=device_id).first()
+    if payment:
+        payment.deleted = 1
+        db.session.commit()
 
-    return redirect(url_for('display_leaderboard')) 
+    return redirect(url_for('display_leaderboard'))
 
 @app.route('/insights')
 def show_insights():
-    # check if user is paid and approved
     device_id = get_device_id()
     if not is_approved(device_id):
         return redirect(url_for('pay'))
 
-    # Connect to database and load data
-    conn = sqlite3.connect('mydatabase.db')
-    
-    # Fetch player data
-    df = pd.read_sql_query("SELECT name, role, category, ipl_team, base_price, selling_price, team_name, is_sold FROM player", conn)
-    conn.close()
+    players = Player.query.all()
+    df = pd.DataFrame([{
+        'name': p.name,
+        'role': p.role,
+        'category': p.category,
+        'ipl_team': p.ipl_team,
+        'base_price': p.base_price,
+        'selling_price': p.selling_price,
+        'team_name': p.team_name,
+        'is_sold': p.is_sold
+    } for p in players])
 
     # Clean the data
     df_clean = df.dropna(subset=['base_price', 'selling_price', 'team_name', 'role'])
@@ -333,7 +347,6 @@ def show_insights():
                     title="Player Distribution by Role per fpl team",
                     labels={'team_name': 'Team Name', 'count': 'Count', 'role': 'Role'})
     
- 
     figures.append(fig_role)
 
     # 2. Selling Price vs Base Price
@@ -357,7 +370,6 @@ def show_insights():
                         title="Distribution of Players by IPL Team within the fpl teams",
                         labels={'team_name': 'Team Name', 'ipl_team': 'IPL Team'},
                         barmode='group')
-    # color_discrete_sequence=px.colors.qualitative.Pastel)
     fig_ipl_team.update_layout(legend_title_text='IPL Team')
     fig_ipl_team.update_xaxes(title_text='Team Name')
     fig_ipl_team.update_yaxes(title_text='Count')
@@ -372,8 +384,6 @@ def show_insights():
     figures.append(fig_ipl_team)
 
     
-
-    # 6. Average Selling Price by Role
     avg_price_by_role = df_clean.groupby('role')['selling_price'].mean().reset_index()
     fig_avg_role = px.bar(avg_price_by_role, x='role', y='selling_price',
                          title="Average Selling Price by Role")
@@ -395,6 +405,41 @@ def show_insights():
                          top_teams=top_teams.to_dict('records'))
 
 
+
+
+@app.route('/free-trial')
+def activate_trial():
+    device_id = get_device_id()
+    expiry_date = datetime.now() + pd.Timedelta(days=5)     
+    print(expiry_date)   
+    # Check if device already has active paid subscription
+    if is_approved(device_id):
+        flash("You already have an active subscription", "info")
+        return redirect(url_for('display_leaderboard'))
+        
+    payment = Payment(
+        device_id=device_id,
+        paid=1,
+        approved=1,
+        trial_expiry=expiry_date
+    )
+    db.session.merge(payment)
+    db.session.commit()
+
+    flash(f"Free trial activated until {expiry_date}", "success")
+    return redirect(url_for('display_leaderboard'))
+
+@app.route('/live-scoring')
+def show_live_scoring():
+    # check if user is paid and approved
+    device_id = get_device_id()
+    if not is_approved(device_id):
+        return redirect(url_for('pay'))
+
+
+
+    return render_template('live_scoring.html', scores=None)
+
 @app.route('/fixtures')
 def show_fixtures():
     # check if user is paid and approved
@@ -411,41 +456,6 @@ def show_previous_results():
 
     return render_template('FPL-CT2025-Points.html', results=None)
 
-
-@app.route('/free-trial')
-def activate_trial():
-    device_id = get_device_id()
-    expiry_date = datetime.now() + pd.Timedelta(days=5)     
-    print(expiry_date)   
-    # Check if device already has active paid subscription
-    if is_approved(device_id):
-        flash("You already have an active subscription", "info")
-        return redirect(url_for('display_leaderboard'))
-        
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
-    
-    # Insert trial record with approval and expiry date
-
-    cursor.execute("INSERT OR REPLACE INTO payments  (device_id, paid, approved, trial_expiry) VALUES (?, 1, 1, ?)", 
-                            (device_id, expiry_date)) 
-    
-    conn.commit()
-    conn.close()
-    
-    flash(f"Free trial activated until {expiry_date}", "success")
-    return redirect(url_for('display_leaderboard'))
-
-@app.route('/live-scoring')
-def show_live_scoring():
-    # check if user is paid and approved
-    device_id = get_device_id()
-    if not is_approved(device_id):
-        return redirect(url_for('pay'))
-
-
-
-    return render_template('live_scoring.html', scores=None)
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=8000, debug=True)

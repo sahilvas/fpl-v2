@@ -3,17 +3,19 @@
 <html>
 <head>
     <title>FPL Dashboard</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 
     <style>
         body {
             background-color: #f8f9fa;
-            padding: 20px;
+            padding: 10px;
         }
         .dashboard-container {
             max-width: 1200px;
             margin: 0 auto;
+            padding: 0 15px;
         }
         .card {
             margin-bottom: 20px;
@@ -21,9 +23,11 @@
         }
         .table-responsive {
             margin-bottom: 1rem;
+            overflow-x: auto;
         }
         .table {
             background-color: white;
+            font-size: 14px;
         }
         .chart-container {
             background-color: white;
@@ -31,8 +35,26 @@
             border-radius: 5px;
             margin-bottom: 20px;
             min-height: 300px;
+            overflow-x: auto;
         }
-        /* Dynamic sizing classes */
+        /* Dynamic sizing classes with mobile breakpoints */
+        @media (max-width: 768px) {
+            .col-half {
+                width: 100%;
+            }
+            .col-third {
+                width: 100%; 
+            }
+            .table {
+                font-size: 12px;
+            }
+            .card-title {
+                font-size: 16px;
+            }
+            h1 {
+                font-size: 24px;
+            }
+        }
         .col-auto {
             flex: 0 0 auto;
             width: auto;
@@ -58,7 +80,6 @@
             font-weight: bold;
             color: #0d6efd;
         }
-       
 
         h1 {
             color: #2c3e50;
@@ -154,23 +175,32 @@
             box-shadow: 0 2px 5px rgba(0,0,0,0.1);
         }
 
+        .header-menu .navbar-toggler {
+            border-color: white;
+        }
+
+        .header-menu .navbar-toggler-icon {
+            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'%3e%3cpath stroke='rgba(255, 255, 255, 1)' stroke-linecap='round' stroke-miterlimit='10' stroke-width='2' d='M4 7h22M4 15h22M4 23h22'/%3e%3c/svg%3e");
+        }
+
         .header-menu a {
             color: white;
             text-decoration: none;
-            padding: 10px 20px;
-            font-size: 16px;
+            padding: 10px 15px;
+            font-size: 14px;
+            display: inline-block;
         }
 
         .header-menu a:hover {
             background-color: #34495e;
         }
 
-                /* Ensure dropdown matches existing menu */
+        /* Ensure dropdown matches existing menu */
         .dropdown-menu {
             background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
             padding: 10px 0;
             margin-bottom: 20px;
-            
+            width: 100%;
         }
 
         /* Style dropdown items */
@@ -185,23 +215,55 @@
             background-color: #34495e;
         }
 
+        @media (max-width: 768px) {
+            .header-menu {
+                padding: 5px 0;
+            }
+            .header-menu a {
+                padding: 8px 12px;
+                font-size: 12px;
+                display: block;
+                width: 100%;
+                text-align: left;
+            }
+            .dropdown-menu .dropdown-item {
+                font-size: 12px;
+            }
+            .navbar-collapse {
+                background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            }
+        }
+
     </style>
 </head>
 <body>
     <header>
-        <div class="header-menu">
-            <a href="/">Home</a>
-            <a href="/fixtures" class="header-link">Fixtures</a>
-            <div class="dropdown d-inline-block">
-                <a href="#" class="header-link dropdown-toggle" data-bs-toggle="dropdown" onclick="event.preventDefault()">Past Results</a>
-                <div class="dropdown-menu">
-                    <a href="/fpl-ct-2025" class="header-link dropdown-item">FPL CT 2025</a>
+        <nav class="header-menu navbar navbar-expand-md">
+            <div class="container-fluid">
+                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+                <div class="collapse navbar-collapse" id="navbarNav">
+                    <ul class="navbar-nav">
+                        <li class="nav-item">
+                            <a href="/" class="nav-link">Home</a>
+                        </li>
+                        <li class="nav-item">
+                            <a href="/fixtures" class="nav-link">Fixtures</a>
+                        </li>
+                        <li class="nav-item dropdown">
+                            <a href="#" class="nav-link dropdown-toggle" data-bs-toggle="dropdown" role="button" aria-expanded="false">Past Results</a>
+                            <div class="dropdown-menu">
+                                <a href="/fpl-ct-2025" class="dropdown-item">FPL CT 2025</a>
+                            </div>
+                        </li>
+                        <li class="nav-item">
+                            <a href="/live-scoring" class="nav-link">FPL Live Scores</a>
+                        </li>
+                    </ul>
                 </div>
             </div>
-                     
-            <a href="/live-scoring" class="header-link">FPL Live Scores</a>
-            </div>
-        </div>
+        </nav>
     </header>
     <div class="dashboard-container">
         <h1 class="mb-4">Auction Insights</h1>
@@ -290,18 +352,20 @@
             const container = document.getElementById('dashboard-content');
             const items = container.children;
             
-            // Adjust height for consistent card sizes in each row
-            const rows = container.querySelectorAll('.row');
-            rows.forEach(row => {
-                const cards = row.querySelectorAll('.card');
-                let maxHeight = 0;
-                cards.forEach(card => {
-                    maxHeight = Math.max(maxHeight, card.offsetHeight);
+            // Only adjust heights on desktop
+            if(window.innerWidth > 768) {
+                const rows = container.querySelectorAll('.row');
+                rows.forEach(row => {
+                    const cards = row.querySelectorAll('.card');
+                    let maxHeight = 0;
+                    cards.forEach(card => {
+                        maxHeight = Math.max(maxHeight, card.offsetHeight);
+                    });
+                    cards.forEach(card => {
+                        card.style.height = maxHeight + 'px';
+                    });
                 });
-                cards.forEach(card => {
-                    card.style.height = maxHeight + 'px';
-                });
-            });
+            }
         }
 
         window.addEventListener('load', adjustLayout);

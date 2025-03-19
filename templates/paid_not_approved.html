@@ -162,24 +162,24 @@
                 console.log(payment);
                 const row = `
                     <tr>
-                        <td title="${payment[0]}">${payment[0]}</td>
-                        <td title="${payment[1]}">${payment[1]}</td>
-                        <td title="${payment[2]}">${payment[2]}</td>
-                        <td title="${payment[3]}">
-                            ${payment[3] ? `<a href="${payment[3]}" class="btn btn-sm btn-secondary" download>
+                        <td >${payment.device_id}</td>
+                        <td >${payment.email}</td>
+                        <td >${payment.txn_ref}</td>
+                        <td >
+                            ${payment.txn_proof ? `<a href="${payment.txn_proof}" class="btn btn-sm btn-secondary" download>
                                 <i class="bi bi-download"></i> Download
                             </a>` : ''}
                         </td>                                               
-                        <td title="${payment[4]}">${payment[4]}</td>
-                        <td title="${payment[7]}">${payment[7]}</td>
-                        <td title="${payment[6]}">${payment[6]}</td>
-                        <td><span class="badge bg-warning">${payment[5]}</span></td>
+                        <td >${payment.timestamp}</td>
+                        <td >${payment.trial_expiry}</td>
+                        <td >${payment.deleted}</td>
+                        <td><span class="badge bg-warning">${payment.approved}</span></td>
                         <td>
                             <div class="btn-group">
-                                <button class="btn btn-sm btn-success" title="Approve" onclick="handleAction('approve', '${payment[0]}')">
+                                <button class="btn btn-sm btn-success" title="Approve" onclick="handleAction('approve', '${payment.device_id}')">
                                     <i class="bi bi-check-circle"></i>
                                 </button>
-                                <button class="btn btn-sm btn-danger" title="Reject" onclick="handleAction('reject', '${payment[0]}')">
+                                <button class="btn btn-sm btn-danger" title="Reject" onclick="handleAction('reject', '${payment.device_id}')">
                                     <i class="bi bi-x-circle"></i>
                                 </button>
                                 <button class="btn btn-sm btn-info" title="View Details">
