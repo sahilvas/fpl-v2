@@ -368,19 +368,20 @@ def show_insights():
     # 5. Composite bar chart showing Distribution of Players by IPL Team within the fpl teams
     fig_ipl_team = px.bar(df_clean, x='team_name', color='ipl_team',
                         title="Distribution of Players by IPL Team within the fpl teams",
-                        labels={'team_name': 'Team Name', 'ipl_team': 'IPL Team'},
+                        labels={'team_name': '', 'ipl_team': 'IPL Team'},
                         barmode='group')
     fig_ipl_team.update_layout(legend_title_text='IPL Team')
-    fig_ipl_team.update_xaxes(title_text='Team Name')
+    #fig_ipl_team.update_xaxes(title_text='Team Name', tickangle=45)
     fig_ipl_team.update_yaxes(title_text='Count')
     fig_ipl_team.update_traces(marker_line_width=0)
     fig_ipl_team.update_layout(legend=dict(
-        orientation="h",
-        yanchor="bottom",
-        y=1.02,
-        xanchor="right",
-        x=1
-    ))
+        orientation="h", 
+        yanchor="top",
+        y=-0.2,
+        xanchor="center",
+        x=0.5
+    ),
+    margin=dict(b=150))    
     figures.append(fig_ipl_team)
 
     

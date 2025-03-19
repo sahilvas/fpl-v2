@@ -24,10 +24,12 @@
         .table-responsive {
             margin-bottom: 1rem;
             overflow-x: auto;
+            width: 100%;
         }
         .table {
             background-color: white;
             font-size: 14px;
+            min-width: 90%;
         }
         .chart-container {
             background-color: white;
@@ -36,14 +38,26 @@
             margin-bottom: 20px;
             min-height: 300px;
             overflow-x: auto;
+            width: 100%;
+            margin-left: auto;
+            margin-right: auto;
         }
         /* Dynamic sizing classes with mobile breakpoints */
         @media (max-width: 768px) {
             .col-half {
                 width: 100%;
+                margin-left: auto;
+                margin-right: auto;
             }
             .col-third {
-                width: 100%; 
+                width: 100%;
+                margin-left: auto;
+                margin-right: auto;
+            }
+            .col-full {
+                width: 100%;
+                margin-left: auto;
+                margin-right: auto;
             }
             .table {
                 font-size: 12px;
@@ -53,6 +67,14 @@
             }
             h1 {
                 font-size: 24px;
+            }
+            .chart-container {
+                min-height: 450px; /* Increased height for mobile */
+                padding: 20px;
+                margin-bottom: 30px;
+                width: 150%; /* Increased width for mobile */
+                max-width: none;
+                margin-left: -25%; /* Offset the increased width */
             }
         }
         .col-auto {
@@ -170,19 +192,19 @@
 
         .header-menu {
             background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
-            padding: 10px 0;
+            padding: 10px 10px;
             margin-bottom: 20px;
             box-shadow: 0 2px 5px rgba(0,0,0,0.1);
         }
 
         .header-menu .navbar-toggler {
             border-color: white;
+            margin-left: auto;
+            
         }
-
         .header-menu .navbar-toggler-icon {
             background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'%3e%3cpath stroke='rgba(255, 255, 255, 1)' stroke-linecap='round' stroke-miterlimit='10' stroke-width='2' d='M4 7h22M4 15h22M4 23h22'/%3e%3c/svg%3e");
         }
-
         .header-menu a {
             color: white;
             text-decoration: none;
@@ -217,7 +239,7 @@
 
         @media (max-width: 768px) {
             .header-menu {
-                padding: 5px 0;
+                padding: 5px 5px;
             }
             .header-menu a {
                 padding: 8px 12px;
@@ -229,8 +251,13 @@
             .dropdown-menu .dropdown-item {
                 font-size: 12px;
             }
+            .navbar-toggler {
+                margin-left: auto;
+                margin-right: 0;
+            }
             .navbar-collapse {
                 background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+                padding: 8px 12px;
             }
         }
 
@@ -284,10 +311,10 @@
             </div>
 
             <!-- Top Players Section -->
-            <div class="col-half">
+            <div class="col-full">
                 <div class="card">
                     <div class="card-header">
-                        <h5 class="card-title">Top Players</h5>
+                        <h5 class="card-title">Most Expensive Players</h5>
                     </div>
                     <div class="card-body">
                         <div class="table-responsive">
@@ -315,10 +342,10 @@
             </div>
 
             <!-- Top Teams Section -->
-            <div class="col-half">
+            <div class="col-full">
                 <div class="card">
                     <div class="card-header">
-                        <h5 class="card-title">Top Teams</h5>
+                        <h5 class="card-title">Avg Price Per Player</h5>
                     </div>
                     <div class="card-body">
                         <div class="table-responsive">

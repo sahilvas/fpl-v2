@@ -23,6 +23,9 @@
             box-shadow: 0 2px 5px rgba(0,0,0,0.1);
             width: 100%;
             overflow-x: auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
         }
 
         .header-menu a {
@@ -46,7 +49,7 @@
             overflow: auto;
             padding: 10px;
             box-sizing: border-box;
-            min-height: 800px; /* Added minimum height for laptops */
+            min-height: 800px;
         }
         #pdf-container {
             width: 100%;
@@ -55,7 +58,7 @@
             border-radius: 8px;
             box-shadow: 0 2px 5px rgba(0,0,0,0.1);
             -webkit-overflow-scrolling: touch;
-            min-height: 800px; /* Added minimum height for laptops */
+            min-height: 800px;
         }
         nav a {
             color: white;
@@ -69,31 +72,105 @@
             background-color: rgba(255,255,255,0.1);
         }
 
+        .menu-button {
+            display: none;
+            color: white;
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            padding: 10px 15px;
+        }
+
+        .nav-links {
+            display: flex;
+        }
+
         @media screen and (max-width: 600px) {
             body {
                 padding: 5px;
             }
+            .header-menu {
+                flex-direction: column;
+                align-items: flex-start;
+            }
             .header-menu a {
                 padding: 8px 12px;
                 font-size: 13px;
+                display: none;
+            }
+            .nav-links {
+                display: none;
+                width: 100%;
+                flex-direction: column;
+            }
+            .nav-links.active {
+                display: flex;
             }
             .content {
                 padding: 5px;
-                min-height: auto; /* Reset for mobile */
+                height: 100vh;
+                min-height: 500px;
             }
             #pdf-container {
-                min-height: auto; /* Reset for mobile */
+                height: 100%;
+                min-height: 500px;
+                width: 100%;
+                max-width: 100%;
+            }
+            .menu-button {
+                display: block;
+                align-self: flex-end;
             }
         }
     </style>
 </head>
 <body>
     <header>
-        <div class="header-menu">
-            <a href="/">Home</a>
+    <div class="header-menu">
+        <button class="menu-button" aria-label="Toggle menu">☰</button>
+        <div class="nav-links">
+            <a href="/" aria-label="Home">Home</a>
+            <a href="#" class="close-menu" aria-label="Close menu">&times;</a>
         </div>
-    </header>
-    <div class="content">
+    </div>
+</header>
+<style>
+    .close-menu {
+        display: none;
+        position: absolute;
+        right: 10px;
+        top: 10px;
+        font-size: 24px;
+    }
+    @media screen and (max-width: 600px) {
+        .nav-links.active {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.9);
+            z-index: 999;
+            padding: 40px 20px;
+        }
+        .nav-links.active a {
+            display: block;
+            font-size: 18px;
+            margin: 10px 0;
+            text-align: center;
+        }
+        .close-menu {
+            display: block;
+        }
+    }
+</style>
+<script>
+    document.querySelector('.close-menu').addEventListener('click', function(e) {
+        e.preventDefault();
+        document.querySelector('.nav-links').classList.remove('active');
+    });
+</script>    <div class="content">
         <embed 
             id="pdf-container"
             src="static/fixtures.pdf"
@@ -102,5 +179,10 @@
             height="100%"
         />
     </div>
+    <script>
+        document.querySelector('.menu-button').addEventListener('click', function() {
+            document.querySelector('.nav-links').classList.toggle('active');
+        });
+    </script>
 </body>
 </html>
