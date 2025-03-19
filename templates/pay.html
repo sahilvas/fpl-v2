@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f5f5f5;
+            color: #333;
+            line-height: 1.6;
+            padding: 20px;
+        }
+
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+            font-weight: 600;
+            margin-bottom: 30px;
+        }
+
+        p {
+            text-align: center;
+            color: #34495e;
+        }
+
+        .qr-code {
+            width: 250px;
+            height: auto;
+            display: block;
+            margin: 20px auto;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            border-radius: 10px;
+        }
+        
+        .form-group {
+            margin: 20px auto;
+            max-width: 500px;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #2c3e50;
+            font-weight: 500;
+        }
+        
+        .form-group input {
+            width: 100%;
+            padding: 12px;
+            margin-bottom: 15px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+            transition: border-color 0.3s ease;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: #3498db;
+        }
+
+        button {
+            background-color: #3498db;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            display: block;
+            margin: 0 auto;
+            font-size: 16px;
+            transition: background-color 0.3s ease;
+        }
+
+        button:hover {
+            background-color: #2980b9;
+        }
+
+        button:disabled {
+            background-color: #bdc3c7;
+            cursor: not-allowed;
+        }
+
+        .secondary-button {
+            background-color: transparent;
+            color: #3498db;
+            border: 2px solid #3498db;
+            margin-top: 10px;
+        }
+
+        .secondary-button:hover {
+            background-color: #f8f9fa;
+            color: #2980b9;
+            border-color: #2980b9;
+        }
+
+        .header-menu {
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            padding: 10px 0;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            display: flex;
+            align-items: center;
+        }
+
+        .header-menu a {
+            color: white;
+            text-decoration: none;
+            padding: 10px 20px;
+            font-size: 16px;
+        }
+
+        .header-menu a:hover {
+            background-color: #34495e;
+        }
+        
+        .dropdown-menu {
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            padding: 10px 0;
+            margin-bottom: 20px;
+            position: absolute;
+        }
+
+        /* Style dropdown items */
+        .dropdown-menu .dropdown-item {
+            color: white;
+            text-decoration: none;
+            padding: 5px 15px;
+            font-size: 14px;
+            display: block;
+        }
+
+        .dropdown-menu .dropdown-item:hover {
+            background-color: #34495e;
+        }
+
+        .dropdown {
+            position: relative;
+        }
+
+    </style>
+    
+<head>
+    <title>Pay to Access</title>
+</head>
+<body>
+
+    <div class="header-menu">
+        <a href="/fixtures" class="header-link">Fixtures</a>
+        <div class="dropdown d-inline-block">
+                <a href="#" class="header-link dropdown-toggle" data-bs-toggle="dropdown" onclick="toggleDropdown(event, this)">Past Results</a>
+                <div class="dropdown-menu" style="display: none;">
+                    <a href="/fpl-ct-2025" class="header-link dropdown-item">FPL CT 2025</a>
+                </div>
+            </div>
+
+<script>
+function toggleDropdown(event, element) {
+    event.preventDefault();
+    const dropdownMenu = element.nextElementSibling;
+    if(dropdownMenu.style.display === 'none') {
+        dropdownMenu.style.display = 'block';
+    } else {
+        dropdownMenu.style.display = 'none';
+    }
+}
+</script>                     
+        <a href="/live-scoring" class="header-link">FPL Live Scores</a>
+    </div>
+
+
+    <h1>Scan to Pay</h1>
+    <div class="form-group" style="text-align: center; margin-top: 40px; margin-bottom: 40px;">
+    <h2 style="color: #2c3e50; margin-bottom: 20px;">Subscription Plans</h2>
+    
+    <div style="display: flex; justify-content: center; gap: 20px; flex-wrap: wrap;">
+        <div style="background: white; padding: 25px; border-radius: 10px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); width: 280px;">
+            <h3 style="color: #3498db;">Free Trial</h3>
+            <p style="font-size: 24px; font-weight: bold; margin: 15px 0;">€0/month</p>
+            <ul style="text-align: left; list-style-type: none; padding: 0;">
+                <li>✓ Unlimited Access to basic features</li>
+                <li>✓ Limited Time Access to live scoring</li>
+                <li><del>✓ Close to Real Time statistics updates</del></li>
+                <li><del>✓ 99.99% availability</del></li>            
+            </ul>
+            <a href="/free-trial" style="text-decoration: none;">
+                <button class="secondary-button">Start Free Trial</button>
+            </a>
+        </div>
+
+        <div style="background: white; padding: 25px; border-radius: 10px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); width: 280px; border: 2px solid #3498db;">
+            <h3 style="color: #3498db;">Premium Plan</h3>
+            <p style="font-size: 24px; font-weight: bold; margin: 15px 0;">€5/league</p>
+            <ul style="text-align: left; list-style-type: none; padding: 0;">
+                <li>✓ All Basic features</li>
+                <li>✓ Close to Real Time statistics updates</li>
+                <li>✓ 99.99% availability</li>  
+                <li>✓ Advanced statistics</li>
+                <li>✓ Player performance analytics</li>
+                <li>✓ Priority support</li>
+                <li>✓ Single device support</li>                
+                <li>✓ Early access to new features</li>
+            </ul>
+        </div>
+
+        <div style="background: #f5f5f5; padding: 25px; border-radius: 10px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); width: 280px; opacity: 0.7;">
+            <h3 style="color: #bdc3c7;">Pro Plan (Coming Soon)</h3>
+            <p style="font-size: 24px; font-weight: bold; margin: 15px 0; color: #bdc3c7;">€9.99/year</p>
+            <ul style="text-align: left; list-style-type: none; padding: 0; color: #bdc3c7;">
+                <li>✓ All Premium features</li>
+                <li>✓ Multi Device Support</li>
+                <li>✓ Custom analytics</li>
+                <li>✓ Team management tools</li>
+                <li>✓ 24/7 dedicated support</li>
+            </ul>
+        </div>
+    </div>
+</div>        <p>Scan the QR code below with PayPal to make your payment:</p>
+    <img class="qr-code" src="{{ qr_code }}" alt="PayPal QR Code">
+    <br/>
+    <br/>
+    <br/>
+    <p>Upload txn details (Txn Ref or Txn Snapshot) and click below once the payment is done</p>
+    
+    <form action="{{ url_for('confirm_payment') }}" method="POST" enctype="multipart/form-data">
+        <div class="form-group">
+            <label for="email">Your email id:</label>
+            <input type="text" id="email" name="email" placeholder="Enter yours@example.com">
+        </div>
+
+        <div class="form-group">
+            <label for="txn_ref">Transaction Reference Number:</label>
+            <input type="text" id="txn_ref" name="txn_ref" placeholder="Enter transaction reference">
+        </div>
+        
+        <div class="form-group">
+            <label for="txn_proof">Upload Payment Screenshot (Max 10MB):</label>
+            <input type="file" id="txn_proof" name="txn_proof" accept="image/*" max="10485760">
+        </div>
+        
+        <button type="submit" disabled id="submitBtn">I have paid</button>
+
+<script>
+const emailInput = document.getElementById('email');
+const txnInput = document.getElementById('txn_ref');
+const fileInput = document.getElementById('txn_proof');
+const submitBtn = document.getElementById('submitBtn');
+
+function checkInputs() {
+    if (txnInput.value.trim() !== '' || fileInput.files.length > 0) {
+        submitBtn.disabled = false;
+    } else {
+        submitBtn.disabled = true;
+    }
+}
+
+txnInput.addEventListener('input', checkInputs);
+fileInput.addEventListener('change', checkInputs);
+</script>    
+</form>
+</body>
+</html>        
+

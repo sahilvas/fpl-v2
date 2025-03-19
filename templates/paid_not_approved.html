@@ -1,0 +1,197 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Paid But Not Approved Devices</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <style>
+        .table td {
+            max-width: 200px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+    </style>
+</head>
+<body class="bg-light" onload="checkLogin()">
+    <!-- Login Form -->
+    <div class="container mt-5" id="loginForm">
+        <div class="row justify-content-center">
+            <div class="col-md-6">
+                <div class="card shadow">
+                    <div class="card-header bg-primary text-white">
+                        <h4 class="mb-0">Admin Login</h4>
+                    </div>
+                    <div class="card-body">
+                        <form onsubmit="return validateLogin(event)">
+                            <div class="mb-3">
+                                <label for="username" class="form-label">Username</label>
+                                <input type="text" class="form-control" id="username" required>
+                            </div>
+                            <div class="mb-3">
+                                <label for="password" class="form-label">Password</label>
+                                <input type="password" class="form-control" id="password" required>
+                            </div>
+                            <button type="submit" class="btn btn-primary">Login</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="container mt-5" id="mainContent" style="display: none;">
+        <div class="row">
+            <div class="col">
+                <div class="card shadow">
+                    <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                        <h4 class="mb-0">Paid But Not Approved Devices</h4>
+                        <button class="btn btn-light" onclick="logout()">Logout</button>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th style="width: 20%">Device ID</th>
+                                        <th style="width: 20%">Email</th>
+                                        <th style="width: 10%">Payment Ref</th>
+                                        <th style="width: 10%">Payment Proof</th>
+                                        <th style="width: 10%">Payment Date</th>
+                                        <th style="width: 10%">Trial End Date</th>
+                                        <th style="width: 5%">Deleted</th>
+                                        <th style="width: 5%">Status</th>
+                                        <th style="width: 10%">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="paymentsTableBody">
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        function checkLogin() {
+            if (!sessionStorage.getItem('isLoggedIn')) {
+                document.getElementById('loginForm').style.display = 'block';
+                document.getElementById('mainContent').style.display = 'none';
+            } else {
+                document.getElementById('loginForm').style.display = 'none';
+                document.getElementById('mainContent').style.display = 'block';
+                displayPayments(JSON.parse('{{ payments|tojson|safe }}'));                              
+            }                             
+        }
+
+        function validateLogin(event) {
+            event.preventDefault();
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            
+            if(username === 'admin' && password === 'admin123') {
+                sessionStorage.setItem('isLoggedIn', 'true');
+                document.getElementById('loginForm').style.display = 'none';
+                document.getElementById('mainContent').style.display = 'block';
+                displayPayments(JSON.parse('{{ payments|tojson|safe }}'));  
+            } else {
+                alert('Invalid credentials');
+            }
+        }
+
+        function logout() {
+            sessionStorage.removeItem('isLoggedIn');
+            document.getElementById('loginForm').style.display = 'block';
+            document.getElementById('mainContent').style.display = 'none';
+            document.getElementById('username').value = '';
+            document.getElementById('password').value = '';
+        }
+
+        function handleAction(action, deviceId) {
+            if(action === 'approve') {
+                if(confirm('Are you sure you want to approve this device?')) {
+                    fetch(`/admin/approve/${deviceId}`, {                        
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        alert('Device approved successfully');
+                        location.reload();
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        alert('Error approving device');
+                    });
+                }
+            } else if(action === 'reject') {
+                if(confirm('Are you sure you want to reject this device?')) {
+                    fetch(`/admin/reject/${deviceId}`, { 
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        alert('Device rejected successfully');
+                        location.reload();
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        alert('Error rejecting device');
+                    });
+                }
+            }
+        }
+
+        function displayPayments(payments) {
+            const tableBody = document.getElementById('paymentsTableBody');
+            tableBody.innerHTML = '';
+            
+            payments.forEach(payment => {
+                console.log(payment);
+                const row = `
+                    <tr>
+                        <td title="${payment[0]}">${payment[0]}</td>
+                        <td title="${payment[1]}">${payment[1]}</td>
+                        <td title="${payment[2]}">${payment[2]}</td>
+                        <td title="${payment[3]}">
+                            ${payment[3] ? `<a href="${payment[3]}" class="btn btn-sm btn-secondary" download>
+                                <i class="bi bi-download"></i> Download
+                            </a>` : ''}
+                        </td>                                               
+                        <td title="${payment[4]}">${payment[4]}</td>
+                        <td title="${payment[7]}">${payment[7]}</td>
+                        <td title="${payment[6]}">${payment[6]}</td>
+                        <td><span class="badge bg-warning">${payment[5]}</span></td>
+                        <td>
+                            <div class="btn-group">
+                                <button class="btn btn-sm btn-success" title="Approve" onclick="handleAction('approve', '${payment[0]}')">
+                                    <i class="bi bi-check-circle"></i>
+                                </button>
+                                <button class="btn btn-sm btn-danger" title="Reject" onclick="handleAction('reject', '${payment[0]}')">
+                                    <i class="bi bi-x-circle"></i>
+                                </button>
+                                <button class="btn btn-sm btn-info" title="View Details">
+                                    <i class="bi bi-eye"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+                tableBody.innerHTML += row;
+            });
+        }
+    </script>
+</body>
+</html>
