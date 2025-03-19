@@ -176,3 +176,5 @@ cython_debug/
 cricbattle*.db
 .DS_Store
 static/uploads/*
+
+# end
