@@ -377,7 +377,8 @@ def main():
     #players_df = read_excel_file("players.xlsx")
     #write code to extract players table from cricbattle.db sqllite database and save as dataframe
     # Connect to SQLite database
-    conn = sqlite3.connect('instance/cricbattle.db')
+    conn = sqlite3.connect('/mnt/sqlite/cricbattle.db')
+    
     # Query players table and save as dataframe
     players_df = pd.read_sql_query("""
         SELECT * FROM players
