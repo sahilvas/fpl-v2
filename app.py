@@ -1,4 +1,5 @@
 from datetime import datetime
+import json
 import os
 import time
 import pandas as pd
@@ -13,6 +14,18 @@ from email.mime.multipart import MIMEMultipart
 from werkzeug.utils import secure_filename
 import plotly.express as px
 from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy import create_engine, Column, Integer, String
+from sqlalchemy.orm import sessionmaker, declarative_base
+import logging  
+from datetime import datetime  
+import update_scores_html as update_scores
+  
+# Configure logging  
+logging.basicConfig(  
+    level=logging.INFO,  
+    format='%(asctime)s - %(levelname)s - %(message)s',  
+    datefmt='%Y-%m-%d %H:%M:%S'  
+) 
 
 # Configuration
 DATA_REFRESH_INTERVAL = 3600  # Refresh every hour
@@ -29,13 +42,15 @@ else:
     # Local development (stores DB in the instance folder)
     DB_PATH = "cricbattle.db"
 
+DATABASE_URL = f"sqlite:///{DB_PATH}"
+
 app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.secret_key = 'your_secret_key'
 
 # Configure SQLite URI correctly
 app.config['DATABASE_PATH'] = DB_PATH
-app.config['SQLALCHEMY_DATABASE_URI'] = f"sqlite:///{DB_PATH}"
+app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URL
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.jinja_env.add_extension('jinja2.ext.do')
 
@@ -56,7 +71,7 @@ class Payment(db.Model):
     approved = db.Column(db.Integer, default=0)
 
 class Player(db.Model):
-    __tablename__ = 'player'
+    __tablename__ = 'players'
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String)
     role = db.Column(db.String)
@@ -66,6 +81,19 @@ class Player(db.Model):
     selling_price = db.Column(db.Float)
     team_name = db.Column(db.String)
     is_sold = db.Column(db.Boolean)
+    points_reduction = db.Column(db.Integer)
+    first_match_id = db.Column(db.Integer)
+    foreign_player = db.Column(db.Boolean)
+
+# Define Match Model
+class Match(db.Model):
+    __tablename__ = "matches"
+    id = Column(Integer, primary_key=True)
+    matchId = Column(Integer)
+    date = Column(String)
+    match_info = Column(String)
+    time = Column(String)
+
 
 # Ensure upload folder exists
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
@@ -97,6 +125,19 @@ def import_player_data():
             is_sold=player[8]
         )
         db.session.merge(player_obj)
+
+    #alter table player add COLUMN foreign_player 
+
+    # Set foreign_player = 0 for uncapped players
+    Player.query.filter_by(category='Uncapped').update({Player.foreign_player: False})
+
+    # Set foreign_player = 1 for specific player IDs
+    foreign_player_ids = [4,6,7,9,10,15,17,20,24,29,31,32,33,35,38,40,41,42,45,47,48,52,55,57,64,69,72,74,75,77,78,79,80,81,82,83,87,88,91,94,95,96,97,98,99,100,101,102,103,104,105,107,108,109,111,112,114,115,116,118,119,120,125,121,126,127,128,130,133,192,191]
+    Player.query.filter(Player.id.in_(foreign_player_ids)).update({Player.foreign_player: True}, synchronize_session=False)
+
+    # Set foreign_player = 0 where it is null
+    Player.query.filter(Player.foreign_player.is_(None)).update({Player.foreign_player: False})
+
     
     db.session.commit()
 
@@ -437,9 +478,9 @@ def show_live_scoring():
     if not is_approved(device_id):
         return redirect(url_for('pay'))
 
+    refresh_scores()
 
-
-    return render_template('live_scoring.html', scores=None)
+    return render_template('FPL-IPL2025-Points.html', scores=None)
 
 @app.route('/fixtures')
 def show_fixtures():
@@ -456,6 +497,157 @@ def show_previous_results():
    
 
     return render_template('FPL-CT2025-Points.html', results=None)
+
+
+
+
+
+
+
+# Function to extract match details from HTML
+def extract_match_details(html_file):
+    with open(html_file, "r", encoding="utf-8") as file:
+        soup = BeautifulSoup(file, "lxml")
+
+    # Further refining the extraction logic based on observed HTML structure
+
+    match_data = []
+
+    # Finding all match entries
+    match_entries = soup.find_all("div", class_="cb-col-75 cb-col")
+
+    for entry in match_entries:
+        # Extract matchId (from the nearest schedule-date class)
+        match_id_div = entry.find_next("div", class_="cb-col-60 cb-col cb-srs-mtchs-tm")
+        match_id_tag = match_id_div.find_next("a", class_="text-hvr-underline")
+        matchId_href = match_id_tag.get("href") if match_id_tag else "Unknown"
+        #extract matchid from /live-cricket-scores/114960/kkr-vs-rcb-1st-match-ipl-2025
+        matchId = matchId_href.split("/")[2] if matchId_href != "Unknown" else 999999
+
+        # Extract date (from the nearest schedule-date class)
+        date_tag = entry.find_previous("div", class_="schedule-date")
+        date = date_tag.text.strip() if date_tag else "Unknown"
+
+        # Extract match details
+        match_info_tag = entry.find("a", class_="text-hvr-underline")
+        match_info = match_info_tag.text.strip() if match_info_tag else "Unknown"
+
+        if match_info == "Unknown":
+            quali_match_info_tag = entry.find("div", class_="cb-col-60 cb-col cb-srs-mtchs-tm")
+            quali_match_info = quali_match_info_tag.find("span")
+            match_info = quali_match_info.text.strip() if quali_match_info else "Unknown"
+
+
+        # Extract time (from schedule-date class within the same entry)
+        time_tag = entry.find_next("div", class_="cb-font-12 text-gray")
+        time = time_tag.text.strip() if time_tag else "Unknown"
+
+        match_data.append({"matchId":matchId, "date": date, "match_info": match_info, "time": time})
+
+    # Convert to JSON
+    match_data_json = json.dumps(match_data, indent=4)
+    
+
+    return match_data_json
+
+# Insert extracted data into SQLite
+def save_to_db(matches):
+    json_matches = json.loads(matches)
+    for match in json_matches:
+        #session.add(Match(date=match["date"], match_info=match["match_info"], time=match["time"]))
+        new_match = Match(matchId=match["matchId"], date=match["date"], match_info=match["match_info"], time=match["time"])
+        db.session.merge(new_match)
+
+
+    db.session.commit()
+
+
+# Flask Route to display matches
+@app.route("/matches")
+@app.route("/matches/refresh")
+def show_matches():
+    refresh = 'refresh' in request.path    
+    if refresh:
+        db.session.query(Match).delete()
+        print("Extracting matches")
+        matches = extract_match_details("static/matches.html")  
+        save_to_db(matches)
+        
+    matches = db.session.query(Match.date, Match.match_info, Match.time).all()    
+    return render_template("matches.html", matches=matches)
+
+
+
+
+  
+# Function to make a POST request and get data    
+def get_data_from_api(url, headers, data):    
+    try:  
+        response = requests.post(url, headers=headers, json=data)    
+        response.raise_for_status()  # Raises an HTTPError for bad responses (4xx and 5xx)  
+        return response.json()   
+    except requests.exceptions.HTTPError as err:  
+        print(f"HTTP error occurred: {err}")  
+    except requests.exceptions.RequestException as err:  
+        print(f"Error occurred: {err}")  
+    return None    
+    
+# Function to save data to Excel    
+def save_to_excel(data, filename):    
+    try:  
+        df = pd.DataFrame(data['Result'])  
+        df.to_excel(filename, index=False)     
+        logging.info(f"Data saved to {filename}") 
+    except Exception as e:  
+        print(f"Error saving data to Excel: {e}")  
+    
+# Example usage    
+def refresh_scores():    
+    # URL and headers extracted from HAR file    
+    url = "https://m.cricbattle.com/PlayerRanking/GetTournamentPlayerRankingSummData"    
+    
+    # Define the headers    
+    headers = {    
+        "accept": "*/*",    
+        "accept-encoding": "gzip, deflate, br, zstd",    
+        "accept-language": "en-GB,en-US;q=0.9,en;q=0.8",    
+        "cache-control": "no-cache",    
+        "content-type": "application/json; charset=UTF-8",    
+        "cookie": "ASP.NET_SessionId=lsbsnq5gnmdyqloqojn5eejt; _ga=GA1.2.833922002.1739971081; _gid=GA1.2.1190173817.1739971081; _gat=1; _gat_cball=1; _ga_QMWJRKE48H=GS1.2.1739971081.1.1.1739972062.0.0.0; _ga_SS5VS26HPP=GS1.2.1739971081.1.1.1739972062.0.0.0",    
+        "origin": "https://m.cricbattle.com",    
+        "pragma": "no-cache",    
+        "referer": "https://m.cricbattle.com/Player-Ranking??LeagueModel=Draft",    
+        "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36",    
+        "x-requested-with": "XMLHttpRequest"    
+    }    
+  
+    payload = {  
+        "tid": 12659,  
+        "ptype": "0",  
+        "roundorday": "",  
+        "phaseid": "0"  
+    }  
+
+    data = get_data_from_api(url, headers, payload)  
+    save_to_excel(data, "player_rankings.xlsx")  
+    update_scores.main()  
+    
+    """ while True:
+    # Check if current time is between 10 AM and 6 PM
+        current_hour = datetime.now().hour
+        if 10 <= current_hour < 24:
+            # Get data from API    
+            data = get_data_from_api(url, headers, payload)    
+            if data:    
+                save_to_excel(data, "player_rankings.xlsx")  
+                update_scores.main()  
+                #update_scores_html.main()
+                #update_scores_html_v2.main()
+            time.sleep(300)
+        else:
+            logging.info("Outside of working hours. Exiting...")
+            break """
+
 
 
 if __name__ == '__main__':
