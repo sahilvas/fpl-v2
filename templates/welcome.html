@@ -1,0 +1,168 @@
+
+    <!DOCTYPE html>
+<html>
+<head>
+    <title>Welcome</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        .modal {
+            display: block;
+            position: fixed;
+            z-index: 1;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.8);
+            font-family: 'Roboto', sans-serif;
+        }
+        
+        .modal-content {
+            background: linear-gradient(135deg, #1a2a6c, #b21f1f);
+            margin: 15% auto;
+            padding: 30px;
+            border: none;
+            border-radius: 15px;
+            width: 90%;
+            max-width: 500px;
+            text-align: center;
+            color: white;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+        
+        #timer {
+            font-size: 3.5em;
+            margin: 30px 0;
+            font-weight: bold;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+            font-family: 'Digital-7', monospace;
+        }
+
+        .close {
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+            color: white;
+            transition: transform 0.3s ease;
+            padding: 10px; /* Added padding for better touch target */
+        }
+
+        .close:hover {
+            transform: scale(1.2);
+        }
+
+        h2 {
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 20px;
+        }
+
+        p {
+            font-size: 1.1em;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        @media screen and (max-width: 480px) {
+            .modal-content {
+                margin: 5% auto; /* Reduced top margin */
+                padding: 20px 15px; /* Adjusted padding */
+                width: 85%;
+            }
+
+            h2 {
+                font-size: 1.3em;
+                margin-top: 15px; /* Added margin top */
+            }
+
+            p {
+                font-size: 0.9em;
+                margin: 10px 0; /* Added margin */
+            }
+
+            #timer {
+                font-size: 2.2em; /* Slightly smaller font */
+                margin: 20px 0;
+            }
+
+            .close {
+                font-size: 24px; /* Slightly smaller close button */
+                padding: 12px; /* Larger touch target */
+            }
+        }
+
+        /* Added styles for very small screens */
+        @media screen and (max-width: 320px) {
+            .modal-content {
+                margin: 2% auto;
+                padding: 15px 10px;
+            }
+
+            h2 {
+                font-size: 1.1em;
+            }
+
+            #timer {
+                font-size: 2em;
+                margin: 15px 0;
+            }
+        }
+
+        /* Added styles for landscape orientation */
+        @media screen and (max-height: 480px) {
+            .modal-content {
+                margin: 5% auto;
+            }
+
+            #timer {
+                margin: 15px 0;
+            }
+        }
+    </style>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div id="welcomeModal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2>Get Ready!</h2>
+            <p>Countdown to Game Time:</p>
+            <div id="timer"></div>
+        </div>
+    </div>
+
+    <script>
+        function updateTimer() {
+            const now = new Date();
+            const tomorrow = new Date();
+            tomorrow.setDate(tomorrow.getDate() + 1);
+            tomorrow.setUTCHours(14, 0, 0, 0);
+            
+            const diff = tomorrow - now;
+            
+            if (diff > 0) {
+                const hours = Math.floor(diff / (1000 * 60 * 60));
+                const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+                const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+                
+                document.getElementById('timer').innerHTML = 
+                    hours.toString().padStart(2, '0') + ':' +
+                    minutes.toString().padStart(2, '0') + ':' +
+                    seconds.toString().padStart(2, '0');
+            } else {
+                document.getElementById('timer').innerHTML = "Game On!";
+            }
+        }
+
+        // Update timer every second
+        setInterval(updateTimer, 1000);
+        updateTimer();
+
+        // Close button functionality
+        document.querySelector('.close').onclick = function() {
+            window.location.href = '/home';
+        }
+    </script>
+</body>
+</html>

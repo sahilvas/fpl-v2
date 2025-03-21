@@ -106,7 +106,23 @@ class Match(db.Model):
 
 # Define player_rankings model
 class PlayerRanking(db.Model):
-    __tablename__ = 'player_ranking_v2'
+    __tablename__ = 'player_ranking_v3'
+    PlayerId = db.Column(db.Integer, primary_key=True)
+    PRank = db.Column(db.Integer)
+    Rank = db.Column(db.Integer)
+    PlayerName = db.Column(db.String)
+    PlayerTypeId = db.Column(db.Integer)
+    PlayerFormId = db.Column(db.Integer)
+    IsOut = db.Column(db.Integer)
+    IsInjured = db.Column(db.Integer)
+    Price = db.Column(db.Float)
+    RealTeamName = db.Column(db.String)
+    TotalScore = db.Column(db.Integer)
+    IsShowTrophy = db.Column(db.Integer)
+
+# Define player_rankings model
+class PlayerRankingPerDay(db.Model):
+    __tablename__ = 'player_ranking_daily'
     PlayerId = db.Column(db.Integer, primary_key=True)
     PRank = db.Column(db.Integer)
     Rank = db.Column(db.Integer)
@@ -251,6 +267,36 @@ def get_cricbattle_data():
     #save_to_excel(data, "player_rankings.xlsx")  
     save_to_database(data)
 
+# method to copy data from playerranking model to playerrankingperday model
+def copy_data_from_player_ranking_to_player_ranking_per_day():
+    with app.app_context():
+        # Get all data from PlayerRanking model
+        players = PlayerRanking.query.all()
+
+        # Iterate over each player
+        for player in players:
+            # Create a new PlayerRankingPerDay object
+            player_ranking_per_day = PlayerRankingPerDay(
+                PlayerId=player.PlayerId,
+                PRank=player.PRank,
+                Rank=player.Rank,
+                PlayerName=player.PlayerName,
+                PlayerTypeId=player.PlayerTypeId,
+                PlayerFormId=player.PlayerFormId,
+                IsOut=player.IsOut,
+                IsInjured=player.IsInjured,
+                Price=player.Price,
+                RealTeamName=player.RealTeamName,
+                TotalScore=player.TotalScore,
+                IsShowTrophy=player.IsShowTrophy
+            )
+
+            # Add the new object to the session
+            db.session.add(player_ranking_per_day)
+
+        # Commit the changes to the database
+        db.session.commit()
+
 # Schedule get_cricbattle_data to run every 5 minutes with app context
 def scheduled_task():
     with app.app_context():
@@ -271,6 +317,7 @@ with app.app_context():
     if not app.config.get("SCHEDULER_STARTED", False):
         app.scheduler = BackgroundScheduler()
         app.scheduler.add_job(func=scheduled_task, trigger="interval", minutes=5)
+        app.scheduler.add_job(func=copy_data_from_player_ranking_to_player_ranking_per_day, trigger="interval", days=1)
         app.scheduler.start()
         
         # Mark scheduler as started
@@ -430,7 +477,12 @@ def admin_review():
     'deleted': payment.deleted
 } for payment in pending_payments])
 
+
 @app.route('/')
+def welcome():
+    return render_template('welcome.html')
+
+@app.route('/home')
 def display_leaderboard():
     device_id = get_device_id()
     print(device_id)
@@ -448,7 +500,8 @@ def display_leaderboard():
         print("Your payment is not found")
         return redirect(url_for('pay'))
     
-    return redirect(url_for('show_insights'))
+    return redirect(url_for('show_insights'))    
+
 
 @app.route('/admin/approve/<device_id>', methods=['POST'])
 def approve_payment(device_id):
