@@ -316,7 +316,7 @@ with app.app_context():
     # Use app.config to store a flag
     if not app.config.get("SCHEDULER_STARTED", False):
         app.scheduler = BackgroundScheduler()
-        app.scheduler.add_job(func=scheduled_task, trigger="interval", minutes=5)
+        app.scheduler.add_job(func=scheduled_task, trigger="cron", minute="*/5", hour="9-21")        
         app.scheduler.add_job(func=copy_data_from_player_ranking_to_player_ranking_per_day, trigger="interval", days=1)
         app.scheduler.start()
         
