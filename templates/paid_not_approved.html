@@ -50,7 +50,10 @@
                 <div class="card shadow">
                     <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
                         <h4 class="mb-0">Paid But Not Approved Devices</h4>
-                        <button class="btn btn-light" onclick="logout()">Logout</button>
+                        <div>
+                            <a href="/admin/players" class="btn btn-light me-2">View Players</a>
+                            <button class="btn btn-light" onclick="logout()">Logout</button>
+                        </div>
                     </div>
                     <div class="card-body">
                         <div class="table-responsive">
@@ -96,7 +99,7 @@
             const username = document.getElementById('username').value;
             const password = document.getElementById('password').value;
             
-            if(username === 'admin' && password === 'admin123') {
+            if(username === 'admin' && password === 'admin13$') {
                 sessionStorage.setItem('isLoggedIn', 'true');
                 document.getElementById('loginForm').style.display = 'none';
                 document.getElementById('mainContent').style.display = 'block';

@@ -299,37 +299,122 @@ def generate_html_report(team_points_df, player_team_points_df, series_stats_df,
     <head>
         <title>FPL IPL 2025 Leaderboard</title>
         <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
-        <style>
-            .chart-container {{ margin: 20px 0; }}
-            .table-container {{ margin: 20px 0; }}
-            .timestamp {{ color: #666; font-style: italic; margin: 20px 0; }}
-            .table {{ width: 100%; border-collapse: collapse; margin-bottom: 1rem; }}
-            .table th {{ 
-                background-color: #f8f9fa;
-                padding: 12px 8px;
-                text-align: left;
-                font-weight: bold;
-                border-bottom: 2px solid #dee2e6;
-            }}
-            .table td {{ 
-                padding: 8px;
-                vertical-align: middle;
-                border-bottom: 1px solid #dee2e6;
-            }}
-            .table tbody tr:hover {{ background-color: rgba(0,0,0,.075); }}
-        </style>
-        <style>
-            /* Background color for the top 3 rows */
-            #team-table tbody tr:nth-child(1) {{ background-color: gold !important; }}  /* First place */
-            #team-table tbody tr:nth-child(2) {{ background-color: silver !important; }}  /* Second place */
-            #team-table tbody tr:nth-child(3) {{ background-color: #cd7f32 !important; }}  /* Third place */
+       <style>
+    .chart-container {{ 
+        margin: 20px 0; 
+    }}
+    .table-container {{ 
+        margin: 20px 0; 
+    }}
+    .timestamp {{ 
+        color: #666; 
+        font-style: italic; 
+        margin: 20px 0; 
+    }}
+    .table {{ 
+        width: 100%; 
+        border-collapse: collapse; 
+        margin-bottom: 1rem; 
+    }}
+    .table th {{ 
+        background-color: #f8f9fa;
+        padding: 12px 8px;
+        text-align: left;
+        font-weight: bold;
+        border-bottom: 2px solid #dee2e6;
+    }}
+    .table td {{ 
+        padding: 8px;
+        vertical-align: middle;
+        border-bottom: 1px solid #dee2e6;
+    }}
+    .table tbody tr:hover {{ 
+        background-color: rgba(0,0,0,.075); 
+    }}
 
-        </style>
+    /* Background color for the top 3 rows */
+    #team-table tbody tr:nth-child(1) {{ 
+        background-color: gold !important; 
+    }}
+    #team-table tbody tr:nth-child(2) {{ 
+        background-color: silver !important; 
+    }}
+    #team-table tbody tr:nth-child(3) {{ 
+        background-color: #cd7f32 !important; 
+    }}
 
+    body {{
+        margin: 0;
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        background-color: #f5f5f5;
+        color: #333;
+        line-height: 1.6;
+        padding: 20px;
+    }}
+
+    .header-menu {{
+        background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+        padding: 10px 0;
+        margin-bottom: 20px;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }}
+
+    .header-menu a {{
+        color: white;
+        text-decoration: none;
+        padding: 10px 20px;
+        font-size: 16px;
+    }}
+
+    .header-menu a:hover {{
+        background-color: #34495e;
+    }}
+
+    .content {{
+        flex: 1;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        width: 100%;
+        overflow: auto;
+        padding: 20px;
+        box-sizing: border-box;
+    }}
+
+    #pdf-container {{
+        width: 100%;
+        height: 100%;
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }}
+
+    nav a {{
+        color: white;
+        text-decoration: none;
+        padding: 5px 10px;
+        border-radius: 4px;
+        transition: background-color 0.3s;
+    }}
+
+    nav a:hover {{
+        background-color: rgba(255,255,255,0.1);
+    }}
+</style>
         <!-- FontAwesome (Include this in your HTML) -->
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     </head>
     <body>
+     <header>
+        <div class="header-menu">
+            <nav style="display: flex; justify-content: center; align-items: center;">
+                <a href="/" style="font-size: 14px; padding: 8px 15px;">Home</a>
+            </nav>
+        </div>
+    </header>  
         <div class="container">
             <h1 class="mt-4 mb-4">FPL IPL 2025 Leaderboard</h1>
             <p class="timestamp">Last updated: {timestamp}</p>
@@ -363,6 +448,23 @@ def edit_dataframe_values(df, search_str, replace_str):
     for column in df.select_dtypes(include=['object']).columns:
         df[column] = df[column].apply(lambda x: replace_str if x == search_str else x)
     return df
+
+# function to check if player has name_array values and use that for replacement
+# for example - if df has player name Jaddu and that exists as name_array value for a player
+# then replace Jaddu with player name found in Player model
+def replace_player_name(df, Player):
+    # first check if any player name value from df not found in player name in Player 
+    # if not found then replace with player name found in Player
+    for index, row in df.iterrows():
+        player_name = row['Player Name']
+        player = Player.query.filter_by(name=player_name).first()
+        if player is None:
+            # check if player name is in name_array of any player
+            player = Player.query.filter(Player.name_array.any(player_name)).first()
+            if player is not None:
+                df.at[index, 'Player Name'] = player.name    
+    return df
+
 
 
 def generate_player_profile_url(player_id):
@@ -420,7 +522,8 @@ def main(Player, PlayerRanking):
         } for pr in PlayerRanking.query.all()])
     
   
-    if players_df is not None and player_rankings_df is not None:
+    print(player_rankings_df.head())
+    if not players_df.empty and not player_rankings_df.empty:        
         try:
             
             # Merge the dataframes
@@ -599,6 +702,8 @@ def main(Player, PlayerRanking):
                 edit_dataframe_values(df, "Rohit Sharma (c)", "Rohit Sharma")
                 edit_dataframe_values(df, "Steven Smith (c)", "Steven Smith")
                 edit_dataframe_values(df, "Heinrich Klaasen (wk)", "Heinrich Klaasen")
+
+                replace_player_name(df, Player)
 
                 merged_df = pd.merge(players_df[['Team Name', 'Player Name', 'first_match_id']], df, left_on="Player Name", right_on=merge_column, how='right')  
             

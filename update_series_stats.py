@@ -101,9 +101,6 @@ def main():
                 if headers and table_data:
                     dataframes[f"{table_keyword}"] = pd.DataFrame(table_data, columns=headers)
                     #dataframes[f"{table_keyword}"] = replace_nan_values(dataframes[f"{table_keyword}"])
-                    edit_dataframe_values(dataframes[f"{table_keyword}"], "Salman Agha", "Agha Salman")
-                    edit_dataframe_values(dataframes[f"{table_keyword}"], "Shaheen Afridi", "Shaheen Shah Afridi")
-                    edit_dataframe_values(dataframes[f"{table_keyword}"], "William ORourke", "William O’Rourke")
                     edit_dataframe_values(dataframes[f"{table_keyword}"], "Varun Chakaravarthy", "Varun Chakravarthy")
                     #edit_dataframe_values(dataframes[f"{table_keyword}"], "Duckett", "Ben Duckett")
                 else:

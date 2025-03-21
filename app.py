@@ -78,7 +78,7 @@ class Payment(db.Model):
     approved = db.Column(db.Integer, default=0)
 
 class Player(db.Model):
-    __tablename__ = 'players'
+    __tablename__ = 'player_v3'
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String)
     role = db.Column(db.String)
@@ -91,6 +91,9 @@ class Player(db.Model):
     points_reduction = db.Column(db.Integer)
     first_match_id = db.Column(db.Integer)
     foreign_player = db.Column(db.Boolean)
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+    name_array = db.Column(db.String)
+    traded = db.Column(db.Boolean)
 
 # Define Match Model
 class Match(db.Model):
@@ -103,7 +106,7 @@ class Match(db.Model):
 
 # Define player_rankings model
 class PlayerRanking(db.Model):
-    __tablename__ = 'player_ranking'
+    __tablename__ = 'player_ranking_v2'
     PlayerId = db.Column(db.Integer, primary_key=True)
     PRank = db.Column(db.Integer)
     Rank = db.Column(db.Integer)
@@ -238,7 +241,7 @@ def get_cricbattle_data():
     }    
   
     payload = {  
-        "tid": 12659,  
+        "tid": 12746,  
         "ptype": "0",  
         "roundorday": "",  
         "phaseid": "0"  
@@ -377,7 +380,7 @@ def login():
         username = request.form.get('username')
         password = request.form.get('password')
         
-        if username == 'admin' and password == 'admin123':
+        if username == 'admin' and password == 'admin13$':
             session['admin'] = True
             flash('Successfully logged in as admin', 'success')
             return redirect(url_for('admin_review'))
@@ -389,7 +392,7 @@ def login():
 @app.route('/admin/review', methods=['GET', 'POST'])
 def admin_review():
     if session.get('admin') != True:
-        return redirect(url_for('/admin/login'))
+        return redirect(url_for('login'))
 
     if request.method == 'POST':
         device_id = request.form.get('device_id')
@@ -705,7 +708,83 @@ def show_matches():
     return render_template("matches.html", matches=matches)
 
 
+@app.route('/admin/players', methods=['GET', 'POST'])
+def admin_players():
+    if session.get('admin') != True:
+        return redirect(url_for('login'))
 
+    if request.method == 'POST':
+        # Handle add/edit player
+        player_id = request.form.get('id')
+        player_data = {
+            'name': request.form.get('name'),
+            'role': request.form.get('role'),
+            'category': request.form.get('category'),
+            'ipl_team': request.form.get('ipl_team'),
+            'base_price': float(request.form.get('base_price')),
+            'selling_price': float(request.form.get('selling_price')),
+            'team_name': request.form.get('team_name'),
+            'is_sold': bool(request.form.get('is_sold')),
+            'points_reduction': int(request.form.get('points_reduction') or 0),
+            'first_match_id': int(request.form.get('first_match_id') or 0),
+            'foreign_player': bool(request.form.get('foreign_player')),
+            'name_array': request.form.getlist('names[]'),
+            'traded': bool(request.form.get('traded'))
+        }
+
+        if player_id:
+            # Edit existing player
+            Player.query.filter_by(id=player_id).update(player_data)
+            flash('Player updated successfully', 'success')
+        else:
+            # Add new player
+            new_player = Player(**player_data)
+            db.session.add(new_player)
+            flash('Player added successfully', 'success')
+
+        db.session.commit()
+        return redirect(url_for('admin_players'))
+
+    # GET request - show all players
+    players = Player.query.all()
+    return render_template('admin_players.html', players=players)
+
+@app.route('/admin/players/delete/<int:id>', methods=['POST'])
+def delete_player(id):
+    if session.get('admin') != True:
+        return {'error': 'Unauthorized'}, 401
+
+    player = Player.query.get_or_404(id)
+    db.session.delete(player)
+    db.session.commit()
+    flash('Player deleted successfully', 'success')
+    return redirect(url_for('admin_players'))
+
+@app.route('/admin/players/edit/<int:id>', methods=['GET', 'POST'])
+def edit_player(id):
+    if session.get('admin') != True:
+        return redirect(url_for('login'))
+
+    player = Player.query.get_or_404(id)    
+    if request.method == 'POST':
+        data = request.get_json()
+        if player:
+            player.name = data.get('name', player.name)
+            player.role = data.get('role', player.role)
+            player.category = data.get('category', player.category)
+            player.ipl_team = data.get('ipl_team', player.ipl_team)
+            player.base_price = data.get('base_price', player.base_price)
+            player.selling_price = data.get('selling_price', player.selling_price)
+            player.team_name = data.get('team_name', player.team_name)
+            player.is_sold = data.get('is_sold', player.is_sold)
+            player.points_reduction = data.get('points_reduction', player.points_reduction)
+            player.first_match_id = data.get('first_match_id', player.first_match_id)
+            player.foreign_player = data.get('foreign_player', player.foreign_player)
+            player.name_array = data.get('name_array', player.name_array)
+            player.traded = data.get('traded', player.traded)
+            db.session.commit()
+            return {'message': 'Player updated successfully'}, 200
+    return render_template('edit_player.html', player=player)
 
   
 

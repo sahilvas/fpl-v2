@@ -1,0 +1,153 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin - Edit Player</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <!-- Add Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Add Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+</head>
+<body class="bg-light">
+    <div class="container py-4">
+        <h1 class="text-center mb-4">Edit Player</h1>
+        
+        <!-- Edit Player Form -->
+        <div class="card shadow-sm mb-4">
+            <div class="card-body">
+                <h2 class="card-title h4 mb-4">Edit Player Details</h2>
+                <form id="editPlayerForm" onsubmit="submitForm(event)">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <div class="form-floating mb-3">
+                                <input type="text" class="form-control" id="name" name="name" value="{{ player.name }}" required>
+                                <label for="name">Player Name</label>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-floating mb-3">
+                                <input type="text" class="form-control" id="role" name="role" value="{{ player.role }}" required>
+                                <label for="role">Role</label>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-floating mb-3">
+                                <input type="text" class="form-control" id="category" name="category" value="{{ player.category }}" required>
+                                <label for="category">Category</label>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-floating mb-3">
+                                <input type="text" class="form-control" id="ipl_team" name="ipl_team" value="{{ player.ipl_team }}" required>
+                                <label for="ipl_team">IPL Team</label>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-floating mb-3">
+                                <input type="number" step="0.01" class="form-control" id="base_price" name="base_price" value="{{ player.base_price }}" required>
+                                <label for="base_price">Base Price</label>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-floating mb-3">
+                                <input type="number" step="0.01" class="form-control" id="selling_price" name="selling_price" value="{{ player.selling_price }}" required>
+                                <label for="selling_price">Selling Price</label>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-floating mb-3">
+                                <input type="text" class="form-control" id="team_name" name="team_name" value="{{ player.team_name }}" required>
+                                <label for="team_name">Team Name</label>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-floating mb-3">
+                                <input type="number" class="form-control" id="points_reduction" name="points_reduction" value="{{ player.points_reduction }}">
+                                <label for="points_reduction">Points Reduction (Optional)</label>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-floating mb-3">
+                                <input type="number" class="form-control" id="first_match_id" name="first_match_id" value="{{ player.first_match_id }}">
+                                <label for="first_match_id">First Match ID (Optional)</label>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <div class="form-check form-switch">
+                                    <input type="checkbox" class="form-check-input" id="is_sold" name="is_sold" {% if player.is_sold %}checked{% endif %}>
+                                    <label class="form-check-label" for="is_sold">Is Sold</label>
+                                </div>
+                                <div class="form-check form-switch">
+                                    <input type="checkbox" class="form-check-input" id="foreign_player" name="foreign_player" {% if player.foreign_player %}checked{% endif %}>
+                                    <label class="form-check-label" for="foreign_player">Foreign Player</label>
+                                </div>
+                                <div class="form-check form-switch">
+                                    <input type="checkbox" class="form-check-input" id="traded" name="traded" {% if player.traded %}checked{% endif %}>
+                                    <label class="form-check-label" for="traded">Traded</label>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- Changed input type from "list" (which is not a valid HTML input type) to "text" -->
+                        <div class="col-md-6">
+                            <div class="form-floating mb-3">
+                                <input type="text" class="form-control" id="name_array" name="name_array" value="{{ player.name_array }}">
+                                <label for="name_array">List of Names (Optional)</label>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary flex-grow-1">Update Player</button>
+                        <a href="{{ url_for('admin_players') }}" class="btn btn-secondary">Cancel</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Bootstrap JS and Popper.js -->
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.6/dist/umd/popper.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.min.js"></script>
+
+    <script>
+        function submitForm(event) {
+            event.preventDefault();
+            
+            const formData = new FormData(document.getElementById('editPlayerForm'));
+            const data = {};
+            formData.forEach((value, key) => {
+                if (key === 'is_sold' || key === 'foreign_player') {
+                    data[key] = document.getElementById(key).checked;
+                } else if (key === 'base_price' || key === 'selling_price' || key === 'points_reduction' || key === 'first_match_id') {
+                    data[key] = value ? Number(value) : null;
+                } else {
+                    data[key] = value;
+                }
+            });
+
+            fetch("{{ url_for('edit_player', id=player.id) }}", {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(data)
+            })
+            .then(response => {
+                if (response.ok) {
+                    window.location.href = "{{ url_for('admin_players') }}";
+                } else {
+                    throw new Error('Failed to update player');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Failed to update player');
+            });
+        }
+    </script>
+</body>
+</html>
