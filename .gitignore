@@ -173,8 +173,24 @@ cython_debug/
 # PyPI configuration file
 .pypirc
 
+# Database files
 cricbattle*.db
+cricket_stats.db
+
+# macOS system files
 .DS_Store
+
+# Uploaded files directory
 static/uploads/*
+
+# Excel files
+~$player_rankings.xlsx
+player_rankings.xlsx
+
+# Note: Make sure there are no spaces at the beginning of lines
+# Note: Make sure the .gitignore file is committed and pushed
+# Note: If files were previously tracked, use: git rm --cached <file>
+# Note: For directories use: git rm -r --cached <directory>
+
 
 # end

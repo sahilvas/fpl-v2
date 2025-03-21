@@ -19,6 +19,11 @@ from sqlalchemy.orm import sessionmaker, declarative_base
 import logging  
 from datetime import datetime  
 import update_scores_html as update_scores
+from apscheduler.schedulers.background import BackgroundScheduler
+import update_series_stats
+import update_scores_from_scoreboard
+
+
   
 # Configure logging  
 logging.basicConfig(  
@@ -38,9 +43,11 @@ ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'pdf'}
 # Check if running on Azure (persistent storage available at `/mnt/sqlite`)
 if os.environ.get("WEBSITE_SITE_NAME"):  # This env var exists only in Azure App Service
     DB_PATH = "/mnt/sqlite/cricbattle.db"
+    debug = False
 else:
     # Local development (stores DB in the instance folder)
     DB_PATH = "cricbattle.db"
+    debug = True
 
 DATABASE_URL = f"sqlite:///{DB_PATH}"
 
@@ -94,6 +101,23 @@ class Match(db.Model):
     match_info = Column(String)
     time = Column(String)
 
+# Define player_rankings model
+class PlayerRanking(db.Model):
+    __tablename__ = 'player_ranking'
+    PlayerId = db.Column(db.Integer, primary_key=True)
+    PRank = db.Column(db.Integer)
+    Rank = db.Column(db.Integer)
+    PlayerName = db.Column(db.String)
+    PlayerTypeId = db.Column(db.Integer)
+    PlayerFormId = db.Column(db.Integer)
+    IsOut = db.Column(db.Integer)
+    IsInjured = db.Column(db.Integer)
+    Price = db.Column(db.Float)
+    RealTeamName = db.Column(db.String)
+    TotalScore = db.Column(db.Integer)
+    IsShowTrophy = db.Column(db.Integer)
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+
 
 # Ensure upload folder exists
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
@@ -141,10 +165,114 @@ def import_player_data():
     
     db.session.commit()
 
+# Function to make a POST request and get data    
+def get_data_from_api(url, headers, data):    
+    try:  
+        response = requests.post(url, headers=headers, json=data)    
+        response.raise_for_status()  # Raises an HTTPError for bad responses (4xx and 5xx)  
+        return response.json()   
+    except requests.exceptions.HTTPError as err:  
+        print(f"HTTP error occurred: {err}")  
+    except requests.exceptions.RequestException as err:  
+        print(f"Error occurred: {err}")  
+    return None    
+    
+# Function to save data to Excel    
+def save_to_excel(data, filename):    
+    try:  
+        df = pd.DataFrame(data['Result'])  
+        df.to_excel(filename, index=False)     
+        logging.info(f"Data saved to {filename}") 
+    except Exception as e:  
+        print(f"Error saving data to Excel: {e}")  
+
+# Function to save data to database in PlayerRanking model
+def save_to_database(data):
+    try:
+        for player_data in data['Result']:
+            player = PlayerRanking(
+                PlayerId=player_data['PlayerId'],
+                PlayerName=player_data['PlayerName'],
+                PlayerTypeId=player_data['PlayerTypeId'],
+                PlayerFormId=player_data['PlayerFormId'],
+                IsOut=player_data['IsOut'],
+                IsInjured=player_data['IsInjured'],
+                Price=player_data['Price'],
+                RealTeamName=player_data['RealTeamName'],
+                TotalScore=player_data['TotalScore'],
+                IsShowTrophy=player_data['IsShowTrophy'],
+                PRank=player_data['PRank'],
+                Rank=player_data['Rank']    
+            )
+            db.session.merge(player)
+        db.session.commit()
+        logging.info("Data saved to database")
+    except Exception as e:
+        print(f"Error saving data to database: {e}")
+    
+
+
+# Add this in the refresh_scores() function:
+def refresh_scores():
+    
+    # Update scores
+    update_scores.main(Player, PlayerRanking)    
+
+def get_cricbattle_data():
+    # URL and headers extracted from HAR file    
+    url = "https://m.cricbattle.com/PlayerRanking/GetTournamentPlayerRankingSummData"    
+    
+    # Define the headers    
+    headers = {    
+        "accept": "*/*",    
+        "accept-encoding": "gzip, deflate, br, zstd",    
+        "accept-language": "en-GB,en-US;q=0.9,en;q=0.8",    
+        "cache-control": "no-cache",    
+        "content-type": "application/json; charset=UTF-8",    
+        "cookie": "ASP.NET_SessionId=lsbsnq5gnmdyqloqojn5eejt; _ga=GA1.2.833922002.1739971081; _gid=GA1.2.1190173817.1739971081; _gat=1; _gat_cball=1; _ga_QMWJRKE48H=GS1.2.1739971081.1.1.1739972062.0.0.0; _ga_SS5VS26HPP=GS1.2.1739971081.1.1.1739972062.0.0.0",    
+        "origin": "https://m.cricbattle.com",    
+        "pragma": "no-cache",    
+        "referer": "https://m.cricbattle.com/Player-Ranking??LeagueModel=Draft",    
+        "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36",    
+        "x-requested-with": "XMLHttpRequest"    
+    }    
+  
+    payload = {  
+        "tid": 12659,  
+        "ptype": "0",  
+        "roundorday": "",  
+        "phaseid": "0"  
+    }  
+
+    data = get_data_from_api(url, headers, payload)  
+    #save_to_excel(data, "player_rankings.xlsx")  
+    save_to_database(data)
+
+# Schedule get_cricbattle_data to run every 5 minutes with app context
+def scheduled_task():
+    with app.app_context():
+        get_cricbattle_data()
+        df_series = update_series_stats.main()
+        df_scoreboard = update_scores_from_scoreboard.main(Match)
+
 # Call import function when app starts
 with app.app_context():
     db.create_all()
     import_player_data()
+    get_cricbattle_data()
+    df_series = update_series_stats.main()
+    df_scoreboard = update_scores_from_scoreboard.main(Match)
+    #update_scores_from_scoreboard.main(Match)
+
+    # Use app.config to store a flag
+    if not app.config.get("SCHEDULER_STARTED", False):
+        app.scheduler = BackgroundScheduler()
+        app.scheduler.add_job(func=scheduled_task, trigger="interval", minutes=5)
+        app.scheduler.start()
+        
+        # Mark scheduler as started
+        app.config["SCHEDULER_STARTED"] = True
+
 
 def get_device_id():
     user_agent = request.headers.get('User-Agent', '')
@@ -580,75 +708,8 @@ def show_matches():
 
 
   
-# Function to make a POST request and get data    
-def get_data_from_api(url, headers, data):    
-    try:  
-        response = requests.post(url, headers=headers, json=data)    
-        response.raise_for_status()  # Raises an HTTPError for bad responses (4xx and 5xx)  
-        return response.json()   
-    except requests.exceptions.HTTPError as err:  
-        print(f"HTTP error occurred: {err}")  
-    except requests.exceptions.RequestException as err:  
-        print(f"Error occurred: {err}")  
-    return None    
-    
-# Function to save data to Excel    
-def save_to_excel(data, filename):    
-    try:  
-        df = pd.DataFrame(data['Result'])  
-        df.to_excel(filename, index=False)     
-        logging.info(f"Data saved to {filename}") 
-    except Exception as e:  
-        print(f"Error saving data to Excel: {e}")  
-    
-# Example usage    
-def refresh_scores():    
-    # URL and headers extracted from HAR file    
-    url = "https://m.cricbattle.com/PlayerRanking/GetTournamentPlayerRankingSummData"    
-    
-    # Define the headers    
-    headers = {    
-        "accept": "*/*",    
-        "accept-encoding": "gzip, deflate, br, zstd",    
-        "accept-language": "en-GB,en-US;q=0.9,en;q=0.8",    
-        "cache-control": "no-cache",    
-        "content-type": "application/json; charset=UTF-8",    
-        "cookie": "ASP.NET_SessionId=lsbsnq5gnmdyqloqojn5eejt; _ga=GA1.2.833922002.1739971081; _gid=GA1.2.1190173817.1739971081; _gat=1; _gat_cball=1; _ga_QMWJRKE48H=GS1.2.1739971081.1.1.1739972062.0.0.0; _ga_SS5VS26HPP=GS1.2.1739971081.1.1.1739972062.0.0.0",    
-        "origin": "https://m.cricbattle.com",    
-        "pragma": "no-cache",    
-        "referer": "https://m.cricbattle.com/Player-Ranking??LeagueModel=Draft",    
-        "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36",    
-        "x-requested-with": "XMLHttpRequest"    
-    }    
-  
-    payload = {  
-        "tid": 12659,  
-        "ptype": "0",  
-        "roundorday": "",  
-        "phaseid": "0"  
-    }  
 
-    data = get_data_from_api(url, headers, payload)  
-    save_to_excel(data, "player_rankings.xlsx")  
-    update_scores.main()  
     
-    """ while True:
-    # Check if current time is between 10 AM and 6 PM
-        current_hour = datetime.now().hour
-        if 10 <= current_hour < 24:
-            # Get data from API    
-            data = get_data_from_api(url, headers, payload)    
-            if data:    
-                save_to_excel(data, "player_rankings.xlsx")  
-                update_scores.main()  
-                #update_scores_html.main()
-                #update_scores_html_v2.main()
-            time.sleep(300)
-        else:
-            logging.info("Outside of working hours. Exiting...")
-            break """
-
-
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=8000, debug=True)
+    app.run(host='0.0.0.0', port=8000, debug=debug)

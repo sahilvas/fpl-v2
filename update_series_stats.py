@@ -1,3 +1,4 @@
+import sqlite3
 import requests
 import pandas as pd
 from bs4 import BeautifulSoup
@@ -7,13 +8,13 @@ import logging
 
 # Define the list of Cricbuzz API URLs
 cricbuzz_urls = [
-    #"https://www.cricbuzz.com/api/html/series/9325/highest-score/0/0/0",
-    "https://www.cricbuzz.com/api/html/series/9325/most-runs/0/0/0",
-    #"https://www.cricbuzz.com/api/html/series/9325/most-hundreds/0/0/0", 
-    #"https://www.cricbuzz.com/api/html/series/9325/most-fifties/0/0/0",
-    #"https://www.cricbuzz.com/api/html/series/9325/most-sixes/0/0/0",
-    "https://www.cricbuzz.com/api/html/series/9325/most-wickets/0/0/0",
-    #"https://www.cricbuzz.com/api/html/series/9325/most-five-wickets/0/0/0"    
+    #"https://www.cricbuzz.com/api/html/series/9237/highest-score/0/0/0",
+    "https://www.cricbuzz.com/api/html/series/9237/most-runs/0/0/0",
+    #"https://www.cricbuzz.com/api/html/series/9237/most-hundreds/0/0/0", 
+    #"https://www.cricbuzz.com/api/html/series/9237/most-fifties/0/0/0",
+    "https://www.cricbuzz.com/api/html/series/9237/most-sixes/0/0/0",
+    "https://www.cricbuzz.com/api/html/series/9237/most-wickets/0/0/0",
+    #"https://www.cricbuzz.com/api/html/series/9237/most-five-wickets/0/0/0"    
 ]
 
 # Configure logging
@@ -74,6 +75,9 @@ def replace_nan_values(df):
 
 
 def main():
+    # Create SQLite connection
+    conn = sqlite3.connect('cricket_stats.db')
+    
     # Process each API URL
     dataframes = {}
     for i, url in enumerate(cricbuzz_urls):
@@ -102,10 +106,28 @@ def main():
                     edit_dataframe_values(dataframes[f"{table_keyword}"], "William ORourke", "William O’Rourke")
                     edit_dataframe_values(dataframes[f"{table_keyword}"], "Varun Chakaravarthy", "Varun Chakravarthy")
                     #edit_dataframe_values(dataframes[f"{table_keyword}"], "Duckett", "Ben Duckett")
+                else:
+                    logging.error(f"No data found in table {table_keyword} of {url}")
+
+            if len(tables) == 0:
+                logging.error(f"No tables found in {url}")
+            
+        else:
+            logging.error(f"Unexpected response format or no data found from {url}")
 
         sleep(1)  # Avoid hitting API rate limits
 
-    return dataframes                    
+     # Store final dataframes in SQLite
+    for key, df in dataframes.items():
+        #drop first column
+        df = df.drop(df.columns[0], axis=1)
+        
+        table_name = f'cricket_{key.lower()}'
+        df.to_sql(table_name, conn, if_exists='replace', index=False)
+        logging.info(f"Stored {key} data in table: {table_name}")
+
+    conn.close()
+    return dataframes                  
                                                  
 
 if __name__ == "__main__":

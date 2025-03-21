@@ -250,7 +250,7 @@ def generate_html_report(team_points_df, player_team_points_df, series_stats_df,
         else:
             logging.error(f"Unknown key {key}")
 
-        df['Team Name'] = df['Team Name'].fillna(value="DANX1")
+        df['Team Name'] = df['Team Name'].fillna(value="LORDX1")
         del df['Player Name']
         cols = df.columns.tolist()
         #print(cols)
@@ -373,26 +373,53 @@ def generate_player_profile_url(player_id):
     return f"{base_url}{player_id}" 
 
 
-def main():
+def main(Player, PlayerRanking):
     #players_df = read_excel_file("players.xlsx")
     #write code to extract players table from cricbattle.db sqllite database and save as dataframe
     # Connect to SQLite database
-    conn = sqlite3.connect('/mnt/sqlite/cricbattle.db')
+    #conn = sqlite3.connect('/mnt/sqlite/cricbattle.db')
     
     # Query players table and save as dataframe
-    players_df = pd.read_sql_query("""
-        SELECT * FROM players
-    """, conn)
+    players_df = pd.DataFrame([{
+        'name': p.name,
+        'team_name': p.team_name, 
+        'role': p.role,
+        'ipl_team': p.ipl_team,
+        'foreign_player': p.foreign_player,
+        'first_match_id': p.first_match_id,
+        'selling_price': p.selling_price,
+        'category': p.category,
+        'points_reduction': p.points_reduction
 
+        } for p in Player.query.all()])
     # Close database connection
-    conn.close()    
+    #conn.close()    
 
     players_df = players_df.rename(columns={'name': 'Player Name'})
     players_df = players_df.rename(columns={'team_name': 'Team Name'})
     players_df = players_df.rename(columns={'role': 'Role'})
     players_df = players_df.rename(columns={'ipl_team': 'IPL Team'})
-    player_rankings_df = read_excel_file("player_rankings.xlsx")
 
+    #player_rankings_df = read_excel_file("player_rankings.xlsx")
+    # create player_rankings_df from PlayerRanking model
+
+    player_rankings_df = pd.DataFrame([{
+        'PlayerId': pr.PlayerId,
+        'PlayerName': pr.PlayerName,
+        'PlayerTypeId': pr.PlayerTypeId,
+        'PlayerFormId': pr.PlayerFormId,
+        'IsOut': pr.IsOut,
+        'IsInjured': pr.IsInjured,
+        'Price': pr.Price,
+        'RealTeamName': pr.RealTeamName,
+        'TotalScore': pr.TotalScore,
+        'IsShowTrophy': pr.IsShowTrophy,
+        'Rank': pr.Rank,
+        'PRank': pr.PRank
+        
+        } for pr in PlayerRanking.query.all()])
+    
+  
     if players_df is not None and player_rankings_df is not None:
         try:
             
@@ -445,7 +472,30 @@ def main():
             print(player_team_points_df.head())    
            
             # Get individual series stats
-            df_series = update_series_stats.main()
+            #df_series = update_series_stats.main()
+
+            # Connect to SQLite database
+            conn = sqlite3.connect('cricket_stats.db')
+
+            # Query data from scoreboard tables
+            df_series = {}
+
+            # Query batting stats
+            df_series["MOST_RUNS"] = pd.read_sql_query("""
+                SELECT * from cricket_most_runs
+            """, conn)
+
+            # Query bowling stats  
+            df_series["MOST_WICKETS"] = pd.read_sql_query("""
+                SELECT * from cricket_most_wickets
+            """, conn)
+
+            # Query bowling stats  
+            df_series["MOST_SIXES"] = pd.read_sql_query("""
+                SELECT * from cricket_most_sixes
+            """, conn)
+
+            conn.close()
 
             # Print first few extracted tables
             for key, df in df_series.items():
@@ -496,6 +546,11 @@ def main():
                 # Get the column name in df based on position (assuming the column to merge on is always in position 0)
                 merge_column = df.columns[0]  # Get the first column in each DataFrame (e.g., 'Batter', 'Player', 'Bowler')
                 #print(merge_column)
+
+                # check if df has no rows
+                if df.empty:
+                    continue
+
 
                 edit_dataframe_values(df, "Kohli", "Virat Kohli")
                 edit_dataframe_values(df, "Mitchell Santner (c)", "Mitchell Santner")
