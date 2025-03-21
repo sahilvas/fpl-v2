@@ -65,13 +65,13 @@
                         </div>
                         <div class="col-md-6">
                             <div class="form-floating mb-3">
-                                <input type="number" class="form-control" id="points_reduction" name="points_reduction" value="{{ player.points_reduction }}">
+                                <input type="number" class="form-control" id="points_reduction" name="points_reduction" value="{{ player.points_reduction if player.points_reduction != None else '' }}">
                                 <label for="points_reduction">Points Reduction (Optional)</label>
                             </div>
                         </div>
                         <div class="col-md-6">
                             <div class="form-floating mb-3">
-                                <input type="number" class="form-control" id="first_match_id" name="first_match_id" value="{{ player.first_match_id }}">
+                                <input type="number" class="form-control" id="first_match_id" name="first_match_id" value="{{ player.first_match_id if player.first_match_id != None else '' }}">
                                 <label for="first_match_id">First Match ID (Optional)</label>
                             </div>
                         </div>
@@ -119,14 +119,22 @@
             
             const formData = new FormData(document.getElementById('editPlayerForm'));
             const data = {};
+
+            // Add all checkbox fields with their boolean values
+            const checkboxFields = ['is_sold', 'foreign_player', 'traded'];
+            checkboxFields.forEach(field => {
+                data[field] = document.getElementById(field).checked;
+            });
+            
             formData.forEach((value, key) => {
-                if (key === 'is_sold' || key === 'foreign_player') {
-                    data[key] = document.getElementById(key).checked;
-                } else if (key === 'base_price' || key === 'selling_price' || key === 'points_reduction' || key === 'first_match_id') {
-                    data[key] = value ? Number(value) : null;
-                } else {
-                    data[key] = value;
+                if (!checkboxFields.includes(key)) {
+                    if (key === 'base_price' || key === 'selling_price' || key === 'points_reduction' || key === 'first_match_id') {
+                        data[key] = value ? Number(value) : null;
+                    } else {
+                        data[key] = value;
+                    }
                 }
+         
             });
 
             fetch("{{ url_for('edit_player', id=player.id) }}", {

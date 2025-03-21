@@ -821,6 +821,7 @@ def edit_player(id):
     player = Player.query.get_or_404(id)    
     if request.method == 'POST':
         data = request.get_json()
+
         if player:
             player.name = data.get('name', player.name)
             player.role = data.get('role', player.role)
@@ -829,12 +830,13 @@ def edit_player(id):
             player.base_price = data.get('base_price', player.base_price)
             player.selling_price = data.get('selling_price', player.selling_price)
             player.team_name = data.get('team_name', player.team_name)
-            player.is_sold = data.get('is_sold', player.is_sold)
-            player.points_reduction = data.get('points_reduction', player.points_reduction)
+            player.is_sold = data.get('is_sold', player.is_sold)  
+            player.points_reduction = data.get('points_reduction', player.points_reduction) 
             player.first_match_id = data.get('first_match_id', player.first_match_id)
-            player.foreign_player = data.get('foreign_player', player.foreign_player)
+            player.foreign_player = data.get('foreign_player', player.foreign_player)  
             player.name_array = data.get('name_array', player.name_array)
-            player.traded = data.get('traded', player.traded)
+            player.traded = data.get('traded', player.traded) 
+            db.session.merge(player)        
             db.session.commit()
             return {'message': 'Player updated successfully'}, 200
     return render_template('edit_player.html', player=player)
