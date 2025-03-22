@@ -61,6 +61,7 @@ app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URL
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.jinja_env.add_extension('jinja2.ext.do')
 app.config['TEMPLATES_AUTO_RELOAD'] = True
+app.jinja_env.auto_reload = True
 
 
 db = SQLAlchemy(app)
@@ -671,6 +672,8 @@ def show_live_scoring():
         return redirect(url_for('pay'))
 
     refresh_scores()
+
+    latest_timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
     return render_template('FPL-IPL2025-Points.html', timestamp=latest_timestamp)
 
