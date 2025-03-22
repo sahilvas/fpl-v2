@@ -231,6 +231,7 @@ def main(Match):
     # Store final dataframes in SQLite
     for key, df in dataframes.items():
         table_name = f'cricket_{key.lower()}'
+        print(df)
         df.to_sql(table_name, conn, if_exists='replace', index=False)
         logging.info(f"Stored {key} data in table: {table_name}")
 

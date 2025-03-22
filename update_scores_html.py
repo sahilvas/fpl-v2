@@ -653,7 +653,7 @@ def main(Player, PlayerRanking):
 
             # Query batting stats
             df_scoreboard["Bat"] = pd.read_sql_query("""
-                SELECT * from cricket_bat
+                SELECT * from cricket_bat where Runs > 50
             """, conn)
 
             # Query bowling stats  
@@ -730,6 +730,10 @@ def main(Player, PlayerRanking):
                 edit_dataframe_values(df, "Rohit Sharma (c)", "Rohit Sharma")
                 edit_dataframe_values(df, "Steven Smith (c)", "Steven Smith")
                 edit_dataframe_values(df, "Heinrich Klaasen (wk)", "Heinrich Klaasen")
+
+                edit_dataframe_values(df, "Philip Salt", "Phil Salt")
+
+                edit_dataframe_values(df, "Ajinkya Rahane (c)", "Ajinkya Rahane")
 
                 #replace_player_name(df, Player)
 

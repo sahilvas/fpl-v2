@@ -103,6 +103,7 @@ def main():
                     #dataframes[f"{table_keyword}"] = replace_nan_values(dataframes[f"{table_keyword}"])
                     edit_dataframe_values(dataframes[f"{table_keyword}"], "Varun Chakaravarthy", "Varun Chakravarthy")
                     #edit_dataframe_values(dataframes[f"{table_keyword}"], "Duckett", "Ben Duckett")
+                    edit_dataframe_values(dataframes[f"{table_keyword}"], "Philip Salt", "Phil Salt")
                 else:
                     logging.error(f"No data found in table {table_keyword} of {url}")
 
