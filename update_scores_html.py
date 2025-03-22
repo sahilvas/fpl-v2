@@ -730,7 +730,7 @@ def main(Player, PlayerRanking):
                 edit_dataframe_values(df, "Steven Smith (c)", "Steven Smith")
                 edit_dataframe_values(df, "Heinrich Klaasen (wk)", "Heinrich Klaasen")
 
-                replace_player_name(df, Player)
+                #replace_player_name(df, Player)
 
                 merged_df = pd.merge(players_df[['Team Name', 'Player Name', 'first_match_id']], df, left_on="Player Name", right_on=merge_column, how='right')  
             
