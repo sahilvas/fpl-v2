@@ -154,21 +154,22 @@ def import_player_data():
     # Close source connection
     src_conn.close()
     
-    # Insert into Player model
-    for player in players:
-        player_obj = Player(
-            id=player[0],
-            name=player[1], 
-            role=player[2],
-            category=player[3],
-            ipl_team=player[4],
-            base_price=player[5],
-            selling_price=player[6],
-            team_name=player[7],
-            is_sold=player[8]
-        )
-        db.session.merge(player_obj)
-
+    # Insert into Player model only if Player table is empty
+    if Player.query.count() == 0:
+        for player in players:
+            player_obj = Player(
+                id=player[0],
+                name=player[1],
+                role=player[2],
+                category=player[3],
+                ipl_team=player[4],
+                base_price=player[5],
+                selling_price=player[6],
+                team_name=player[7],
+                is_sold=player[8]
+            )
+            db.session.add(player_obj)
+      
     #alter table player add COLUMN foreign_player 
 
     # Set foreign_player = 0 for uncapped players
