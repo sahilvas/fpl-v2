@@ -121,6 +121,8 @@ def calculate_best_11(df):
   
         # Ensure at least 1 WK is selected  
         for _, player in players.iterrows():  
+            player_is_overseas = player['foreign_player']  
+            player_ipl_team = player['IPL Team']
             if len(selected) >= 11:  
                 break 
             if player['Role'] in ['Batter', 'Wicket Keeper Batter'] and player['PlayerId'] not in selected_ids and len(selected) < 11:  
@@ -138,13 +140,16 @@ def calculate_best_11(df):
 
   
         # Ensure we have exactly 11 players by filling any gaps with highest scorers  
-        if len(selected) < 11:  
+        while len(selected) < 11:  
             for _, player in players.iterrows():  
+                player_is_overseas = player['foreign_player']  
+                player_ipl_team = player['IPL Team']
                 if len(selected) >= 11:  
                     break 
                 player_id = player['PlayerId']  
                 logging.info(f"Re-Processing player {player['Player Name']}")
-                if player_id in selected_ids or  overseas_counter >= max_overseas or ipl_team_counts.get(player_ipl_team, 0) >= max_ipl_team:
+                if player_id in selected_ids or  (player_is_overseas and overseas_counter >= max_overseas) or ipl_team_counts.get(player_ipl_team, 0) >= max_ipl_team:
+                    logging.info(f"Player ID: {player_id}, Selected IDs: {selected_ids}, Overseas Counter: {overseas_counter}, Max Overseas: {max_overseas}, IPL Team: {player_ipl_team}, IPL Team Count: {ipl_team_counts.get(player_ipl_team, 0)}, Max IPL Team: {max_ipl_team}, Is Overseas: {player_is_overseas}") 
                     logging.info(f"Skipping player {player['Player Name']} due to foreign player or IPL team logic")
                     continue  
                 logging.info(f"Adding player {player['Player Name']} to best 11") 
