@@ -24,13 +24,17 @@ def create_cricbuzz_urls(matches):
         today = pd.Timestamp('today').strftime('%b %d')  
         #tomorrow = (pd.Timestamp.today() + pd.Timedelta(days=1)).strftime('%b %d')                
         logging.info(f"Match date: {match_date} and todays date: {today}")
-        if match_date != today:
-            logging.info(f"Skipping: {match.matchId}")
-            continue
-            
-        else:
+        if match_date == today:
             cricbuzz_urls.append(f"https://www.cricbuzz.com/api/html/cricket-scorecard/{match.matchId}")
             logging.info(f"Fetching: {match.matchId}")
+        
+        elif match_date.split(" ")[0] == today.split(" ")[0] and match_date.split(" ")[1] <= today.split(" ")[1]:
+            cricbuzz_urls.append(f"https://www.cricbuzz.com/api/html/cricket-scorecard/{match.matchId}")
+            logging.info(f"Fetching: {match.matchId}")
+            
+        else:
+            logging.info(f"Skipping: {match.matchId}")
+            continue
             
             
 

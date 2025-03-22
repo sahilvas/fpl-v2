@@ -125,8 +125,9 @@ class PlayerRanking(db.Model):
 
 # Define player_rankings model
 class PlayerRankingPerDay(db.Model):
-    __tablename__ = 'player_ranking_daily'
-    PlayerId = db.Column(db.Integer, primary_key=True)
+    __tablename__ = 'player_ranking_daily_v3'
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)    
+    PlayerId = db.Column(db.Integer)
     PRank = db.Column(db.Integer)
     Rank = db.Column(db.Integer)
     PlayerName = db.Column(db.String)
@@ -175,15 +176,17 @@ def import_player_data():
       
     #alter table player add COLUMN foreign_player 
 
-    # Set foreign_player = 0 for uncapped players
-    Player.query.filter_by(category='Uncapped').update({Player.foreign_player: False})
+        # Set foreign_player = 0 for uncapped players
+        logging.info("Started Setting foreign_player status")
+        Player.query.filter_by(category='Uncapped').update({Player.foreign_player: False})
 
-    # Set foreign_player = 1 for specific player IDs
-    foreign_player_ids = [4,6,7,9,10,15,17,20,24,29,31,32,33,35,38,40,41,42,45,47,48,52,55,57,64,69,72,74,75,77,78,79,80,81,82,83,87,88,91,94,95,96,97,98,99,100,101,102,103,104,105,107,108,109,111,112,114,115,116,118,119,120,125,121,126,127,128,130,133,192,191]
-    Player.query.filter(Player.id.in_(foreign_player_ids)).update({Player.foreign_player: True}, synchronize_session=False)
+        # Set foreign_player = 1 for specific player IDs
+        foreign_player_ids = [4,6,7,9,10,15,17,20,24,29,31,32,33,35,38,40,41,42,45,47,48,52,55,57,64,69,72,74,75,77,78,79,80,81,82,83,87,88,91,94,95,96,97,98,99,100,101,102,103,104,105,107,108,109,111,112,114,115,116,118,119,120,125,121,126,127,128,130,133,192,191]
+        Player.query.filter(Player.id.in_(foreign_player_ids)).update({Player.foreign_player: True}, synchronize_session=False)
 
-    # Set foreign_player = 0 where it is null
-    Player.query.filter(Player.foreign_player.is_(None)).update({Player.foreign_player: False})
+        # Set foreign_player = 0 where it is null
+        Player.query.filter(Player.foreign_player.is_(None)).update({Player.foreign_player: False})
+        logging.info("Finished Setting foreign_player status")
 
     
     db.session.commit()
@@ -228,6 +231,7 @@ def save_to_database(data):
                 Rank=player_data['Rank']    
             )
             db.session.merge(player)
+
         db.session.commit()
         logging.info("Data saved to database")
     except Exception as e:
@@ -402,11 +406,12 @@ def copy_data_from_player_ranking_to_player_ranking_per_day():
                 Price=player.Price,
                 RealTeamName=player.RealTeamName,
                 TotalScore=player.TotalScore,
-                IsShowTrophy=player.IsShowTrophy
+                IsShowTrophy=player.IsShowTrophy,
+                #timestamp=datetime.now() # Add timestamp when creating record
             )
 
             # Add the new object to the session
-            db.session.merge(player_ranking_per_day)
+            db.session.add(player_ranking_per_day)
 
         # Commit the changes to the database
         db.session.commit()
@@ -442,7 +447,7 @@ with app.app_context():
         # Initialize scheduler only if not already started
         if not app.config.get("SCHEDULER_STARTED", False):
             app.scheduler = BackgroundScheduler()
-            app.scheduler.add_job(func=scheduled_task, trigger="cron", minute="*/2", hour="9-23")        
+            app.scheduler.add_job(func=scheduled_task, trigger="cron", minute="*/2", hour="0-23")        
             app.scheduler.add_job(func=copy_data_from_player_ranking_to_player_ranking_per_day, trigger="cron", hour=20)        
             app.scheduler.start()
             app.config["SCHEDULER_STARTED"] = True
@@ -872,6 +877,9 @@ def save_to_db(matches):
     for match in json_matches:
         #session.add(Match(date=match["date"], match_info=match["match_info"], time=match["time"]))
         new_match = Match(matchId=match["matchId"], date=match["date"], match_info=match["match_info"], time=match["time"])
+        if not match["date"] and match["match_info"] in "Chennai Super Kings vs Mumbai Indians, 3rd Match":
+            match["date"] = "Mar 23, Sun"
+            new_match = Match(matchId=match["matchId"], date=match["date"], match_info=match["match_info"], time=match["time"])
         db.session.merge(new_match)
 
 
