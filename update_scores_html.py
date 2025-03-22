@@ -247,8 +247,16 @@ def generate_html_report(team_points_df, player_team_points_df, series_stats_df,
             key = "Best Batter"
         elif key == "MOST_WICKETS":
             key = "Best Bowler"
+        elif key == "MOST_SIXES":
+            key = "Most Sixes"
         else:
             logging.error(f"Unknown key {key}")
+
+        print(df)
+
+        if df.empty:
+            logging.error(f"Empty DataFrame for {key}")
+            continue
 
         df['Team Name'] = df['Team Name'].fillna(value="LORDX1")
         del df['Player Name']
@@ -455,14 +463,16 @@ def edit_dataframe_values(df, search_str, replace_str):
 def replace_player_name(df, Player):
     # first check if any player name value from df not found in player name in Player 
     # if not found then replace with player name found in Player
+    print(df)
     for index, row in df.iterrows():
-        player_name = row['Player Name']
+        print(row)
+        player_name = row['Player']
         player = Player.query.filter_by(name=player_name).first()
         if player is None:
             # check if player name is in name_array of any player
             player = Player.query.filter(Player.name_array.any(player_name)).first()
             if player is not None:
-                df.at[index, 'Player Name'] = player.name    
+                df.at[index, 'Player'] = player.name    
     return df
 
 
@@ -584,20 +594,28 @@ def main(Player, PlayerRanking):
             df_series = {}
 
             # Query batting stats
-            df_series["MOST_RUNS"] = pd.read_sql_query("""
-                SELECT * from cricket_most_runs
-            """, conn)
+            try:
+                df_series["MOST_RUNS"] = pd.read_sql_query("""
+                    SELECT * from cricket_most_runs
+                """, conn)
+            except:
+                df_series["MOST_RUNS"] = pd.DataFrame()
 
             # Query bowling stats  
-            df_series["MOST_WICKETS"] = pd.read_sql_query("""
-                SELECT * from cricket_most_wickets
-            """, conn)
+            try:
+                df_series["MOST_WICKETS"] = pd.read_sql_query("""
+                    SELECT * from cricket_most_wickets
+                """, conn)
+            except:
+                df_series["MOST_WICKETS"] = pd.DataFrame()
 
             # Query bowling stats  
-            df_series["MOST_SIXES"] = pd.read_sql_query("""
-                SELECT * from cricket_most_sixes
-            """, conn)
-
+            try:
+                df_series["MOST_SIXES"] = pd.read_sql_query("""
+                    SELECT * from cricket_most_sixes
+                """, conn)
+            except:
+                df_series["MOST_SIXES"] = pd.DataFrame()
             conn.close()
 
             # Print first few extracted tables
@@ -607,7 +625,14 @@ def main(Player, PlayerRanking):
 
                 # Merge the dataframes
                 # Get the column name in df based on position (assuming the column to merge on is always in position 0)
-                merge_column = df.columns[1]  # Get the first column in each DataFrame (e.g., 'Batter', 'Player', 'Bowler')
+                print(df)
+
+                # break if df is empty
+                if df.empty:
+                    break
+
+
+                merge_column = df.columns[1] if len(df.columns) > 0 else None                
                 #print(merge_column)
                 
                 merged_df = pd.merge(players_df[['Team Name', 'Player Name']], df, left_on="Player Name", right_on=merge_column, how='right')  
@@ -708,12 +733,17 @@ def main(Player, PlayerRanking):
                 merged_df = pd.merge(players_df[['Team Name', 'Player Name', 'first_match_id']], df, left_on="Player Name", right_on=merge_column, how='right')  
             
                 # Filter out players who joined after the match
-                merged_df = merged_df[~((pd.notna(merged_df['first_match_id'])) & (merged_df['first_match_id'].astype(float) > merged_df['matchId'].astype(float)))]   
+                print(merged_df)
 
-                del merged_df['first_match_id']
-                del merged_df["matchId"]
+                #check if mattchId col exists in merged_df
+                if 'matchId' in merged_df.columns:
 
-                logging.info(f"Removed entries for replaced players for {key}")         
+                    merged_df = merged_df[~((pd.notna(merged_df['first_match_id'])) & (merged_df['first_match_id'].astype(float) > merged_df['matchId'].astype(float)))]   
+
+                    del merged_df['first_match_id']
+                    del merged_df["matchId"]
+
+                    logging.info(f"Removed entries for replaced players for {key}")         
                 
                 if "Field" in key:
                     #print(merged_df)
