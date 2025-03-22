@@ -11,6 +11,8 @@ import shutil
 import os  
 import update_series_stats
 import sqlite3
+from datetime import datetime
+import pytz
 
 
 # Configure logging
@@ -299,8 +301,10 @@ def generate_html_report(team_points_df, player_team_points_df, series_stats_df,
             </div>
         """
     
-    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    
+   
+
+    timestamp = datetime.now(pytz.timezone('Europe/Paris')).strftime("%Y-%m-%d %H:%M:%S %Z")     
+
     html_content = f"""
     <!DOCTYPE html>
     <html>
@@ -734,6 +738,8 @@ def main(Player, PlayerRanking):
                 edit_dataframe_values(df, "Philip Salt", "Phil Salt")
 
                 edit_dataframe_values(df, "Ajinkya Rahane (c)", "Ajinkya Rahane")
+
+                edit_dataframe_values(df, "Rasikh Dar Salam", "Rasikh Salam")
 
                 #replace_player_name(df, Player)
 
