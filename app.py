@@ -310,7 +310,7 @@ def copy_data_from_player_ranking_to_player_ranking_per_day():
 def scheduled_task():
     with app.app_context():
         get_cricbattle_data()
-        df_series = update_series_stats.main()
+        df_series = update_series_stats.main(Player)
         df_scoreboard = update_scores_from_scoreboard.main(Match)
 
 # Call import function when app starts
@@ -318,7 +318,7 @@ with app.app_context():
     db.create_all()
     import_player_data()
     get_cricbattle_data()
-    df_series = update_series_stats.main()
+    df_series = update_series_stats.main(Player)
     df_scoreboard = update_scores_from_scoreboard.main(Match)
     #update_scores_from_scoreboard.main(Match)
 

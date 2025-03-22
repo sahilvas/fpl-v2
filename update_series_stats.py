@@ -6,6 +6,8 @@ from time import sleep
 import re
 import logging
 
+import update_scores_html
+
 # Define the list of Cricbuzz API URLs
 cricbuzz_urls = [
     #"https://www.cricbuzz.com/api/html/series/9237/highest-score/0/0/0",
@@ -74,7 +76,7 @@ def replace_nan_values(df):
     return df
 
 
-def main():
+def main(Player):
     # Create SQLite connection
     conn = sqlite3.connect('cricket_stats.db')
     
@@ -104,6 +106,7 @@ def main():
                     edit_dataframe_values(dataframes[f"{table_keyword}"], "Varun Chakaravarthy", "Varun Chakravarthy")
                     #edit_dataframe_values(dataframes[f"{table_keyword}"], "Duckett", "Ben Duckett")
                     edit_dataframe_values(dataframes[f"{table_keyword}"], "Philip Salt", "Phil Salt")
+                    #update_scores_html.replace_player_name(dataframes[f"{table_keyword}"], Player)
                 else:
                     logging.error(f"No data found in table {table_keyword} of {url}")
 

@@ -9,7 +9,6 @@ from openpyxl.styles import PatternFill, Font
 from openpyxl.utils import get_column_letter  
 import shutil  
 import os  
-import update_series_stats
 import sqlite3
 from datetime import datetime
 import pytz
@@ -465,20 +464,31 @@ def edit_dataframe_values(df, search_str, replace_str):
 # for example - if df has player name Jaddu and that exists as name_array value for a player
 # then replace Jaddu with player name found in Player model
 def replace_player_name(df, Player):
-    # first check if any player name value from df not found in player name in Player 
     # if not found then replace with player name found in Player
     print(df)
+    # first find all player rows where name_array is not null not none not blank
+    players_with_aliases = Player.query.filter(
+        Player.name_array.isnot(None)
+    ).all()            
+
     for index, row in df.iterrows():
         print(row)
-        player_name = row['Player']
+        print("replace_player_name using", row[0])
+        player_name = row[0]
         player = Player.query.filter_by(name=player_name).first()
         if player is None:
             # check if player name is in name_array of any player
+            # first find all player rows where name_array is not null not none not blank
+            # check if player name is in name_array of any player
 
-            #player = Player.query.filter(Player.name_array.any(player_name)).first()    
-            player = Player.query.filter_by(name=player_name).first()                    
+            for player in players_with_aliases:
+                if player_name in player.name_array:
+                    df.at[index, 'Player'] = player.name
+                    print("Player name replaced from %s to %s", player_name, player.name)
+                    break                                
             if player is not None:
                 df.at[index, 'Player'] = player.name    
+                print("Player name replaced from %s to %s", player_name, player.name)
     return df
 
 
@@ -735,13 +745,13 @@ def main(Player, PlayerRanking):
                 edit_dataframe_values(df, "Steven Smith (c)", "Steven Smith")
                 edit_dataframe_values(df, "Heinrich Klaasen (wk)", "Heinrich Klaasen")
 
-                edit_dataframe_values(df, "Philip Salt", "Phil Salt")
+                #edit_dataframe_values(df, "Philip Salt", "Phil Salt")
 
                 edit_dataframe_values(df, "Ajinkya Rahane (c)", "Ajinkya Rahane")
 
                 edit_dataframe_values(df, "Rasikh Dar Salam", "Rasikh Salam")
 
-                #replace_player_name(df, Player)
+                replace_player_name(df, Player)
 
                 merged_df = pd.merge(players_df[['Team Name', 'Player Name', 'first_match_id']], df, left_on="Player Name", right_on=merge_column, how='right')  
             
