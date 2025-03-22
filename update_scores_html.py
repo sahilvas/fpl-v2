@@ -633,9 +633,10 @@ def main(Player, PlayerRanking):
                 if df.empty:
                     break
 
+                
+                merge_column = df.columns[0] if len(df.columns) > 0 else None    
+                print("merge_column :", merge_column)            
 
-                merge_column = df.columns[1] if len(df.columns) > 0 else None                
-                #print(merge_column)
                 
                 merged_df = pd.merge(players_df[['Team Name', 'Player Name']], df, left_on="Player Name", right_on=merge_column, how='right')  
                 #print(merged_df.head())
