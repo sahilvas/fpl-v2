@@ -483,7 +483,7 @@ def generate_player_profile_url(player_id):
     """
     Generates a player profile URL using a fixed base URL and player ID
     """
-    base_url = "https://m.cricbattle.com/Player-Profile?TournamentId=12659&PlayerId="
+    base_url = "https://m.cricbattle.com/Player-Profile?TournamentId=12746&PlayerId="
     return f"{base_url}{player_id}" 
 
 
