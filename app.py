@@ -418,6 +418,7 @@ def copy_data_from_player_ranking_to_player_ranking_per_day():
 def scheduled_task():
     with app.app_context():
         get_cricbattle_data()
+        refresh_scores()
         df_series = update_series_stats.main(Player)
         df_scoreboard = update_scores_from_scoreboard.main(Match)
 
@@ -426,6 +427,7 @@ with app.app_context():
     db.create_all()
     import_player_data()
     get_cricbattle_data()
+    #refresh_scores()
     df_series = update_series_stats.main(Player)
     df_scoreboard = update_scores_from_scoreboard.main(Match)
     #update_scores_from_scoreboard.main(Match)
@@ -435,7 +437,7 @@ with app.app_context():
     # Use app.config to store a flag
     if not app.config.get("SCHEDULER_STARTED", False):
         app.scheduler = BackgroundScheduler()
-        app.scheduler.add_job(func=scheduled_task, trigger="cron", minute="*/5", hour="9-21")        
+        app.scheduler.add_job(func=scheduled_task, trigger="cron", minute="*/2", hour="9-21")        
         app.scheduler.add_job(func=copy_data_from_player_ranking_to_player_ranking_per_day, trigger="cron", hour=20)        
         app.scheduler.start()
         
@@ -781,7 +783,7 @@ def show_live_scoring():
     if not is_approved(device_id):
         return redirect(url_for('pay'))
 
-    refresh_scores()
+    #refresh_scores()
 
     latest_timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
