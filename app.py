@@ -6,7 +6,7 @@ import pandas as pd
 import sqlite3
 import requests
 from bs4 import BeautifulSoup
-from flask import Flask, render_template, request, session, redirect, url_for, flash
+from flask import Flask, render_template, request, session, redirect, url_for, flash, make_response
 import hashlib
 import smtplib
 from email.mime.text import MIMEText
@@ -664,7 +664,12 @@ def show_live_scoring():
 
     refresh_scores()
 
-    return render_template('FPL-IPL2025-Points.html', scores=None)
+    response = make_response(render_template('FPL-IPL2025-Points.html', scores=None))
+    response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+    response.headers['Pragma'] = 'no-cache'
+    response.headers['Expires'] = '0'
+    return response
+
 
 @app.route('/fixtures')
 def show_fixtures():

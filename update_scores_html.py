@@ -470,7 +470,9 @@ def replace_player_name(df, Player):
         player = Player.query.filter_by(name=player_name).first()
         if player is None:
             # check if player name is in name_array of any player
-            player = Player.query.filter(Player.name_array.any(player_name)).first()
+
+            #player = Player.query.filter(Player.name_array.any(player_name)).first()    
+            player = Player.query.filter_by(name=player_name).first()                    
             if player is not None:
                 df.at[index, 'Player'] = player.name    
     return df
