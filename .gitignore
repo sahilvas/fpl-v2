@@ -187,6 +187,7 @@ static/uploads/*
 ~$player_rankings.xlsx
 player_rankings.xlsx
 templates/FPL-IPL2025-Points.html
+*.lock
 
 # Note: Make sure there are no spaces at the beginning of lines
 # Note: Make sure the .gitignore file is committed and pushed

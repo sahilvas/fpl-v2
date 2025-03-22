@@ -479,6 +479,46 @@ def generate_html_report(team_points_df, player_team_points_df, series_stats_df,
         gap: 20px;
         margin-bottom: 30px;
     }}
+
+    .refresh-button {{
+        background: #2a5298;
+        color: white;
+        border: none;
+        padding: 10px 20px;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        margin-left: auto;
+        z-index: 999;
+        position: relative;
+        opacity: 1;
+        visibility: visible;
+    }}
+
+    .refresh-button:hover {{
+        background: #1e3c72;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+    }}
+
+    .refresh-button i {{
+        transition: transform 0.5s ease;
+    }}
+
+    .refresh-button:hover i {{
+        transform: rotate(180deg);
+    }}
+
+    .header-content {{
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 20px;
+    }}
 </style>
         <!-- FontAwesome (Include this in your HTML) -->
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
@@ -492,7 +532,13 @@ def generate_html_report(team_points_df, player_team_points_df, series_stats_df,
         </div>
     </header>  
         <div class="container">
-            <h1 class="mt-4 mb-4">FPL IPL 2025 Leaderboard</h1>
+            <div class="header-content">
+                <h1 class="mt-4 mb-4">FPL IPL 2025 Leaderboard</h1>
+                <button class="refresh-button" onclick="window.location.reload()">
+                    <i class="fas fa-sync-alt"></i>
+                    Refresh
+                </button>
+            </div>
             <p class="timestamp"> {timestamp} </p>
 
             <div class="highlights-container">

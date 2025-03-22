@@ -417,32 +417,40 @@ def copy_data_from_player_ranking_to_player_ranking_per_day():
 # Schedule get_cricbattle_data to run every 5 minutes with app context
 def scheduled_task():
     with app.app_context():
+        logging.info("Running scheduled task")
         get_cricbattle_data()
         refresh_scores()
         df_series = update_series_stats.main(Player)
         df_scoreboard = update_scores_from_scoreboard.main(Match)
 
-# Call import function when app starts
-with app.app_context():
-    db.create_all()
-    import_player_data()
-    get_cricbattle_data()
-    #refresh_scores()
-    df_series = update_series_stats.main(Player)
-    df_scoreboard = update_scores_from_scoreboard.main(Match)
-    #update_scores_from_scoreboard.main(Match)
-    copy_data_from_player_ranking_to_player_ranking_per_day()
-    player_of_the_day()
+INIT_FILE = "app_initialized.lock"
 
-    # Use app.config to store a flag
-    if not app.config.get("SCHEDULER_STARTED", False):
-        app.scheduler = BackgroundScheduler()
-        app.scheduler.add_job(func=scheduled_task, trigger="cron", minute="*/2", hour="9-21")        
-        app.scheduler.add_job(func=copy_data_from_player_ranking_to_player_ranking_per_day, trigger="cron", hour=20)        
-        app.scheduler.start()
-        
-        # Mark scheduler as started
-        app.config["SCHEDULER_STARTED"] = True
+# The code is likely being called multiple times due to Flask's development server behavior
+# Add a check to prevent multiple initializations
+with app.app_context():
+    # Only run initialization if not already done
+    if not os.path.exists(INIT_FILE):
+        logging.info("Starting app initialization")
+        db.create_all()
+        import_player_data()
+        get_cricbattle_data()
+        df_series = update_series_stats.main(Player)
+        df_scoreboard = update_scores_from_scoreboard.main(Match)
+        copy_data_from_player_ranking_to_player_ranking_per_day()
+        player_of_the_day()
+
+        # Initialize scheduler only if not already started
+        if not app.config.get("SCHEDULER_STARTED", False):
+            app.scheduler = BackgroundScheduler()
+            app.scheduler.add_job(func=scheduled_task, trigger="cron", minute="*/2", hour="9-23")        
+            app.scheduler.add_job(func=copy_data_from_player_ranking_to_player_ranking_per_day, trigger="cron", hour=20)        
+            app.scheduler.start()
+            app.config["SCHEDULER_STARTED"] = True
+
+        # Mark initialization as complete
+        with open(INIT_FILE, "w") as f:
+            f.write("initialized")
+        logging.info("App initialization complete")
 
 
 def get_device_id():
