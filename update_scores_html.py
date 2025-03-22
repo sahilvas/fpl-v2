@@ -425,7 +425,7 @@ def generate_html_report(team_points_df, player_team_points_df, series_stats_df,
     </header>  
         <div class="container">
             <h1 class="mt-4 mb-4">FPL IPL 2025 Leaderboard</h1>
-            <p class="timestamp">Last updated: {timestamp}</p>
+            <p class="timestamp"> {timestamp} </p>
             
             <h2>Points Table</h2>
             

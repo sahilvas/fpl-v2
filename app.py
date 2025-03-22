@@ -268,6 +268,11 @@ def get_cricbattle_data():
 
     data = get_data_from_api(url, headers, payload)  
     #save_to_excel(data, "player_rankings.xlsx")  
+
+    # set global variable with latest timestamp
+    global latest_timestamp
+
+    latest_timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     save_to_database(data)
 
 # method to copy data from playerranking model to playerrankingperday model
@@ -667,11 +672,7 @@ def show_live_scoring():
 
     refresh_scores()
 
-    response = make_response(render_template('FPL-IPL2025-Points.html', scores=None))
-    response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
-    response.headers['Pragma'] = 'no-cache'
-    response.headers['Expires'] = '0'
-    return response
+    return render_template('FPL-IPL2025-Points.html', timestamp=latest_timestamp)
 
 
 @app.route('/fixtures')
