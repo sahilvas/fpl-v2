@@ -233,13 +233,117 @@ def save_to_database(data):
     except Exception as e:
         print(f"Error saving data to database: {e}")
     
+def player_of_the_day():
+
+    logging.info("Getting player of the day")
+
+    # get today's date and yesterday's date 
+    today = datetime.now().date()
+    yesterday = today - pd.Timedelta(days=1)
+
+    # get player of the day for today and yesterday
+    today_player = PlayerRankingPerDay.query.filter(
+        db.func.date(PlayerRankingPerDay.timestamp) == today,        
+        PlayerRankingPerDay.TotalScore > 0  # Only consider players with positive score
+    ).order_by(PlayerRankingPerDay.TotalScore.desc()).first()
+
+    yesterday_player = PlayerRankingPerDay.query.filter(
+        db.func.date(PlayerRankingPerDay.timestamp) == yesterday,  
+        PlayerRankingPerDay.TotalScore > 0  # Only consider players with positive score
+    ).order_by(PlayerRankingPerDay.TotalScore.desc()).first()
+
+    # get corresponding Player records
+    today_player_details = None
+    yesterday_player_details = None
+
+    print(today_player, yesterday_player)
+
+    if today_player and today_player.TotalScore > 0:
+        today_player_details = Player.query.filter_by(name=today_player.PlayerName).first()
+    
+    if yesterday_player and yesterday_player.TotalScore > 0:
+        yesterday_player_details = Player.query.filter_by(name=yesterday_player.PlayerName).first()
+
+    print(today_player_details, yesterday_player_details)
+
+    team_of_the_day()
+
+    return {
+    'today': {
+        'name': today_player_details.name if today_player_details else None,
+        'team': today_player_details.team_name if today_player_details else None,
+        'points': today_player.TotalScore if today_player else 0
+    },
+    'yesterday': {
+        'name': yesterday_player_details.name if yesterday_player_details else None, 
+        'team': yesterday_player_details.team_name if yesterday_player_details else None,
+        'points': yesterday_player.TotalScore if yesterday_player else 0
+    }
+}
+
+
+def team_of_the_day():
+    logging.info("Getting team of the day")
+
+    # get today's date and yesterday's date
+    today = datetime.now().date()
+    yesterday = today - pd.Timedelta(days=1)
+
+    # get all players for today and yesterday
+    today_players = PlayerRankingPerDay.query.filter(
+        db.func.date(PlayerRankingPerDay.timestamp) == today,
+        PlayerRankingPerDay.TotalScore > 0  # Only consider players with positive score
+    ).all()
+
+    yesterday_players = PlayerRankingPerDay.query.filter(
+        db.func.date(PlayerRankingPerDay.timestamp) == yesterday,
+        PlayerRankingPerDay.TotalScore > 0  # Only consider players with positive score
+    ).all()
+
+    # calculate team scores for today
+    today_team_scores = {}
+    for player in today_players:
+        player_details = Player.query.filter_by(name=player.PlayerName).first()
+        if player_details and player_details.team_name:
+            if player_details.team_name not in today_team_scores:
+                today_team_scores[player_details.team_name] = 0
+            today_team_scores[player_details.team_name] += player.TotalScore
+
+    # calculate team scores for yesterday
+    yesterday_team_scores = {}
+    for player in yesterday_players:
+        player_details = Player.query.filter_by(name=player.PlayerName).first()
+        if player_details and player_details.team_name:
+            if player_details.team_name not in yesterday_team_scores:
+                yesterday_team_scores[player_details.team_name] = 0
+            yesterday_team_scores[player_details.team_name] += player.TotalScore
+
+    # find team with highest score for today and yesterday
+    today_best_team = max(today_team_scores.items(), key=lambda x: x[1]) if today_team_scores else (None, 0)
+    yesterday_best_team = max(yesterday_team_scores.items(), key=lambda x: x[1]) if yesterday_team_scores else (None, 0)
+
+    print(today_team_scores, yesterday_team_scores)
+
+    print(today_best_team, yesterday_best_team)
+
+    return {
+        'today': {'team': today_best_team[0], 'score': today_best_team[1]},
+        'yesterday': {'team': yesterday_best_team[0], 'score': yesterday_best_team[1]}
+    }
 
 
 # Add this in the refresh_scores() function:
 def refresh_scores():
-    
+
+    # call player of the day and team of the day methods in app.py
+    # The variables are unbound because the function names are the same as the variable names
+    # To fix this, rename the variables to be different from the function names:
+
+    pod = player_of_the_day()
+    totd = team_of_the_day()   
+
     # Update scores
-    update_scores.main(Player, PlayerRanking)    
+    update_scores.main(Player, PlayerRanking, pod, totd)    
 
 def get_cricbattle_data():
     # URL and headers extracted from HAR file    
@@ -278,6 +382,7 @@ def get_cricbattle_data():
 
 # method to copy data from playerranking model to playerrankingperday model
 def copy_data_from_player_ranking_to_player_ranking_per_day():
+    logging.info("Copying data from player_ranking to player_ranking_per_day")
     with app.app_context():
         # Get all data from PlayerRanking model
         players = PlayerRanking.query.all()
@@ -301,10 +406,13 @@ def copy_data_from_player_ranking_to_player_ranking_per_day():
             )
 
             # Add the new object to the session
-            db.session.add(player_ranking_per_day)
+            db.session.merge(player_ranking_per_day)
 
         # Commit the changes to the database
         db.session.commit()
+
+
+
 
 # Schedule get_cricbattle_data to run every 5 minutes with app context
 def scheduled_task():
@@ -321,12 +429,14 @@ with app.app_context():
     df_series = update_series_stats.main(Player)
     df_scoreboard = update_scores_from_scoreboard.main(Match)
     #update_scores_from_scoreboard.main(Match)
+    copy_data_from_player_ranking_to_player_ranking_per_day()
+    player_of_the_day()
 
     # Use app.config to store a flag
     if not app.config.get("SCHEDULER_STARTED", False):
         app.scheduler = BackgroundScheduler()
         app.scheduler.add_job(func=scheduled_task, trigger="cron", minute="*/5", hour="9-21")        
-        app.scheduler.add_job(func=copy_data_from_player_ranking_to_player_ranking_per_day, trigger="interval", days=1)
+        app.scheduler.add_job(func=copy_data_from_player_ranking_to_player_ranking_per_day, trigger="cron", hour=20)        
         app.scheduler.start()
         
         # Mark scheduler as started
@@ -854,6 +964,7 @@ def edit_player(id):
     return render_template('edit_player.html', player=player)
 
   
+
 @app.after_request
 def add_header(response):
     response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"

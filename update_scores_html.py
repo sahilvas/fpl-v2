@@ -1,5 +1,6 @@
 import traceback
 import pandas as pd
+import app
 import plotly.express as px
 import plotly.graph_objects as go
 from openpyxl import load_workbook
@@ -207,7 +208,7 @@ def style_row(row, best_11_set):
         return 'background-color: #e6ffe6'  # Light green background
     return ''
 
-def generate_html_report(team_points_df, player_team_points_df, series_stats_df, scoreboard_stats_df, best_11_df):
+def generate_html_report(team_points_df, player_team_points_df, series_stats_df, scoreboard_stats_df, best_11_df, player_of_the_day, team_of_the_day):
     
     team_chart = create_team_points_chart(team_points_df)
     player_chart = create_player_performance_chart(player_team_points_df)
@@ -303,6 +304,28 @@ def generate_html_report(team_points_df, player_team_points_df, series_stats_df,
    
 
     timestamp = datetime.now(pytz.timezone('Europe/Paris')).strftime("%Y-%m-%d %H:%M:%S %Z")     
+
+    # extract player of the day and team of the day info for today
+    """     'today': {'team': today_best_team[0], 'score': today_best_team[1]},
+        'yesterday': {'team': yesterday_best_team[0], 'score': yesterday_best_team[1]}
+    }
+    and player of the day has
+    return {
+    'today': {
+        'name': today_player_details.name if today_player_details else None,
+        'team': today_player_details.team_name if today_player_details else None,
+        'points': today_player.TotalScore if today_player else 0
+    },
+    'yesterday': {
+        'name': yesterday_player_details.name if yesterday_player_details else None, 
+        'team': yesterday_player_details.team_name if yesterday_player_details else None,
+        'points': yesterday_player.TotalScore if yesterday_player else 0
+    } """
+
+    print(player_of_the_day['today']['name'], player_of_the_day['today']['team'], player_of_the_day['today']['points'])
+    print(team_of_the_day['today']['team'], team_of_the_day['today']['score'])
+
+
 
     html_content = f"""
     <!DOCTYPE html>
@@ -414,6 +437,43 @@ def generate_html_report(team_points_df, player_team_points_df, series_stats_df,
     nav a:hover {{
         background-color: rgba(255,255,255,0.1);
     }}
+
+    .highlight-card {{
+        background: white;
+        border-radius: 15px;
+        padding: 20px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        margin-bottom: 20px;
+        transition: transform 0.3s ease;
+    }}
+
+    .highlight-card:hover {{
+        transform: translateY(-5px);
+    }}
+
+    .highlight-card h3 {{
+        color: #1e3c72;
+        margin-bottom: 15px;
+        font-size: 1.5rem;
+    }}
+
+    .highlight-card .score {{
+        font-size: 2rem;
+        font-weight: bold;
+        color: #2a5298;
+    }}
+
+    .highlight-card .label {{
+        color: #666;
+        font-size: 0.9rem;
+        margin-bottom: 5px;
+    }}
+
+    .highlights-container {{
+        display: flex;
+        gap: 20px;
+        margin-bottom: 30px;
+    }}
 </style>
         <!-- FontAwesome (Include this in your HTML) -->
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
@@ -429,6 +489,26 @@ def generate_html_report(team_points_df, player_team_points_df, series_stats_df,
         <div class="container">
             <h1 class="mt-4 mb-4">FPL IPL 2025 Leaderboard</h1>
             <p class="timestamp"> {timestamp} </p>
+
+            <div class="highlights-container">
+                <div class="highlight-card">
+                    <h3><i class="fas fa-trophy"></i> Team of the Day</h3>
+                    <div class="label">Team Name</div>
+                    <div class="score">{team_of_the_day['today']['team']}</div>
+                    <div class="label">Score</div>
+                    <div class="score">{team_of_the_day['today']['score']}</div>
+                </div>
+
+                <div class="highlight-card">
+                    <h3><i class="fas fa-star"></i> Player of the Day</h3>
+                    <div class="label">Player Name</div>
+                    <div class="score">{player_of_the_day['today']['name']}</div>
+                    <div class="label">Team</div>
+                    <div class="score">{player_of_the_day['today']['team']}</div>
+                    <div class="label">Score</div>
+                    <div class="score">{player_of_the_day['today']['points']}</div>
+                </div>            
+                </div>
             
             <h2>Points Table</h2>
             
@@ -501,7 +581,7 @@ def generate_player_profile_url(player_id):
     return f"{base_url}{player_id}" 
 
 
-def main(Player, PlayerRanking):
+def main(Player, PlayerRanking, player_of_the_day, team_of_the_day):
     #players_df = read_excel_file("players.xlsx")
     #write code to extract players table from cricbattle.db sqllite database and save as dataframe
     # Connect to SQLite database
@@ -788,7 +868,7 @@ def main(Player, PlayerRanking):
                 
                                             
             # Generate HTML report
-            generate_html_report(team_points_df, player_team_points_df, df_series, df_scoreboard, best_11_df)
+            generate_html_report(team_points_df, player_team_points_df, df_series, df_scoreboard, best_11_df, player_of_the_day, team_of_the_day)
             
             logging.info("Data transformation and HTML generation complete.")
             
