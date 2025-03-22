@@ -60,6 +60,8 @@ app.config['DATABASE_PATH'] = DB_PATH
 app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URL
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.jinja_env.add_extension('jinja2.ext.do')
+app.config['TEMPLATES_AUTO_RELOAD'] = True
+
 
 db = SQLAlchemy(app)
 
@@ -848,6 +850,12 @@ def edit_player(id):
     return render_template('edit_player.html', player=player)
 
   
+@app.after_request
+def add_header(response):
+    response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+    response.headers["Pragma"] = "no-cache"
+    response.headers["Expires"] = "0"
+    return response
 
     
 
