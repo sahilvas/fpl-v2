@@ -14,7 +14,7 @@ from email.mime.multipart import MIMEMultipart
 from werkzeug.utils import secure_filename
 import plotly.express as px
 from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy import create_engine, Column, Integer, String
+from sqlalchemy import create_engine, Column, Integer, String, update, func
 from sqlalchemy.orm import sessionmaker, declarative_base
 import logging  
 from datetime import datetime  
@@ -22,6 +22,7 @@ import update_scores_html as update_scores
 from apscheduler.schedulers.background import BackgroundScheduler
 import update_series_stats
 import update_scores_from_scoreboard
+from datetime import timedelta
 
 
   
@@ -245,6 +246,15 @@ def player_of_the_day():
     today = datetime.now().date()
     yesterday = today - pd.Timedelta(days=1)
 
+    stmt = update(PlayerRankingPerDay).where(
+        func.strftime('%Y-%m-%d %H', PlayerRankingPerDay.timestamp) == '2025-03-23 00'
+        ).values(
+            timestamp=PlayerRankingPerDay.timestamp - timedelta(days=1)
+        )
+
+    # Commit changes
+    db.session.commit()
+
     # get player of the day for today and yesterday
     today_player = PlayerRankingPerDay.query.filter(
         db.func.date(PlayerRankingPerDay.timestamp) == today,        
@@ -292,6 +302,8 @@ def team_of_the_day():
     # get today's date and yesterday's date
     today = datetime.now().date()
     yesterday = today - pd.Timedelta(days=1)
+
+   
 
     # get all players for today and yesterday
     today_players = PlayerRankingPerDay.query.filter(
