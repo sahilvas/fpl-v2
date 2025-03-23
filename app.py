@@ -305,17 +305,23 @@ def team_of_the_day():
 
    
 
-    # get all players for today and yesterday
-    today_players = PlayerRankingPerDay.query.filter(
-        db.func.date(PlayerRankingPerDay.timestamp) == today,
-        PlayerRankingPerDay.TotalScore > 0  # Only consider players with positive score
-    ).all()
+    # get all players for today and yesterday with latest timestamp
+    today_players = (PlayerRankingPerDay.query
+        .filter(db.func.date(PlayerRankingPerDay.timestamp) == today)
+        .filter(PlayerRankingPerDay.TotalScore > 0)
+        .group_by(PlayerRankingPerDay.PlayerId)
+        .having(PlayerRankingPerDay.timestamp == db.func.max(PlayerRankingPerDay.timestamp))
+        .all())
 
-    yesterday_players = PlayerRankingPerDay.query.filter(
-        db.func.date(PlayerRankingPerDay.timestamp) == yesterday,
-        PlayerRankingPerDay.TotalScore > 0  # Only consider players with positive score
-    ).all()
-
+    yesterday_players = (PlayerRankingPerDay.query
+        .filter(db.func.date(PlayerRankingPerDay.timestamp) == yesterday)
+        .filter(PlayerRankingPerDay.TotalScore > 0)
+        .group_by(PlayerRankingPerDay.PlayerId) 
+        .having(PlayerRankingPerDay.timestamp == db.func.max(PlayerRankingPerDay.timestamp))
+        .all())
+    
+    print(today_players)
+    
     # calculate team scores for today
     today_team_scores = {}
     for player in today_players:
