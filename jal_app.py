@@ -107,7 +107,7 @@ def main():
     print("Data successfully inserted into SQLite database.")
 
     # Connect to cricbattle.db and players.db
-    conn_cricbattle = sqlite3.connect('instance/cricbattle.db')
+    conn_cricbattle = sqlite3.connect('/mnt/sqlite/cricbattle.db' if os.environ.get("WEBSITE_SITE_NAME") else 'instance/cricbattle.db')    
     #conn_players = sqlite3.connect('players.db')
 
     # Get player info from cricbattle.db
