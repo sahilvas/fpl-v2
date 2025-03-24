@@ -281,66 +281,112 @@ def player_of_the_day(league=""):
     # Commit changes
     db.session.commit()
 
-    # get player of the day for today and yesterday
-    today_player = PlayerRankingPerDay.query.filter(
-        db.func.date(PlayerRankingPerDay.timestamp) == today,        
-        PlayerRankingPerDay.TotalScore > 0  # Only consider players with positive score
-    ).order_by(PlayerRankingPerDay.TotalScore.desc()).first()
+    # Aliases for the same table (to compare today vs yesterday)
+    TodayPlayer = aliased(PlayerRankingPerDay)
+    YesterdayPlayer = aliased(PlayerRankingPerDay)
+    DayBeforeYesterdayPlayer = aliased(PlayerRankingPerDay)
 
-    yesterday_player = PlayerRankingPerDay.query.filter(
-        db.func.date(PlayerRankingPerDay.timestamp) == yesterday,  
-        PlayerRankingPerDay.TotalScore > 0  # Only consider players with positive score
-    ).order_by(PlayerRankingPerDay.TotalScore.desc()).first()
 
-    day_before_yesterday_player = PlayerRankingPerDay.query.filter(
-        db.func.date(PlayerRankingPerDay.timestamp) == day_before_yesterday,
-        PlayerRankingPerDay.TotalScore > 0  # Only consider players with positive score
-    ).order_by(PlayerRankingPerDay.TotalScore.desc()).first()
+    # Query today's players with the latest timestamp
+    today_players_subquery = (
+        db.session.query(
+            TodayPlayer.PlayerId,
+            TodayPlayer.PlayerName,
+            TodayPlayer.TotalScore.label("today_score"),
+            func.max(TodayPlayer.timestamp).label("latest_timestamp")
+        )
+        .filter(func.date(TodayPlayer.timestamp) == today)
+        .filter(TodayPlayer.TotalScore > 0)
+        .group_by(TodayPlayer.PlayerId)
+        .subquery()
+    )
 
-    # get corresponding Player records
-    today_player_details = None
-    yesterday_player_details = None
+    # Query yesterday's players with the latest timestamp
+    yesterday_players_subquery = (
+        db.session.query(
+            YesterdayPlayer.PlayerId,
+            YesterdayPlayer.PlayerName,
+            YesterdayPlayer.TotalScore.label("yesterday_score"),
+            func.max(YesterdayPlayer.timestamp).label("latest_timestamp")
+        )
+        .filter(func.date(YesterdayPlayer.timestamp) == yesterday)
+        .group_by(YesterdayPlayer.PlayerId)
+        .subquery()
+    )
 
-    day_before_yesterday_player_details = None
+    day_before_yesterday_players_subquery = (
+        db.session.query(
+            DayBeforeYesterdayPlayer.PlayerId,
+            DayBeforeYesterdayPlayer.PlayerName,
+            DayBeforeYesterdayPlayer.TotalScore.label("day_before_yesterday_score"),
+            func.max(DayBeforeYesterdayPlayer.timestamp).label("latest_timestamp")
+        )
+        .filter(func.date(DayBeforeYesterdayPlayer.timestamp) == day_before_yesterday)
+        .group_by(DayBeforeYesterdayPlayer.PlayerId)
+        .subquery()
+    )
 
-    #print(today_player, yesterday_player, day_before_yesterday_player)
 
-    if today_player and today_player.TotalScore > 0:
-        if league == "JAL":
-            today_player_details = JALPlayer.query.filter_by(name=today_player.PlayerName).first()
-        else:
-            today_player_details = Player.query.filter_by(name=today_player.PlayerName).first()
-    
-    if yesterday_player and yesterday_player.TotalScore > 0:
-        if league == "JAL":
-            yesterday_player_details = JALPlayer.query.filter_by(name=yesterday_player.PlayerName).first()
-        else:
-            yesterday_player_details = Player.query.filter_by(name=yesterday_player.PlayerName).first()
+    players_with_score_difference = (
+        db.session.query(
+            Player.id if league != "JAL" else JALPlayer.id,
+            Player.name if league != "JAL" else JALPlayer.name,
+            Player.team_name if league != "JAL" else JALPlayer.team_name,
+            today_players_subquery.c.today_score,
+            func.coalesce(yesterday_players_subquery.c.yesterday_score, 0).label("yesterday_score"),
+            func.coalesce(day_before_yesterday_players_subquery.c.day_before_yesterday_score, 0).label("day_before_yesterday_score"),
+            case(
+                (
+                    (today_players_subquery.c.today_score - func.coalesce(yesterday_players_subquery.c.yesterday_score, 0)) < 0,
+                    0
+                ),
+                else_=(
+                    today_players_subquery.c.today_score - func.coalesce(yesterday_players_subquery.c.yesterday_score, 0)
+                )
+            ).label("score_difference"),
+            case(
+                (
+                    (yesterday_players_subquery.c.yesterday_score - func.coalesce(day_before_yesterday_players_subquery.c.day_before_yesterday_score, 0)) < 0,
+                    0
+                ),
+                else_=(
+                    yesterday_players_subquery.c.yesterday_score - func.coalesce(day_before_yesterday_players_subquery.c.day_before_yesterday_score, 0)
+                )
+            ).label("day_before_yesterday_score_difference")
+        )
+        .outerjoin(today_players_subquery, (Player.name if league != "JAL" else JALPlayer.name) == today_players_subquery.c.PlayerName)
+        .outerjoin(yesterday_players_subquery, (Player.name if league != "JAL" else JALPlayer.name) == yesterday_players_subquery.c.PlayerName)
+        .outerjoin(day_before_yesterday_players_subquery, (Player.name if league != "JAL" else JALPlayer.name) == day_before_yesterday_players_subquery.c.PlayerName)
+        .filter((Player.team_name if league != "JAL" else JALPlayer.team_name).isnot(None))
+        .all()
+        )
 
-    if day_before_yesterday_player and day_before_yesterday_player.TotalScore > 0:
-        if league == "JAL":
-            day_before_yesterday_player_details = JALPlayer.query.filter_by(name=day_before_yesterday_player.PlayerName).first()
-        else:
-            day_before_yesterday_player_details = Player.query.filter_by(name=day_before_yesterday_player.PlayerName).first()
+    # Sort players by col score_difference in descending order
+    players_with_score_difference.sort(key=lambda x: x[6] if x[6] is not None else 0, reverse=True)
 
-    print(today_player_details.name, today_player.TotalScore)
-    
-    print(yesterday_player_details.name, yesterday_player.TotalScore)
+    # Get the player with the highest score_difference
+    today_player = players_with_score_difference[0] if players_with_score_difference else None
 
-    print(day_before_yesterday_player_details.name, day_before_yesterday_player.TotalScore)
+    # Sort players by col day_before_yesterday_score_difference in descending order
+    players_with_score_difference.sort(key=lambda x: x[7] if x[7] is not None else 0, reverse=True)
+
+    # Get the player with the highest day_before_yesterday_score_difference
+    yesterday_player = players_with_score_difference[0] if players_with_score_difference else None
+
+    print(today_player, yesterday_player)
 
     team_of_the_day()
 
     return {
     'today': {
-        'name': today_player_details.name if today_player_details else None,
-        'team': today_player_details.team_name if today_player_details else None,
-        'points': today_player.TotalScore if today_player else 0
+        'name': today_player.name if today_player else None,
+        'team': today_player.team_name if today_player else None,
+        'points': today_player.score_difference if today_player else 0
     },
     'yesterday': {
-        'name': yesterday_player_details.name if yesterday_player_details else None, 
-        'team': yesterday_player_details.team_name if yesterday_player_details else None,
-        'points': yesterday_player.TotalScore if yesterday_player else 0
+        'name': yesterday_player.name if yesterday_player else None, 
+        'team': yesterday_player.team_name if yesterday_player else None,
+        'points': yesterday_player.day_before_yesterday_score_difference if yesterday_player else 0
     }
 }
 
@@ -643,21 +689,20 @@ with app.app_context():
 
 def get_device_id():
     user_agent = request.headers.get('User-Agent', '')
+    logging.info(f"User-Agent: {user_agent}")
     ip = request.remote_addr
+    logging.info(f"IP Address: {ip}")
+    
     return hashlib.sha256(f"{user_agent}{ip}".encode()).hexdigest()
 
 def is_approved(device_id):
     logging.info(f"Checking if payment is approved for device {device_id}")
-    return True
     payment = Payment.query.filter_by(deleted=0, device_id=device_id).first()
     if payment is not None and payment.approved == 1:
         logging.info(f"Payment found approved for device {device_id}")
+        return True
+    return False
 
-    if not is_trial_expired(device_id):
-        logging.info(f"Trial not expired for device {device_id}")
-    if is_trial_expired(device_id):
-        logging.info(f"Trial expired for device {device_id}")
-    return payment is not None and payment.approved == 1 and not is_trial_expired(device_id)
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
@@ -675,7 +720,6 @@ def pay():
     if is_rejected(device_id):
         print("Your payment is rejected")
         return render_template('rejected.html', table=None)
-    
     
     
     if is_approved(device_id):
@@ -803,6 +847,11 @@ def admin_review():
             elif action == 'reject':
                 payment.approved = 0
                 flash(f"Payment for device {device_id} rejected", "danger")
+            elif action == 'delete':
+                # delete the payment record completely and not just mark it deleted
+                db.session.delete(payment)
+                flash(f"Payment for device {device_id} deleted", "danger")
+
             db.session.commit()
 
     pending_payments = Payment.query.all()
@@ -877,6 +926,19 @@ def reject_payment(device_id):
         db.session.commit()
     
     return {'message': f'Payment for device {device_id} rejected'}, 200
+
+@app.route('/admin/delete/<device_id>', methods=['POST']) 
+def delete_device(device_id):
+    if session.get('admin') != True:
+        return {'error': 'Unauthorized'}, 401
+        
+    payment = Payment.query.filter_by(deleted=0, device_id=device_id).first()
+    if payment:
+        db.session.delete(payment)
+        flash(f"Payment for device {device_id} deleted", "danger")
+        db.session.commit()
+    
+    return {'message': f'Payment for device {device_id} deleted'}, 200
          
 @app.route('/reset-payment', methods=['POST'])
 def reset_payment():
@@ -995,9 +1057,9 @@ def activate_trial():
         flash("You already have an active subscription", "info")
         return redirect(url_for('display_leaderboard'))
     
-    if is_trial_expired(device_id):
+    """ if is_trial_expired(device_id):
         flash("Your trial period has expired. Please pay to continue.", "info")
-        return render_template('trial_expired.html', table=None)
+        return render_template('trial_expired.html', table=None) """
         
     payment = Payment(
         device_id=device_id,
