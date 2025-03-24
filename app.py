@@ -716,7 +716,8 @@ def is_rejected(device_id):
 def is_trial_expired(device_id):
     payment = Payment.query.filter_by(device_id=device_id).first()
     approved_payment = Payment.query.filter_by(device_id=device_id, approved=1).first()
-    print(device_id, payment.trial_expiry, payment.deleted, payment.approved)
+    if payment:
+        print(device_id, payment.trial_expiry, payment.deleted, payment.approved)
     if payment is None:
         return False
     if payment.trial_expiry is None:
