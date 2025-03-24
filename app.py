@@ -611,8 +611,16 @@ def get_device_id():
     return hashlib.sha256(f"{user_agent}{ip}".encode()).hexdigest()
 
 def is_approved(device_id):
+    logging.info(f"Checking if payment is approved for device {device_id}")
     payment = Payment.query.filter_by(deleted=0, device_id=device_id).first()
-    return payment is not None and payment.approved == 1
+    if payment is not None and payment.approved == 1:
+        logging.info(f"Payment found approved for device {device_id}")
+
+    if not is_trial_expired(device_id):
+        logging.info(f"Trial not expired for device {device_id}")
+    if is_trial_expired(device_id):
+        logging.info(f"Trial expired for device {device_id}")
+    return payment is not None and payment.approved == 1 and not is_trial_expired(device_id)
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
@@ -630,6 +638,8 @@ def pay():
     if is_rejected(device_id):
         print("Your payment is rejected")
         return render_template('rejected.html', table=None)
+    
+    
     
     if is_approved(device_id):
         return redirect(url_for('display_leaderboard'))
@@ -701,6 +711,27 @@ def is_paid_but_not_approved(device_id):
 def is_rejected(device_id):
     payment = Payment.query.filter_by(deleted=0, device_id=device_id).first()
     return payment is not None and payment.paid == 1 and payment.approved == 2
+
+# method to check if trial expired for device
+def is_trial_expired(device_id):
+    payment = Payment.query.filter_by(device_id=device_id).first()
+    approved_payment = Payment.query.filter_by(device_id=device_id, approved=1).first()
+    print(device_id, payment.trial_expiry, payment.deleted, payment.approved)
+    if payment is None:
+        return False
+    if payment.trial_expiry is None:
+        return False
+    if datetime.utcnow() > payment.trial_expiry:
+        logging.info(f"Trial expired for device {device_id} and marking the payment object rejected")
+        payment.approved = 2
+        db.session.commit()
+        return True
+    if payment.approved == 2 and approved_payment is None:
+        logging.info(f"Trial expired for device {device_id}")
+        return True
+    return False
+
+
 
 @app.route('/admin/login', methods=['GET', 'POST'])
 def login():
@@ -777,6 +808,7 @@ def display_leaderboard():
         print("Your payment is rejected")
         return render_template('rejected.html', table=None)
     
+    
     if not is_approved(device_id):
         print("Your payment is not found")
         return redirect(url_for('pay'))
@@ -812,6 +844,7 @@ def reject_payment(device_id):
 def reset_payment():
     device_id = get_device_id()
     print(device_id)
+
         
     payment = Payment.query.filter_by(deleted=0, device_id=device_id).first()
     if payment:
@@ -923,6 +956,10 @@ def activate_trial():
     if is_approved(device_id):
         flash("You already have an active subscription", "info")
         return redirect(url_for('display_leaderboard'))
+    
+    if is_trial_expired(device_id):
+        flash("Your trial period has expired. Please pay to continue.", "info")
+        return render_template('trial_expired.html', table=None)
         
     payment = Payment(
         device_id=device_id,
