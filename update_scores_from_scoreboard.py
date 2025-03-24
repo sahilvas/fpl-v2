@@ -161,7 +161,7 @@ def main(Match):
 
         } for p in Match.query.all()])
     
-    print(matches_df)
+    #print(matches_df)
     
     cricbuzz_urls = create_cricbuzz_urls(matches_df)
     logging.info(f"Number of URLs: {len(cricbuzz_urls)}")

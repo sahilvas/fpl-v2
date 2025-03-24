@@ -259,7 +259,7 @@ def generate_html_report(team_points_df, player_team_points_df, series_stats_df,
         else:
             logging.error(f"Unknown key {key}")
 
-        print(df)
+        #print(df)
 
         if df.empty:
             logging.error(f"Empty DataFrame for {key}")
@@ -624,10 +624,13 @@ def replace_player_name(df, Player):
                 if player_name in player.name_array:
                     df.at[index, 'Player'] = player.name
                     print("Player name replaced from %s to %s", player_name, player.name)
-                    break                                
-            if player is not None:
-                df.at[index, 'Player'] = player.name    
-                print("Player name replaced from %s to %s", player_name, player.name)
+                    player_name = player.name
+                    break     
+
+        player = Player.query.filter_by(name=player_name).first()
+        if player is None :
+            logging.error("Player name alias not found for %s", player_name)                       
+
     return df
 
 
@@ -700,7 +703,7 @@ def main(Player, PlayerRanking, player_of_the_day, team_of_the_day):
                 merged_df['TotalScore'] = merged_df.apply(lambda row: int(row['TotalScore'] - row['point_reduction']) if pd.notna(row['point_reduction']) else int(row['TotalScore']), axis=1)    
 
 
-            print(merged_df[merged_df['Player Name'].str.contains('Ben Dwarshuis', case=False)])    
+            #print(merged_df[merged_df['Player Name'].str.contains('Ben Dwarshuis', case=False)])    
 
                   
               
@@ -713,7 +716,7 @@ def main(Player, PlayerRanking, player_of_the_day, team_of_the_day):
             best_11_dict = {team: points for team, points, _ in best_11_data}  
             team_points_df['Best11Points'] = team_points_df['Team Name'].map(best_11_dict)  
 
-            print(best_11_data)
+            #print(best_11_data)
             # Create list of team and player names from best_11_data
             team_players = []
             for team, _, players in best_11_data:
@@ -725,7 +728,7 @@ def main(Player, PlayerRanking, player_of_the_day, team_of_the_day):
 
             # Convert to DataFrame
             best_11_df = pd.DataFrame(team_players)        
-            print(best_11_df)                
+            #print(best_11_df)                
             
   
             # Sort by Best11Points  
@@ -780,7 +783,7 @@ def main(Player, PlayerRanking, player_of_the_day, team_of_the_day):
 
                 # Merge the dataframes
                 # Get the column name in df based on position (assuming the column to merge on is always in position 0)
-                print(df)
+                #print(df)
 
                 # break if df is empty
                 if df.empty:
@@ -917,7 +920,7 @@ def main(Player, PlayerRanking, player_of_the_day, team_of_the_day):
                     #print(player_catches)
                 else:
                     #df_scoreboard[key] = merged_df
-                    print(merged_df)
+                    #print(merged_df)
                     team_counts = merged_df.groupby('Team Name').size().reset_index(name='Player Count')
                     team_counts = team_counts.sort_values('Player Count', ascending=False)
                     team_counts.index = range(1, len(team_counts) + 1)     
