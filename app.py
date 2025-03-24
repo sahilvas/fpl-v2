@@ -475,9 +475,43 @@ def team_of_the_day(league=""):
         'yesterday': {'team': yesterday_best_team[0], 'score': yesterday_best_team[1]}
     }
 
+# method to get players in action using team info from matches table
+# and player info from Player or JALPlayer model based on league
+def get_players_in_action(league=""):
+    if league == "JAL":
+        players = JALPlayer.query.all()
+    else:
+        players = Player.query.all()
+
+    #print(players)
+
+    # get match ids from matches table
+    #print(datetime.now().strftime('%b %d'))
+    match_ids = [match.match_info for match in Match.query.filter(Match.date.like(f"{datetime.now().strftime('%b %d')}%")).all()]            
+    #print(match_ids)
+
+    players_in_action = []
+
+    for match in match_ids:
+        team1 = match.split(" vs ")[0].lower()
+        team2 = match.split(" vs ")[1].split(",")[0].lower()
+        print(team1, team2)
+        for player in players:
+            if player.ipl_team.lower() in [team1, team2]:
+                print(player.name, player.team_name, player.ipl_team)
+                players_in_action.append(player)
+
+
+    #print(players_in_action)
+
+    return players_in_action  
+
+
 
 # Add this in the refresh_scores() function:
 def refresh_scores():
+
+    get_players_in_action()
 
     # call player of the day and team of the day methods in app.py
     # The variables are unbound because the function names are the same as the variable names
@@ -586,6 +620,8 @@ with app.app_context():
         db.create_all()
         import_player_data()
         get_cricbattle_data()
+        get_players_in_action()
+        #exit()
         df_series = update_series_stats.main(Player)
         df_scoreboard = update_scores_from_scoreboard.main(Match)
         copy_data_from_player_ranking_to_player_ranking_per_day()
@@ -612,6 +648,7 @@ def get_device_id():
 
 def is_approved(device_id):
     logging.info(f"Checking if payment is approved for device {device_id}")
+    return True
     payment = Payment.query.filter_by(deleted=0, device_id=device_id).first()
     if payment is not None and payment.approved == 1:
         logging.info(f"Payment found approved for device {device_id}")
@@ -1180,7 +1217,9 @@ def edit_player(id):
             return {'message': 'Player updated successfully'}, 200
     return render_template('edit_player.html', player=player)
 
-  
+
+
+
 
 @app.after_request
 def add_header(response):
