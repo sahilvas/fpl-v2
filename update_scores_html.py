@@ -347,11 +347,31 @@ def generate_html_report(team_points_df, player_team_points_df, series_stats_df,
 
     html_content = f"""
     <!DOCTYPE html>
-    <html>
+    <html data-theme="light">
     <head>
         <title>{leaderboard_title} Leaderboard</title>
         <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
        <style>
+    :root[data-theme="light"] {{
+        --bg-color: #f5f5f5;
+        --text-color: #333;
+        --card-bg: white;
+        --table-header-bg: #f8f9fa;
+        --table-border: #dee2e6;
+        --highlight-text: #1e3c72;
+        --table-text: #333;
+    }}
+
+    :root[data-theme="dark"] {{
+        --bg-color: #1a1a1a;
+        --text-color: #e0e0e0;
+        --card-bg: #2d2d2d;
+        --table-header-bg: #333;
+        --table-border: #404040;
+        --highlight-text: #7aa2e8;
+        --table-text: #e0e0e0;
+    }}
+
     .chart-container {{ 
         margin: 20px 0; 
     }}
@@ -359,41 +379,70 @@ def generate_html_report(team_points_df, player_team_points_df, series_stats_df,
         margin: 20px 0; 
     }}
     .timestamp {{ 
-        color: #666; 
+        color: var(--text-color); 
         font-style: italic; 
         margin: 20px 0; 
     }}
     .table {{ 
         width: 100%; 
         border-collapse: collapse; 
-        margin-bottom: 1rem; 
+        margin-bottom: 1rem;
+        color: var(--table-text) !important;
     }}
     .table th {{ 
-        background-color: #f8f9fa;
+        background-color: var(--table-header-bg);
         padding: 12px 8px;
         text-align: left;
         font-weight: bold;
-        border-bottom: 2px solid #dee2e6;
+        border-bottom: 2px solid var(--table-border);
+        color: var(--table-text) !important;
     }}
     .table td {{ 
         padding: 8px;
         vertical-align: middle;
-        border-bottom: 1px solid #dee2e6;
+        border-bottom: 1px solid var(--table-border);
+        color: var(--table-text) !important;
     }}
     .table tbody tr:hover {{ 
         background-color: rgba(0,0,0,.075); 
     }}
 
-    /* Background color for the top 3 rows */
-    #team-table tbody tr:nth-child(1) {{ 
+    /* Background color for the top 3 rows in light mode */
+    [data-theme="light"] #team-table tbody tr:nth-child(1) {{ 
         background-color: gold !important; 
+        color: #000 !important;
+        font-weight: bold;
     }}
-    #team-table tbody tr:nth-child(2) {{ 
+    [data-theme="light"] #team-table tbody tr:nth-child(2) {{ 
         background-color: silver !important; 
+        color: #000 !important;
+        font-weight: bold;
     }}
-    #team-table tbody tr:nth-child(3) {{ 
-        background-color: #cd7f32 !important; 
+    [data-theme="light"] #team-table tbody tr:nth-child(3) {{
+        background-color: #cd7f32 !important; /* Bronze */
+        color: #000 !important;
+        font-weight: bold;
     }}
+
+    /* Background color for the top 3 rows in dark mode */
+    [data-theme="dark"] #team-table tbody tr:nth-child(1) {{
+        background-color: #FFD700 !important; /* Bright gold */
+        font-weight: bold;
+        color: var(--text-color);
+    }}
+    [data-theme="dark"] #team-table tbody tr:nth-child(2) {{
+        background-color: #A9A9A9 !important; /* Darker silver for contrast */
+        font-weight: bold;
+        color: var(--text-color);
+    }}
+    [data-theme="dark"] #team-table tbody tr:nth-child(3) {{ 
+        background-color: #DAA520 !important; /* Goldenrod (better than burlywood) */
+        font-weight: bold;
+        color: var(--text-color);
+        
+    }}
+
+
 
     body {{
         margin: 0;
@@ -401,10 +450,11 @@ def generate_html_report(team_points_df, player_team_points_df, series_stats_df,
         display: flex;
         flex-direction: column;
         font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-        background-color: #f5f5f5;
-        color: #333;
+        background-color: var(--bg-color);
+        color: var(--text-color);
         line-height: 1.6;
         padding: 20px;
+        transition: background-color 0.3s, color 0.3s;
     }}
 
     .header-menu {{
@@ -412,6 +462,10 @@ def generate_html_report(team_points_df, player_team_points_df, series_stats_df,
         padding: 10px 0;
         margin-bottom: 20px;
         box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 10px 20px;
     }}
 
     .header-menu a {{
@@ -423,6 +477,21 @@ def generate_html_report(team_points_df, player_team_points_df, series_stats_df,
 
     .header-menu a:hover {{
         background-color: #34495e;
+    }}
+
+    .theme-switch {{
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }}
+
+    .theme-switch-button {{
+        background: none;
+        border: none;
+        color: white;
+        cursor: pointer;
+        padding: 5px;
+        font-size: 20px;
     }}
 
     .content {{
@@ -439,7 +508,7 @@ def generate_html_report(team_points_df, player_team_points_df, series_stats_df,
     #pdf-container {{
         width: 100%;
         height: 100%;
-        background: white;
+        background: var(--card-bg);
         border-radius: 8px;
         box-shadow: 0 2px 10px rgba(0,0,0,0.1);
     }}
@@ -457,7 +526,7 @@ def generate_html_report(team_points_df, player_team_points_df, series_stats_df,
     }}
 
     .highlight-card {{
-        background: white;
+        background: var(--card-bg);
         border-radius: 15px;
         padding: 20px;
         box-shadow: 0 4px 15px rgba(0,0,0,0.1);
@@ -470,7 +539,7 @@ def generate_html_report(team_points_df, player_team_points_df, series_stats_df,
     }}
 
     .highlight-card h3 {{
-        color: #1e3c72;
+        color: var(--highlight-text);
         margin-bottom: 15px;
         font-size: 1.5rem;
     }}
@@ -478,11 +547,11 @@ def generate_html_report(team_points_df, player_team_points_df, series_stats_df,
     .highlight-card .score {{
         font-size: 2rem;
         font-weight: bold;
-        color: #2a5298;
+        color: var(--highlight-text);
     }}
 
     .highlight-card .label {{
-        color: #666;
+        color: var(--text-color);
         font-size: 0.9rem;
         margin-bottom: 5px;
     }}
@@ -532,6 +601,15 @@ def generate_html_report(team_points_df, player_team_points_df, series_stats_df,
         justify-content: space-between;
         margin-bottom: 20px;
     }}
+
+    /* Add styles for links in dark mode */
+    [data-theme="dark"] .table a {{
+        color: #7aa2e8;
+    }}
+
+    [data-theme="dark"] .table a:hover {{
+        color: #a8c4f3;
+    }}
 </style>
         <!-- FontAwesome (Include this in your HTML) -->
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
@@ -539,9 +617,14 @@ def generate_html_report(team_points_df, player_team_points_df, series_stats_df,
     <body>
      <header>
         <div class="header-menu">
-            <nav style="display: flex; justify-content: center; align-items: center;">
+            <nav style="display: flex; align-items: center;">
                 <a href="/" style="font-size: 14px; padding: 8px 15px;">Home</a>
             </nav>
+            <div class="theme-switch">
+                <button class="theme-switch-button" onclick="toggleTheme()">
+                    <i class="fas fa-moon"></i>
+                </button>
+            </div>
         </div>
     </header>  
         <div class="container">
@@ -586,9 +669,28 @@ def generate_html_report(team_points_df, player_team_points_df, series_stats_df,
             <div class="chart-container">{player_chart}</div>
             <div class="chart-container">{role_chart}</div>
             <div class="table-container">{player_table}</div>
-
-            
         </div>
+
+        <script>
+            function toggleTheme() {{
+                const html = document.documentElement;
+                const currentTheme = html.getAttribute('data-theme');
+                const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+                html.setAttribute('data-theme', newTheme);
+                
+                const themeIcon = document.querySelector('.theme-switch-button i');
+                themeIcon.className = newTheme === 'light' ? 'fas fa-moon' : 'fas fa-sun';
+                
+                // Store theme preference
+                localStorage.setItem('theme', newTheme);
+            }}
+
+            // Set initial theme based on stored preference
+            const storedTheme = localStorage.getItem('theme') || 'light';
+            document.documentElement.setAttribute('data-theme', storedTheme);
+            const themeIcon = document.querySelector('.theme-switch-button i');
+            themeIcon.className = storedTheme === 'light' ? 'fas fa-moon' : 'fas fa-sun';
+        </script>
     </body>
     </html>
     """
