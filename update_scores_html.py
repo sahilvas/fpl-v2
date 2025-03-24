@@ -330,6 +330,14 @@ def generate_html_report(team_points_df, player_team_points_df, series_stats_df,
     print(player_of_the_day['today']['name'], player_of_the_day['today']['team'], player_of_the_day['today']['points'])
     print(team_of_the_day['today']['team'], team_of_the_day['today']['score'])
 
+    if team_of_the_day['today']['score'] < 100 :
+        team_of_the_day_score = team_of_the_day['yesterday']['score']
+        team_of_the_day_name = team_of_the_day['yesterday']['team']
+
+    else:
+        team_of_the_day_score = team_of_the_day['today']['score']
+        team_of_the_day_name = team_of_the_day['today']['team']
+
 
 
     html_content = f"""
@@ -545,9 +553,9 @@ def generate_html_report(team_points_df, player_team_points_df, series_stats_df,
                 <div class="highlight-card">
                     <h3><i class="fas fa-trophy"></i> Team of the Day</h3>
                     <div class="label">Team Name</div>
-                    <div class="score">{team_of_the_day['today']['team']}</div>
+                    <div class="score">{team_of_the_day_name}</div>
                     <div class="label">Score</div>
-                    <div class="score">{team_of_the_day['today']['score']}</div>
+                    <div class="score">{team_of_the_day_score}</div>
                 </div>
 
                 <div class="highlight-card">

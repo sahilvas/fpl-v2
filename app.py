@@ -245,6 +245,7 @@ def player_of_the_day():
     # get today's date and yesterday's date 
     today = datetime.now().date()
     yesterday = today - pd.Timedelta(days=1)
+    day_before_yesterday = today - pd.Timedelta(days=2)
 
     stmt = update(PlayerRankingPerDay).where(
         func.strftime('%Y-%m-%d', PlayerRankingPerDay.timestamp) == '2025-03-23',
@@ -271,11 +272,18 @@ def player_of_the_day():
         PlayerRankingPerDay.TotalScore > 0  # Only consider players with positive score
     ).order_by(PlayerRankingPerDay.TotalScore.desc()).first()
 
+    day_before_yesterday_player = PlayerRankingPerDay.query.filter(
+        db.func.date(PlayerRankingPerDay.timestamp) == day_before_yesterday,
+        PlayerRankingPerDay.TotalScore > 0  # Only consider players with positive score
+    ).order_by(PlayerRankingPerDay.TotalScore.desc()).first()
+
     # get corresponding Player records
     today_player_details = None
     yesterday_player_details = None
 
-    print(today_player, yesterday_player)
+    day_before_yesterday_player_details = None
+
+    #print(today_player, yesterday_player, day_before_yesterday_player)
 
     if today_player and today_player.TotalScore > 0:
         today_player_details = Player.query.filter_by(name=today_player.PlayerName).first()
@@ -283,7 +291,14 @@ def player_of_the_day():
     if yesterday_player and yesterday_player.TotalScore > 0:
         yesterday_player_details = Player.query.filter_by(name=yesterday_player.PlayerName).first()
 
-    print(today_player_details, yesterday_player_details)
+    if day_before_yesterday_player and day_before_yesterday_player.TotalScore > 0:
+        day_before_yesterday_player_details = Player.query.filter_by(name=day_before_yesterday_player.PlayerName).first()
+
+    print(today_player_details.name, today_player.TotalScore)
+    
+    print(yesterday_player_details.name, yesterday_player.TotalScore)
+
+    print(day_before_yesterday_player_details.name, day_before_yesterday_player.TotalScore)
 
     team_of_the_day()
 
@@ -308,10 +323,14 @@ def team_of_the_day():
     # Get today's and yesterday's dates
     today = datetime.now().date()
     yesterday = today - timedelta(days=1)
+    day_before_yesterday = today - timedelta(days=2)
 
     # Aliases for the same table (to compare today vs yesterday)
     TodayPlayer = aliased(PlayerRankingPerDay)
     YesterdayPlayer = aliased(PlayerRankingPerDay)
+    DayBeforeYesterdayPlayer = aliased(PlayerRankingPerDay)
+
+
 
     # Query today's players with the latest timestamp
     today_players_subquery = (
@@ -340,6 +359,18 @@ def team_of_the_day():
         .subquery()
     )
 
+    day_before_yesterday_players_subquery = (
+        db.session.query(
+            DayBeforeYesterdayPlayer.PlayerId,
+            DayBeforeYesterdayPlayer.PlayerName,
+            DayBeforeYesterdayPlayer.TotalScore.label("day_before_yesterday_score"),
+            func.max(DayBeforeYesterdayPlayer.timestamp).label("latest_timestamp")
+        )
+        .filter(func.date(DayBeforeYesterdayPlayer.timestamp) == day_before_yesterday)
+        .group_by(DayBeforeYesterdayPlayer.PlayerId)
+        .subquery()
+    )
+
 
     players_with_score_difference = (
         db.session.query(
@@ -348,6 +379,7 @@ def team_of_the_day():
             Player.team_name,
             today_players_subquery.c.today_score,
             func.coalesce(yesterday_players_subquery.c.yesterday_score, 0).label("yesterday_score"),
+            func.coalesce(day_before_yesterday_players_subquery.c.day_before_yesterday_score, 0).label("day_before_yesterday_score"),
             case(
                 (
                     (today_players_subquery.c.today_score - func.coalesce(yesterday_players_subquery.c.yesterday_score, 0)) < 0,
@@ -356,10 +388,21 @@ def team_of_the_day():
                 else_=(
                     today_players_subquery.c.today_score - func.coalesce(yesterday_players_subquery.c.yesterday_score, 0)
                 )
-            ).label("score_difference")
+            ).label("score_difference"),
+            case(
+                (
+                    (yesterday_players_subquery.c.yesterday_score - func.coalesce(day_before_yesterday_players_subquery.c.day_before_yesterday_score, 0)) < 0,
+                    0
+                ),
+                else_=(
+                    yesterday_players_subquery.c.yesterday_score - func.coalesce(day_before_yesterday_players_subquery.c.day_before_yesterday_score, 0)
+                )
+            ).label("day_before_yesterday_score_difference")
         )
         .outerjoin(today_players_subquery, Player.name == today_players_subquery.c.PlayerName)
         .outerjoin(yesterday_players_subquery, Player.name == yesterday_players_subquery.c.PlayerName)
+
+        .outerjoin(day_before_yesterday_players_subquery, Player.name == day_before_yesterday_players_subquery.c.PlayerName)
         .filter(Player.team_name.isnot(None))  
         .all()
         )
@@ -367,6 +410,7 @@ def team_of_the_day():
     # Dictionary to store today's and yesterday's team scores
     today_team_scores = {}
     yesterday_team_scores = {}
+
 
     #print(players_with_score_difference)
 
@@ -381,7 +425,7 @@ def team_of_the_day():
 
             # Add score differences for today, ensuring None values are treated as 0
             today_team_scores[player.team_name] += player.score_difference if player.score_difference is not None else 0
-            yesterday_team_scores[player.team_name] += player.yesterday_score if player.yesterday_score is not None else 0  # Same for yesterday's score
+            yesterday_team_scores[player.team_name] += player.day_before_yesterday_score_difference if player.day_before_yesterday_score_difference is not None else 0  # Same for yesterday's score
 
 
     # Log team scores for today
