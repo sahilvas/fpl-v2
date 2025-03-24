@@ -186,6 +186,8 @@ static/uploads/*
 # Excel files
 ~$player_rankings.xlsx
 player_rankings.xlsx
+~$jal_players.xlsx
+
 #templates/FPL-IPL2025-Points.html
 *.lock
 

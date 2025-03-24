@@ -213,7 +213,7 @@ def style_row(row, best_11_set):
         return 'background-color: #e6ffe6'  # Light green background
     return ''
 
-def generate_html_report(team_points_df, player_team_points_df, series_stats_df, scoreboard_stats_df, best_11_df, player_of_the_day, team_of_the_day):
+def generate_html_report(team_points_df, player_team_points_df, series_stats_df, scoreboard_stats_df, best_11_df, player_of_the_day, team_of_the_day, league):
     
     team_chart = create_team_points_chart(team_points_df)
     player_chart = create_player_performance_chart(player_team_points_df)
@@ -338,13 +338,18 @@ def generate_html_report(team_points_df, player_team_points_df, series_stats_df,
         team_of_the_day_score = team_of_the_day['today']['score']
         team_of_the_day_name = team_of_the_day['today']['team']
 
-
+    if league == "JAL":
+        leaderboard_title = "JAL IPL 2025"
+        template_filename = "JAL-IPL2025-Points.html"
+    else:
+        leaderboard_title = "FPL IPL 2025"
+        template_filename = "FPL-IPL2025-Points.html"
 
     html_content = f"""
     <!DOCTYPE html>
     <html>
     <head>
-        <title>FPL IPL 2025 Leaderboard</title>
+        <title>{leaderboard_title} Leaderboard</title>
         <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
        <style>
     .chart-container {{ 
@@ -541,7 +546,7 @@ def generate_html_report(team_points_df, player_team_points_df, series_stats_df,
     </header>  
         <div class="container">
             <div class="header-content">
-                <h1 class="mt-4 mb-4">FPL IPL 2025 Leaderboard</h1>
+                <h1 class="mt-4 mb-4">{leaderboard_title} Leaderboard</h1>
                 <button class="refresh-button" onclick="window.location.reload()">
                     <i class="fas fa-sync-alt"></i>
                     Refresh
@@ -588,11 +593,11 @@ def generate_html_report(team_points_df, player_team_points_df, series_stats_df,
     </html>
     """
     
-    with open("templates/FPL-IPL2025-Points.html", "w", encoding='utf-8') as f:
+    with open(f"templates/{template_filename}", "w", encoding='utf-8') as f:        
         f.write(html_content)
     
-    logging.info("HTML report generated successfully")
-
+    logging.info(f"HTML report generated successfully for league: {league}")
+    
 def edit_dataframe_values(df, search_str, replace_str):
     # Replace values in all string columns of the dataframe only when exact match
     for column in df.select_dtypes(include=['object']).columns:
@@ -643,7 +648,7 @@ def generate_player_profile_url(player_id):
     return f"{base_url}{player_id}" 
 
 
-def main(Player, PlayerRanking, player_of_the_day, team_of_the_day):
+def main(Player, PlayerRanking, player_of_the_day, team_of_the_day, league=""):
     #players_df = read_excel_file("players.xlsx")
     #write code to extract players table from cricbattle.db sqllite database and save as dataframe
     # Connect to SQLite database
@@ -930,7 +935,7 @@ def main(Player, PlayerRanking, player_of_the_day, team_of_the_day):
                 
                                             
             # Generate HTML report
-            generate_html_report(team_points_df, player_team_points_df, df_series, df_scoreboard, best_11_df, player_of_the_day, team_of_the_day)
+            generate_html_report(team_points_df, player_team_points_df, df_series, df_scoreboard, best_11_df, player_of_the_day, team_of_the_day, league)
             
             logging.info("Data transformation and HTML generation complete.")
             

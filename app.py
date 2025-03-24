@@ -6,6 +6,7 @@ import pandas as pd
 import sqlite3
 import requests
 from bs4 import BeautifulSoup
+import jal_app
 from flask import Flask, render_template, request, session, redirect, url_for, flash, make_response
 import hashlib
 import smtplib
@@ -98,6 +99,25 @@ class Player(db.Model):
     timestamp = db.Column(db.DateTime, default=datetime.utcnow)
     name_array = db.Column(db.String)
     traded = db.Column(db.Boolean)
+
+class JALPlayer(db.Model):
+    __tablename__ = 'jal_players'
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String)
+    role = db.Column(db.String)
+    category = db.Column(db.String) 
+    ipl_team = db.Column(db.String)
+    base_price = db.Column(db.Float)
+    selling_price = db.Column(db.Float)
+    team_name = db.Column(db.String)
+    is_sold = db.Column(db.Boolean)
+    points_reduction = db.Column(db.Integer)
+    first_match_id = db.Column(db.Integer)
+    foreign_player = db.Column(db.Boolean)
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+    name_array = db.Column(db.String)
+    traded = db.Column(db.Boolean)
+
 
 # Define Match Model
 class Match(db.Model):
@@ -238,9 +258,9 @@ def save_to_database(data):
     except Exception as e:
         print(f"Error saving data to database: {e}")
     
-def player_of_the_day():
+def player_of_the_day(league=""):
 
-    logging.info("Getting player of the day")
+    logging.info(f"Getting player of the day for league {league}")
 
     # get today's date and yesterday's date 
     today = datetime.now().date()
@@ -286,13 +306,22 @@ def player_of_the_day():
     #print(today_player, yesterday_player, day_before_yesterday_player)
 
     if today_player and today_player.TotalScore > 0:
-        today_player_details = Player.query.filter_by(name=today_player.PlayerName).first()
+        if league == "JAL":
+            today_player_details = JALPlayer.query.filter_by(name=today_player.PlayerName).first()
+        else:
+            today_player_details = Player.query.filter_by(name=today_player.PlayerName).first()
     
     if yesterday_player and yesterday_player.TotalScore > 0:
-        yesterday_player_details = Player.query.filter_by(name=yesterday_player.PlayerName).first()
+        if league == "JAL":
+            yesterday_player_details = JALPlayer.query.filter_by(name=yesterday_player.PlayerName).first()
+        else:
+            yesterday_player_details = Player.query.filter_by(name=yesterday_player.PlayerName).first()
 
     if day_before_yesterday_player and day_before_yesterday_player.TotalScore > 0:
-        day_before_yesterday_player_details = Player.query.filter_by(name=day_before_yesterday_player.PlayerName).first()
+        if league == "JAL":
+            day_before_yesterday_player_details = JALPlayer.query.filter_by(name=day_before_yesterday_player.PlayerName).first()
+        else:
+            day_before_yesterday_player_details = Player.query.filter_by(name=day_before_yesterday_player.PlayerName).first()
 
     print(today_player_details.name, today_player.TotalScore)
     
@@ -317,8 +346,8 @@ def player_of_the_day():
 
 
 
-def team_of_the_day():
-    logging.info("Getting team of the day")
+def team_of_the_day(league=""):
+    logging.info(f"Getting team of the day for league {league}")
 
     # Get today's and yesterday's dates
     today = datetime.now().date()
@@ -374,9 +403,9 @@ def team_of_the_day():
 
     players_with_score_difference = (
         db.session.query(
-            Player.id,
-            Player.name,
-            Player.team_name,
+            Player.id if league != "JAL" else JALPlayer.id,
+            Player.name if league != "JAL" else JALPlayer.name,
+            Player.team_name if league != "JAL" else JALPlayer.team_name,
             today_players_subquery.c.today_score,
             func.coalesce(yesterday_players_subquery.c.yesterday_score, 0).label("yesterday_score"),
             func.coalesce(day_before_yesterday_players_subquery.c.day_before_yesterday_score, 0).label("day_before_yesterday_score"),
@@ -399,11 +428,10 @@ def team_of_the_day():
                 )
             ).label("day_before_yesterday_score_difference")
         )
-        .outerjoin(today_players_subquery, Player.name == today_players_subquery.c.PlayerName)
-        .outerjoin(yesterday_players_subquery, Player.name == yesterday_players_subquery.c.PlayerName)
-
-        .outerjoin(day_before_yesterday_players_subquery, Player.name == day_before_yesterday_players_subquery.c.PlayerName)
-        .filter(Player.team_name.isnot(None))  
+        .outerjoin(today_players_subquery, (Player.name if league != "JAL" else JALPlayer.name) == today_players_subquery.c.PlayerName)
+        .outerjoin(yesterday_players_subquery, (Player.name if league != "JAL" else JALPlayer.name) == yesterday_players_subquery.c.PlayerName)
+        .outerjoin(day_before_yesterday_players_subquery, (Player.name if league != "JAL" else JALPlayer.name) == day_before_yesterday_players_subquery.c.PlayerName)
+        .filter((Player.team_name if league != "JAL" else JALPlayer.team_name).isnot(None))
         .all()
         )
 
@@ -458,8 +486,14 @@ def refresh_scores():
     pod = player_of_the_day()
     totd = team_of_the_day()   
 
+    pod_jal = player_of_the_day("JAL")
+    totd_jal = team_of_the_day("JAL") 
+
     # Update scores
     update_scores.main(Player, PlayerRanking, pod, totd)    
+
+    # update scores for JAL
+    update_scores.main(JALPlayer, PlayerRanking, pod_jal, totd_jal, "JAL")  
 
 def get_cricbattle_data():
     # URL and headers extracted from HAR file    
@@ -536,6 +570,7 @@ def scheduled_task():
     with app.app_context():
         logging.info("Running scheduled task")
         get_cricbattle_data()
+        jal_app.main()
         refresh_scores()
         df_series = update_series_stats.main(Player)
         df_scoreboard = update_scores_from_scoreboard.main(Match)
@@ -913,6 +948,20 @@ def show_live_scoring():
     latest_timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
     return render_template('FPL-IPL2025-Points.html', timestamp=latest_timestamp)
+
+@app.route('/jal/live-scoring')
+def show_jal_live_scoring():
+    # check if user is paid and approved
+    device_id = get_device_id()
+    if not is_approved(device_id):
+        return redirect(url_for('pay'))
+
+    #refresh_scores()
+
+    latest_timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+    return render_template('JAL-IPL2025-Points.html', timestamp=latest_timestamp)
+
 
 
 @app.route('/fixtures')
