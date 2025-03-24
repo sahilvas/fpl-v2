@@ -115,16 +115,16 @@ def main():
     #players_cursor = conn_players.cursor()
 
     # Get role and ipl_team for all players from cricbattle.db
-    cricbattle_cursor.execute("SELECT name, role, ipl_team, foreign_player FROM player_v3")
+    cricbattle_cursor.execute("SELECT name, role, ipl_team, foreign_player, name_array FROM player_v3")
     player_info = cricbattle_cursor.fetchall()
 
     # Update players.db with role and ipl_team info
-    for name, role, ipl_team, foreign_player in player_info:
+    for name, role, ipl_team, foreign_player, name_array in player_info:
         cricbattle_cursor.execute("""
             UPDATE jal_players 
-            SET role = ?, ipl_team = ?, foreign_player = ?
+            SET role = ?, ipl_team = ?, foreign_player = ?, name_array = ?
             WHERE name = ?
-        """, (role, ipl_team, foreign_player, name ))
+        """, (role, ipl_team, foreign_player, name_array, name ))
 
     # update role, ipl_team manually for some players
     cricbattle_cursor.execute("""
