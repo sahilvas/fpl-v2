@@ -373,8 +373,8 @@ def player_of_the_day(league=""):
     # Get the player with the highest day_before_yesterday_score_difference
     yesterday_player = players_with_score_difference[0] if players_with_score_difference else None
 
-    print(today_player, yesterday_player)
-
+    logging.info(f"Today's player: {today_player}, Yesterday's player: {yesterday_player}")
+    
     team_of_the_day()
 
     return {

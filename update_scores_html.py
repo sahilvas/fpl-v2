@@ -330,6 +330,16 @@ def generate_html_report(team_points_df, player_team_points_df, series_stats_df,
     print(player_of_the_day['today']['name'], player_of_the_day['today']['team'], player_of_the_day['today']['points'])
     print(team_of_the_day['today']['team'], team_of_the_day['today']['score'])
 
+    if player_of_the_day['today']['points'] < 100 :
+        player_of_the_day = player_of_the_day['yesterday']['points']
+        player_of_the_day = player_of_the_day['yesterday']['team']
+        player_of_the_day = player_of_the_day['yesterday']['name']
+
+    else:
+        player_of_the_day = player_of_the_day['today']['points']
+        player_of_the_day = player_of_the_day['today']['team']
+        player_of_the_day = player_of_the_day['today']['name']
+
     if team_of_the_day['today']['score'] < 100 :
         team_of_the_day_score = team_of_the_day['yesterday']['score']
         team_of_the_day_name = team_of_the_day['yesterday']['team']
