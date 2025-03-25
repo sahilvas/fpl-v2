@@ -331,14 +331,14 @@ def generate_html_report(team_points_df, player_team_points_df, series_stats_df,
     print(team_of_the_day['today']['team'], team_of_the_day['today']['score'])
 
     if player_of_the_day['today']['points'] < 100 :
-        player_of_the_day = player_of_the_day['yesterday']['points']
-        player_of_the_day = player_of_the_day['yesterday']['team']
-        player_of_the_day = player_of_the_day['yesterday']['name']
+        player_of_the_day_points = player_of_the_day['yesterday']['points']
+        player_of_the_day_team = player_of_the_day['yesterday']['team']
+        player_of_the_day_name = player_of_the_day['yesterday']['name']
 
     else:
-        player_of_the_day = player_of_the_day['today']['points']
-        player_of_the_day = player_of_the_day['today']['team']
-        player_of_the_day = player_of_the_day['today']['name']
+        player_of_the_day_points = player_of_the_day['today']['points']
+        player_of_the_day_team = player_of_the_day['today']['team']
+        player_of_the_day_name = player_of_the_day['today']['name']
 
     if team_of_the_day['today']['score'] < 100 :
         team_of_the_day_score = team_of_the_day['yesterday']['score']
@@ -659,11 +659,11 @@ def generate_html_report(team_points_df, player_team_points_df, series_stats_df,
                 <div class="highlight-card">
                     <h3><i class="fas fa-star"></i> Player of the Day</h3>
                     <div class="label">Player Name</div>
-                    <div class="score">{player_of_the_day['today']['name']}</div>
+                    <div class="score">{player_of_the_day_name}</div>
                     <div class="label">Team</div>
-                    <div class="score">{player_of_the_day['today']['team']}</div>
+                    <div class="score">{player_of_the_day_team}</div>
                     <div class="label">Score</div>
-                    <div class="score">{player_of_the_day['today']['points']}</div>
+                    <div class="score">{player_of_the_day_points}</div>
                 </div>            
                 </div>
             
