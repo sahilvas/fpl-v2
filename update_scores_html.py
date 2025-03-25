@@ -213,7 +213,7 @@ def style_row(row, best_11_set):
         return 'background-color: #e6ffe6'  # Light green background
     return ''
 
-def generate_html_report(team_points_df, player_team_points_df, series_stats_df, scoreboard_stats_df, best_11_df, player_of_the_day, team_of_the_day, league):
+def generate_html_report(team_points_df, player_team_points_df, series_stats_df, scoreboard_stats_df, best_11_df, player_of_the_day, team_of_the_day, league, live_players_list):
     
     team_chart = create_team_points_chart(team_points_df)
     player_chart = create_player_performance_chart(player_team_points_df)
@@ -329,6 +329,7 @@ def generate_html_report(team_points_df, player_team_points_df, series_stats_df,
 
     print(player_of_the_day['today']['name'], player_of_the_day['today']['team'], player_of_the_day['today']['points'])
     print(team_of_the_day['today']['team'], team_of_the_day['today']['score'])
+    print(live_players_list)
 
     if player_of_the_day['today']['points'] < 100 :
         player_of_the_day_points = player_of_the_day['yesterday']['points']
@@ -620,23 +621,94 @@ def generate_html_report(team_points_df, player_team_points_df, series_stats_df,
     [data-theme="dark"] .table a:hover {{
         color: #a8c4f3;
     }}
-</style>
-        <!-- FontAwesome (Include this in your HTML) -->
+
+        /* New ticker styles */
+            .ticker-wrap {{
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+                padding: 10px 0;
+                overflow: hidden;
+                z-index: 9999;
+                box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+                white-space: nowrap;
+            }}
+
+            .ticker {{
+                display: flex;
+                width: max-content;
+                animation: ticker-scroll 60s linear infinite;
+            }}
+
+            .ticker-item {{
+                display: inline-flex;
+                align-items: center;
+                padding: 0 30px;
+                color: white;
+                font-weight: 500;
+            }}
+
+            .ticker-item .player-name {{
+                margin-right: 10px;
+                font-weight: bold;
+            }}
+
+            .ticker-item .score {{
+                color: #7fff00;
+            }}
+
+            @keyframes ticker-scroll {{
+                from {{
+                    transform: translateX(0);
+                }}
+                to {{
+                    transform: translateX(-50%);
+                }}
+            }}
+
+
+            /* Adjust body padding to account for ticker */
+            body {{
+                padding-top: 60px;
+            }}
+
+            @media (max-width: 768px) {{
+                .ticker-item {{
+                    padding: 0 15px;
+                    font-size: 14px;
+                }}
+            }}
+        </style>
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     </head>
     <body>
-     <header>
-        <div class="header-menu">
-            <nav style="display: flex; align-items: center;">
-                <a href="/" style="font-size: 14px; padding: 8px 15px;">Home</a>
-            </nav>
-            <div class="theme-switch">
-                <button class="theme-switch-button" onclick="toggleTheme()">
-                    <i class="fas fa-moon"></i>
-                </button>
+        <div class="ticker-wrap">
+            <div class="ticker">
+                {
+                    ''.join([
+                        f'<div class="ticker-item"><span class="player-name">{row["name"]}</span> <span class="score">{row["fpl_team"]}</span></div>'
+                        for _ in range(2) for _, row in live_players_list.iterrows()  # Repeat the list 3 times
+                    ])
+                }
             </div>
         </div>
-    </header>  
+
+
+        <header>
+            <div class="header-menu">
+                <nav style="display: flex; align-items: center;">
+                    <a href="/" style="font-size: 14px; padding: 8px 15px;">Home</a>
+                </nav>
+                <div class="theme-switch">
+                    <button class="theme-switch-button" onclick="toggleTheme()">
+                        <i class="fas fa-moon"></i>
+                    </button>
+                </div>
+            </div>
+        </header>
+
         <div class="container">
             <div class="header-content">
                 <h1 class="mt-4 mb-4">{leaderboard_title} Leaderboard</h1>
@@ -760,7 +832,7 @@ def generate_player_profile_url(player_id):
     return f"{base_url}{player_id}" 
 
 
-def main(Player, PlayerRanking, player_of_the_day, team_of_the_day, league=""):
+def main(Player, PlayerRanking, player_of_the_day, team_of_the_day, league="", live_players_list=pd.DataFrame()):
     #players_df = read_excel_file("players.xlsx")
     #write code to extract players table from cricbattle.db sqllite database and save as dataframe
     # Connect to SQLite database
@@ -1047,7 +1119,7 @@ def main(Player, PlayerRanking, player_of_the_day, team_of_the_day, league=""):
                 
                                             
             # Generate HTML report
-            generate_html_report(team_points_df, player_team_points_df, df_series, df_scoreboard, best_11_df, player_of_the_day, team_of_the_day, league)
+            generate_html_report(team_points_df, player_team_points_df, df_series, df_scoreboard, best_11_df, player_of_the_day, team_of_the_day, league, live_players_list)
             
             logging.info("Data transformation and HTML generation complete.")
             

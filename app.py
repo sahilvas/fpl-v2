@@ -374,7 +374,7 @@ def player_of_the_day(league=""):
     yesterday_player = players_with_score_difference[0] if players_with_score_difference else None
 
     logging.info(f"Today's player: {today_player}, Yesterday's player: {yesterday_player}")
-    
+
     team_of_the_day()
 
     return {
@@ -541,14 +541,20 @@ def get_players_in_action(league=""):
     for match in match_ids:
         team1 = match.split(" vs ")[0].lower()
         team2 = match.split(" vs ")[1].split(",")[0].lower()
-        print(team1, team2)
+        #print(team1, team2)
         for player in players:
             if player.ipl_team.lower() in [team1, team2]:
-                print(player.name, player.team_name, player.ipl_team)
-                players_in_action.append(player)
+                #print(player.name, player.team_name, player.ipl_team)
+                players_in_action.append({
+                    'name': player.name,
+                    'ipl_team': player.ipl_team, 
+                    'fpl_team': player.team_name
+                })
 
-
-    #print(players_in_action)
+    players_in_action = pd.DataFrame(players_in_action).sort_values('fpl_team')
+    
+    print(players_in_action)
+    #exit()
 
     return players_in_action  
 
@@ -557,7 +563,7 @@ def get_players_in_action(league=""):
 # Add this in the refresh_scores() function:
 def refresh_scores():
 
-    get_players_in_action()
+    live_players_list = get_players_in_action()
 
     # call player of the day and team of the day methods in app.py
     # The variables are unbound because the function names are the same as the variable names
@@ -570,7 +576,7 @@ def refresh_scores():
     totd_jal = team_of_the_day("JAL") 
 
     # Update scores
-    update_scores.main(Player, PlayerRanking, pod, totd)    
+    update_scores.main(Player, PlayerRanking, pod, totd, "", live_players_list)    
 
     # update scores for JAL
     update_scores.main(JALPlayer, PlayerRanking, pod_jal, totd_jal, "JAL")  
