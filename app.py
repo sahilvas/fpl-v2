@@ -1058,6 +1058,9 @@ def activate_trial():
     device_id = get_device_id()
     expiry_date = datetime.now() + pd.Timedelta(days=5)     
     print(expiry_date)   
+    print(device_id)
+    logging.info(f"Activating free trial for device {device_id} not allowed")
+    return redirect(url_for('display_leaderboard'))
     # Check if device already has active paid subscription
     if is_approved(device_id):
         flash("You already have an active subscription", "info")
