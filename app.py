@@ -676,7 +676,7 @@ with app.app_context():
         #exit()
         df_series = update_series_stats.main(Player)
         df_scoreboard = update_scores_from_scoreboard.main(Match)
-        copy_data_from_player_ranking_to_player_ranking_per_day()
+        #copy_data_from_player_ranking_to_player_ranking_per_day()
         player_of_the_day()
 
         # Initialize scheduler only if not already started
