@@ -682,7 +682,7 @@ with app.app_context():
         # Initialize scheduler only if not already started
         if not app.config.get("SCHEDULER_STARTED", False):
             app.scheduler = BackgroundScheduler()
-            app.scheduler.add_job(func=scheduled_task, trigger="cron", minute="*/2", hour="0-23")        
+            app.scheduler.add_job(func=scheduled_task, trigger="cron", minute="*/2", hour="8-22")        
             app.scheduler.add_job(func=copy_data_from_player_ranking_to_player_ranking_per_day, trigger="cron", hour=20)        
             app.scheduler.start()
             app.config["SCHEDULER_STARTED"] = True

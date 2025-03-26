@@ -331,7 +331,7 @@ def generate_html_report(team_points_df, player_team_points_df, series_stats_df,
     print(team_of_the_day['today']['team'], team_of_the_day['today']['score'])
     print(live_players_list)
 
-    if player_of_the_day['today']['points'] < 100 :
+    if player_of_the_day['today']['points'] is  None or player_of_the_day['today']['points'] < 100:
         player_of_the_day_points = player_of_the_day['yesterday']['points']
         player_of_the_day_team = player_of_the_day['yesterday']['team']
         player_of_the_day_name = player_of_the_day['yesterday']['name']
@@ -341,7 +341,7 @@ def generate_html_report(team_points_df, player_team_points_df, series_stats_df,
         player_of_the_day_team = player_of_the_day['today']['team']
         player_of_the_day_name = player_of_the_day['today']['name']
 
-    if team_of_the_day['today']['score'] < 100 :
+    if team_of_the_day['today']['score'] is  None  or team_of_the_day['today']['score'] < 100  :
         team_of_the_day_score = team_of_the_day['yesterday']['score']
         team_of_the_day_name = team_of_the_day['yesterday']['team']
 
