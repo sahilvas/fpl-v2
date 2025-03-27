@@ -1,3 +1,4 @@
+import os
 import requests
 import pandas as pd
 from bs4 import BeautifulSoup
@@ -35,12 +36,36 @@ def create_cricbuzz_urls(matches):
         else:
             logging.info(f"Skipping: {match.matchId}")
             continue
+        
+
+    return cricbuzz_urls
+
+def create_cricbuzz_potm_urls(matches):
+    cricbuzz_urls = []
+    for _, match in matches.iterrows():
+        # check if match date is todays date
+        match_date = match['date'].split(",")[0]
+        today = pd.Timestamp('today').strftime('%b %d')  
+        #tomorrow = (pd.Timestamp.today() + pd.Timedelta(days=1)).strftime('%b %d')                
+        logging.info(f"Match date: {match_date} and todays date: {today}")
+        if match_date == today:
+            cricbuzz_urls.append(f"https://www.cricbuzz.com/api/cricket-match/commentary/{match.matchId}")
+            logging.info(f"Fetching: {match.matchId}")
+        
+        elif match_date.split(" ")[0] == today.split(" ")[0] and match_date.split(" ")[1] <= today.split(" ")[1]:
+            cricbuzz_urls.append(f"https://www.cricbuzz.com/api/cricket-match/commentary/{match.matchId}")
+            logging.info(f"Fetching: {match.matchId}")
+            
+        else:
+            logging.info(f"Skipping: {match.matchId}")
+            continue
             
             
 
         
 
     return cricbuzz_urls
+
 
 def extract_keyword(url):
     match = re.search(r'(\d+)$', url)
@@ -67,11 +92,13 @@ def fetch_data(url):
         sleep(3)
         response = requests.get(url, headers=headers, timeout=10)
         response.raise_for_status()
-        
+
         content_type = response.headers.get("Content-Type", "")
         if "text/html" in content_type:
             soup = BeautifulSoup(response.text, "html.parser")
             return soup
+        elif "application/json" in content_type:
+            return response.json()
         else:
             return None
     except requests.RequestException as e:
@@ -88,6 +115,24 @@ def replace_nan_values(df):
     string_columns = df.select_dtypes(include=['object']).columns
     df[string_columns] = df[string_columns].fillna(value="DAN11", inplace=True)
     return df
+
+# Function to extract player of the match
+def extract_player_of_match(data):
+    try:
+
+        # ✅ Extracting players of the match
+        players_of_match = data.get("matchHeader", {}).get("playersOfTheMatch", [])
+
+        # ✅ Extract only player names
+        player_names = [player["fullName"] for player in players_of_match]
+
+        # ✅ Output the player names
+        print("Player of the Match:", player_names[0])
+        return player_names[0]
+    
+    except AttributeError as e:
+        logging.error(f"Error extracting player of match: {e}")
+        return None
 
 # Function to extract batting data  
 def extract_batting_data(innings_id, soup, matchId):  
@@ -166,8 +211,11 @@ def main(Match):
     cricbuzz_urls = create_cricbuzz_urls(matches_df)
     logging.info(f"Number of URLs: {len(cricbuzz_urls)}")
 
+    cricbuzz_potm_urls = create_cricbuzz_potm_urls(matches_df)
+    logging.info(f"Number of POTM URLs: {len(cricbuzz_potm_urls)}")
+
     # Create SQLite connection
-    conn = sqlite3.connect('cricket_stats.db')
+    conn = sqlite3.connect('/mnt/sqlite/cricket_stats.db' if os.environ.get("WEBSITE_SITE_NAME") else 'instance/cricket_stats.db')  
     
     # Process each API URL
     dataframes = {}
@@ -182,6 +230,14 @@ def main(Match):
 
         data = fetch_data(url)
 
+        potm_data = fetch_data(cricbuzz_potm_urls[i])
+
+        player_of_match = extract_player_of_match(potm_data)
+
+        # create a dataframe of 1*1 with columns player, matchid
+        # values player_of_match, matchId
+        player_of_match_df = pd.DataFrame({'Player': [player_of_match], 'matchId': [table_keyword]})
+        
         if isinstance(data, BeautifulSoup):
             # Extract data  
             first_batting = extract_batting_data('innings_1', data, table_keyword)  
@@ -229,6 +285,11 @@ def main(Match):
                 dataframes["Field"]['matchId'] = table_keyword
             else:
                 dataframes["Field"] = catchers_df
+
+            if "POTM" in dataframes:
+                dataframes["POTM"] = pd.concat([dataframes["POTM"], player_of_match_df])
+            else:
+                dataframes["POTM"] = pd.concat([player_of_match_df])
 
         sleep(1)
 

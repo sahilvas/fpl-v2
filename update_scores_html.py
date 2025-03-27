@@ -291,6 +291,8 @@ def generate_html_report(team_points_df, player_team_points_df, series_stats_df,
             key = "Most 3fers Per Team"
         elif key == "Field":
             key = "Best Fielder"
+        elif key == "POTM":
+            key = "Most POTMs"
         else:
             logging.error(f"Unknown key {key}")
 
@@ -793,14 +795,14 @@ def edit_dataframe_values(df, search_str, replace_str):
 # then replace Jaddu with player name found in Player model
 def replace_player_name(df, Player):
     # if not found then replace with player name found in Player
-    print(df)
+    #print(df)
     # first find all player rows where name_array is not null not none not blank
     players_with_aliases = Player.query.filter(
         Player.name_array.isnot(None)
     ).all()            
 
     for index, row in df.iterrows():
-        print(row)
+        #print(row)
         print("replace_player_name using", row[0])
         player_name = row[0]
         player = Player.query.filter_by(name=player_name).first()
@@ -934,8 +936,8 @@ def main(Player, PlayerRanking, player_of_the_day, team_of_the_day, league="", l
             # Get individual series stats
             #df_series = update_series_stats.main()
 
-            # Connect to SQLite database
-            conn = sqlite3.connect('cricket_stats.db')
+            # Create SQLite connection
+            conn = sqlite3.connect('/mnt/sqlite/cricket_stats.db' if os.environ.get("WEBSITE_SITE_NAME") else 'instance/cricket_stats.db') 
 
             # Query data from scoreboard tables
             df_series = {}
@@ -963,7 +965,7 @@ def main(Player, PlayerRanking, player_of_the_day, team_of_the_day, league="", l
                 """, conn)
             except:
                 df_series["MOST_SIXES"] = pd.DataFrame()
-            conn.close()
+     
 
             # Print first few extracted tables
             for key, df in df_series.items():
@@ -990,8 +992,6 @@ def main(Player, PlayerRanking, player_of_the_day, team_of_the_day, league="", l
             # Get individual series stats
             
 
-            # Connect to SQLite database
-            conn = sqlite3.connect('cricket_stats.db')
 
             # Query data from scoreboard tables
             df_scoreboard = {}
@@ -1011,7 +1011,12 @@ def main(Player, PlayerRanking, player_of_the_day, team_of_the_day, league="", l
                 SELECT * from cricket_field
             """, conn)
 
-            conn.close()
+             # Query potm stats
+            df_scoreboard["POTM"] = pd.read_sql_query("""
+                SELECT * from cricket_potm
+            """, conn)
+
+            conn.close()  
 
             # Print first few extracted tables
             for key, df in df_scoreboard.items():

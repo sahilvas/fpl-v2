@@ -2,6 +2,7 @@ from datetime import datetime
 import json
 import os
 import time
+import uuid
 import pandas as pd
 import sqlite3
 import requests
@@ -658,8 +659,8 @@ def scheduled_task():
         get_cricbattle_data()
         jal_app.main()
         refresh_scores()
-        df_series = update_series_stats.main(Player)
-        df_scoreboard = update_scores_from_scoreboard.main(Match)
+        #df_series = update_series_stats.main(Player)
+        #df_scoreboard = update_scores_from_scoreboard.main(Match)
 
 INIT_FILE = "app_initialized.lock"
 
@@ -682,8 +683,10 @@ with app.app_context():
         # Initialize scheduler only if not already started
         if not app.config.get("SCHEDULER_STARTED", False):
             app.scheduler = BackgroundScheduler()
-            app.scheduler.add_job(func=scheduled_task, trigger="cron", minute="*/2", hour="8-22")        
-            app.scheduler.add_job(func=copy_data_from_player_ranking_to_player_ranking_per_day, trigger="cron", hour=20)        
+            app.scheduler.add_job(func=scheduled_task, trigger="cron", minute="*/3", hour="8-22")        
+            app.scheduler.add_job(func=copy_data_from_player_ranking_to_player_ranking_per_day, trigger="cron", hour=20)   
+            #app.scheduler.add_job(func=lambda: update_series_stats.main(Player), trigger="cron", minute="45", hour="12-22")                
+            #app.scheduler.add_job(func=lambda: update_scores_from_scoreboard.main(Match), trigger="cron", minute="43", hour="12-22")                     
             app.scheduler.start()
             app.config["SCHEDULER_STARTED"] = True
 
@@ -700,6 +703,7 @@ def get_device_id():
     logging.info(f"IP Address: {ip}")
     
     return hashlib.sha256(f"{user_agent}{ip}".encode()).hexdigest()
+
 
 def is_approved(device_id):
     logging.info(f"Checking if payment is approved for device {device_id}")
@@ -1089,6 +1093,25 @@ def show_live_scoring():
     if not is_approved(device_id):
         return redirect(url_for('pay'))
 
+    new_device_id = request.cookies.get('device_id')  # Check if cookie exists
+
+    logging.info(f"Received device_id from cookies: {new_device_id}")
+
+    if not new_device_id:
+        new_device_id = str(uuid.uuid4())  # Generate new device ID
+        response = make_response(redirect(url_for('show_live_scoring')))
+        response.set_cookie(
+            'device_id', new_device_id, 
+            max_age=60*60*24*365*5,  # 5 years
+            samesite='Lax',
+            secure=False,  # Set True for HTTPS
+            httponly=True
+        )
+        logging.info(f"Setting new device_id: {new_device_id}")
+        return response  # Send response with new cookie
+    
+    logging.info(f"New device ID created  : {new_device_id}")
+
     #refresh_scores()
 
     latest_timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -1103,6 +1126,24 @@ def show_jal_live_scoring():
         return redirect(url_for('pay'))
 
     #refresh_scores()
+    new_device_id = request.cookies.get('device_id')  # Check if cookie exists
+
+    logging.info(f"Received device_id from cookies: {new_device_id}")
+
+    if not new_device_id:
+        new_device_id = str(uuid.uuid4())  # Generate new device ID
+        response = make_response(redirect(url_for('show_live_scoring')))
+        response.set_cookie(
+            'device_id', new_device_id, 
+            max_age=60*60*24*365*5,  # 5 years
+            samesite='Lax',
+            secure=False,  # Set True for HTTPS
+            httponly=True
+        )
+        logging.info(f"Setting new device_id: {new_device_id}")
+        return response  # Send response with new cookie
+    
+    logging.info(f"New device ID created  : {new_device_id}")
 
     latest_timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
