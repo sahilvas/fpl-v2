@@ -126,9 +126,13 @@ def extract_player_of_match(data):
         # ✅ Extract only player names
         player_names = [player["fullName"] for player in players_of_match]
 
-        # ✅ Output the player names
-        print("Player of the Match:", player_names[0])
-        return player_names[0]
+        if player_names and player_names[0]:
+            # ✅ Output the player names
+            logging.info(f"Player of the Match: {player_names[0]}")
+            return player_names[0]
+        else:
+            logging.info(f"No player of the match found.")
+            return None
     
     except AttributeError as e:
         logging.error(f"Error extracting player of match: {e}")
@@ -236,7 +240,10 @@ def main(Match):
 
         # create a dataframe of 1*1 with columns player, matchid
         # values player_of_match, matchId
-        player_of_match_df = pd.DataFrame({'Player': [player_of_match], 'matchId': [table_keyword]})
+        if player_of_match is not None:
+            player_of_match_df = pd.DataFrame({'Player': [player_of_match], 'matchId': [table_keyword]})
+        else:
+            player_of_match_df = pd.DataFrame({'Player': [], 'matchId': []})
         
         if isinstance(data, BeautifulSoup):
             # Extract data  
