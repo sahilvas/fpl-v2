@@ -275,6 +275,7 @@ def main(Match):
             catchers_list = catchers_list_1 + catchers_list_2
             catch_stats = Counter(catchers_list)
             catchers_df = pd.DataFrame(catch_stats.items(), columns=['Player', 'Catches'])
+            catchers_df['matchId'] = table_keyword
 
             # Store in dataframes dict
             if "Bat" in dataframes:
@@ -288,8 +289,7 @@ def main(Match):
                 dataframes["Bowl"] = pd.concat([bowling_1_filtered, bowling_2_filtered])            
                 
             if "Field" in dataframes:
-                dataframes["Field"] = pd.concat([dataframes["Field"], catchers_df]).groupby('Player')['Catches'].sum().reset_index()   
-                dataframes["Field"]['matchId'] = table_keyword
+                dataframes["Field"] = pd.concat([dataframes["Field"], catchers_df]).groupby(['Player', 'matchId'])['Catches'].sum().reset_index()               
             else:
                 dataframes["Field"] = catchers_df
 
