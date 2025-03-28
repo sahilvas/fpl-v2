@@ -24,7 +24,7 @@ def create_cricbuzz_urls(matches):
         match_date = match['date'].split(",")[0]
         today = pd.Timestamp('today').strftime('%b %d')  
         #tomorrow = (pd.Timestamp.today() + pd.Timedelta(days=1)).strftime('%b %d')                
-        logging.info(f"Match date: {match_date} and todays date: {today}")
+        #logging.info(f"Match date: {match_date} and todays date: {today}")
         if match_date == today:
             cricbuzz_urls.append(f"https://www.cricbuzz.com/api/html/cricket-scorecard/{match.matchId}")
             logging.info(f"Fetching: {match.matchId}")
@@ -34,7 +34,7 @@ def create_cricbuzz_urls(matches):
             logging.info(f"Fetching: {match.matchId}")
             
         else:
-            logging.info(f"Skipping: {match.matchId}")
+            #logging.info(f"Skipping: {match.matchId}")
             continue
         
 
@@ -47,7 +47,7 @@ def create_cricbuzz_potm_urls(matches):
         match_date = match['date'].split(",")[0]
         today = pd.Timestamp('today').strftime('%b %d')  
         #tomorrow = (pd.Timestamp.today() + pd.Timedelta(days=1)).strftime('%b %d')                
-        logging.info(f"Match date: {match_date} and todays date: {today}")
+        #logging.info(f"Match date: {match_date} and todays date: {today}")
         if match_date == today:
             cricbuzz_urls.append(f"https://www.cricbuzz.com/api/cricket-match/commentary/{match.matchId}")
             logging.info(f"Fetching: {match.matchId}")
@@ -57,7 +57,7 @@ def create_cricbuzz_potm_urls(matches):
             logging.info(f"Fetching: {match.matchId}")
             
         else:
-            logging.info(f"Skipping: {match.matchId}")
+            #logging.info(f"Skipping: {match.matchId}")
             continue
             
             
@@ -157,7 +157,7 @@ def extract_batting_data(innings_id, soup, matchId):
     except AttributeError as e:
         logging.error(f"Error extracting batting data: {e}")
     finally:
-        logging.info(f"Extracted batting data for {innings_id}")
+        #logging.info(f"Extracted batting data for {innings_id}")
         return innings_data 
   
 # Function to extract bowling data  
@@ -181,7 +181,7 @@ def extract_bowling_data(innings_id, soup, matchId):
     except AttributeError as e:
         logging.error(f"Error extracting batting data: {e}")
     finally:
-        logging.info(f"Extracted batting data for {innings_id}")
+        #logging.info(f"Extracted bowling data for {innings_id}")
         return bowling_data 
   
 # Function to extract catchers from the Dismissal column
@@ -230,7 +230,7 @@ def main(Match):
             logging.error(f"Could not extract keyword from URL: {url}")
             continue
         table_keyword = table_keyword.replace("-", "_").upper()
-        logging.info(f"Keyword: {table_keyword}")
+        #logging.info(f"Keyword: {table_keyword}")
 
         data = fetch_data(url)
 

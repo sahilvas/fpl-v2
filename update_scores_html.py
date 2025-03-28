@@ -51,7 +51,7 @@ def read_excel_file(filename):
     return None
 
 def calculate_best_11(df):  
-    logging.info("Calculating best 11 players for each team")  
+    #logging.info("Calculating best 11 players for each team")  
     best_11 = []  
       
     for team, group in df.groupby('Team Name'):  
@@ -78,7 +78,7 @@ def calculate_best_11(df):
         bat_count = 0  # Track selected batters (including WKs)  
         
         for _, player in players.iterrows():  
-            logging.info(f"Processing player {player['Player Name']}")
+            #logging.info(f"Processing player {player['Player Name']}")
             if len(selected) >= 11:  
                 break  
             
@@ -116,8 +116,8 @@ def calculate_best_11(df):
                 if player_is_overseas:
                         overseas_counter = overseas_counter + 1
   
-        logging.info(f"IPL Team count so far {ipl_team_counts} for team {player_ipl_team}") 
-        logging.info(f"Overseas count so far {overseas_counter} for team {player_ipl_team}")
+        #logging.info(f"IPL Team count so far {ipl_team_counts} for team {player_ipl_team}") 
+        #logging.info(f"Overseas count so far {overseas_counter} for team {player_ipl_team}")
   
         # Ensure at least 1 WK is selected  
         for _, player in players.iterrows():  
@@ -133,7 +133,7 @@ def calculate_best_11(df):
                 ipl_team_counts[player_ipl_team] = ipl_team_counts.get(player_ipl_team, 0) + 1  
                 if player_is_overseas:
                         overseas_counter = overseas_counter + 1
-                logging.info(f"Adding player {player['Player Name']} for team {team}")
+                #logging.info(f"Adding player {player['Player Name']} for team {team}")
                 if bat_count >= bat_needed:  
                     break  
   
@@ -147,12 +147,12 @@ def calculate_best_11(df):
                 if len(selected) >= 11:  
                     break 
                 player_id = player['PlayerId']  
-                logging.info(f"Re-Processing player {player['Player Name']}")
+                #logging.info(f"Re-Processing player {player['Player Name']}")
                 if player_id in selected_ids or  (player_is_overseas and overseas_counter >= max_overseas) or ipl_team_counts.get(player_ipl_team, 0) >= max_ipl_team:
-                    logging.info(f"Player ID: {player_id}, Selected IDs: {selected_ids}, Overseas Counter: {overseas_counter}, Max Overseas: {max_overseas}, IPL Team: {player_ipl_team}, IPL Team Count: {ipl_team_counts.get(player_ipl_team, 0)}, Max IPL Team: {max_ipl_team}, Is Overseas: {player_is_overseas}") 
-                    logging.info(f"Skipping player {player['Player Name']} due to foreign player or IPL team logic")
+                    #logging.info(f"Player ID: {player_id}, Selected IDs: {selected_ids}, Overseas Counter: {overseas_counter}, Max Overseas: {max_overseas}, IPL Team: {player_ipl_team}, IPL Team Count: {ipl_team_counts.get(player_ipl_team, 0)}, Max IPL Team: {max_ipl_team}, Is Overseas: {player_is_overseas}") 
+                    #logging.info(f"Skipping player {player['Player Name']} due to foreign player or IPL team logic")
                     continue  
-                logging.info(f"Adding player {player['Player Name']} to best 11") 
+                #logging.info(f"Adding player {player['Player Name']} to best 11") 
                 selected.append(player)  
                 selected_ids.add(player_id)  
                 ipl_team_counts[player_ipl_team] = ipl_team_counts.get(player_ipl_team, 0) + 1  
@@ -813,7 +813,12 @@ def replace_player_name(df, Player):
 
             for player in players_with_aliases:
                 if player_name in player.name_array:
-                    df.at[index, 'Player'] = player.name
+                    
+                    # check if column name in df is bowler and replace that too
+                    if 'Bowler' in df.columns:                                      
+                        df.at[index, 'Bowler'] = player.name
+                    else:
+                        df.at[index, 'Player'] = player.name
                     print("Player name replaced from %s to %s", player_name, player.name)
                     player_name = player.name
                     break     
