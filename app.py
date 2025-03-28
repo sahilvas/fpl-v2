@@ -577,10 +577,10 @@ def refresh_scores():
     totd_jal = team_of_the_day("JAL") 
 
     # Update scores
-    update_scores.main(Player, PlayerRanking, pod, totd, "", live_players_list)    
+    update_scores.main(Player, PlayerRanking,PlayerRankingPerDay, pod, totd, "", live_players_list)    
 
     # update scores for JAL
-    update_scores.main(JALPlayer, PlayerRanking, pod_jal, totd_jal, "JAL")  
+    update_scores.main(JALPlayer, PlayerRanking, PlayerRankingPerDay, pod_jal, totd_jal, "JAL")  
 
 def get_cricbattle_data():
     # URL and headers extracted from HAR file    
@@ -673,6 +673,7 @@ with app.app_context():
         db.create_all()
         import_player_data()
         get_cricbattle_data()
+        #refresh_scores()
         get_players_in_action()
         #exit()
         df_series = update_series_stats.main(Player)
@@ -683,7 +684,7 @@ with app.app_context():
         # Initialize scheduler only if not already started
         if not app.config.get("SCHEDULER_STARTED", False):
             app.scheduler = BackgroundScheduler()
-            app.scheduler.add_job(func=scheduled_task, trigger="cron", minute="*/3", hour="8-22")        
+            app.scheduler.add_job(func=scheduled_task, trigger="cron", minute="*/2", hour="8-22")        
             app.scheduler.add_job(func=copy_data_from_player_ranking_to_player_ranking_per_day, trigger="cron", hour=20)   
             #app.scheduler.add_job(func=lambda: update_series_stats.main(Player), trigger="cron", minute="45", hour="12-22")                
             #app.scheduler.add_job(func=lambda: update_scores_from_scoreboard.main(Match), trigger="cron", minute="43", hour="12-22")                     

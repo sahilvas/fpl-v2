@@ -213,11 +213,12 @@ def style_row(row, best_11_set):
         return 'background-color: #e6ffe6'  # Light green background
     return ''
 
-def generate_html_report(team_points_df, player_team_points_df, series_stats_df, scoreboard_stats_df, best_11_df, player_of_the_day, team_of_the_day, league, live_players_list):
+def generate_html_report(team_points_df, player_team_points_df, series_stats_df, scoreboard_stats_df, best_11_df, player_of_the_day, team_of_the_day, league, live_players_list, all_team_points_df):
     
     team_chart = create_team_points_chart(team_points_df)
     player_chart = create_player_performance_chart(player_team_points_df)
     role_chart = create_role_distribution_chart(player_team_points_df)
+    race_to_finish_chart = create_race_to_finish_chart(all_team_points_df)
 
     # Create clickable player names with URLs and add background color for best 11 players
     player_team_points_df = player_team_points_df.sort_values(['Team Name', 'PlayerPoints'])
@@ -745,6 +746,7 @@ def generate_html_report(team_points_df, player_team_points_df, series_stats_df,
             
             <div id="team-table" class="table-container">{team_table}</div>
             <div class="chart-container">{team_chart}</div>
+            <div class="chart-container">{race_to_finish_chart}</div>
 
             <div class="table-container">{sb_tables}</div>
             <div class="table-container">{series_tables}</div>
@@ -839,7 +841,23 @@ def generate_player_profile_url(player_id):
     return f"{base_url}{player_id}" 
 
 
-def main(Player, PlayerRanking, player_of_the_day, team_of_the_day, league="", live_players_list=pd.DataFrame()):
+def create_race_to_finish_chart(all_team_points_df):
+     # Create line chart
+    fig = px.line(all_team_points_df, 
+                x='date', 
+                y='Best11Points',
+                color='Team Name',
+                title='Race to Finish',
+                labels={'Best11Points': 'Best11Points', 'date': 'Date'},
+                line_shape='linear', markers=True)
+
+    fig.update_layout(xaxis_title='Date', 
+                    yaxis_title='Points',
+                    legend_title='Team Name')
+
+    return fig.to_html(full_html=False)  
+
+def main(Player, PlayerRanking, PlayerRankingPerDay, player_of_the_day, team_of_the_day, league="", live_players_list=pd.DataFrame()):
     #players_df = read_excel_file("players.xlsx")
     #write code to extract players table from cricbattle.db sqllite database and save as dataframe
     # Connect to SQLite database
@@ -885,8 +903,89 @@ def main(Player, PlayerRanking, player_of_the_day, team_of_the_day, league="", l
         
         } for pr in PlayerRanking.query.all()])
     
+    player_rankings_per_day_df = pd.DataFrame([{
+        'PlayerId': pr.PlayerId,
+        'PlayerName': pr.PlayerName,
+        'TotalScore': pr.TotalScore,
+        'timestamp': pr.timestamp
+        } for pr in PlayerRankingPerDay.query.all()])
+    
+    #print(player_rankings_per_day_df.head())
+    if not players_df.empty and not player_rankings_per_day_df.empty:
+        try:
+
+            # keep only max timestamp entries per day in player_rankings_per_day_df
+            # Convert timestamp to datetime if not already
+
+            # Extract date from timestamp 
+            player_rankings_per_day_df['date'] = player_rankings_per_day_df['timestamp'].dt.date
+            #print(player_rankings_per_day_df)  
+
+            # Sort by timestamp descending and keep first row per date per playername
+            
+            player_rankings_per_day_df = player_rankings_per_day_df.sort_values('timestamp', ascending=False).groupby(['date', 'PlayerName']).first().reset_index() 
+            #print(player_rankings_per_day_df)  
+
+            del player_rankings_per_day_df['timestamp']
+
+            #print(player_rankings_per_day_df)         
+            
+            # Sort by date
+            player_rankings_per_day_df = player_rankings_per_day_df.sort_values('date')
+
+            # Get unique dates
+            dates = player_rankings_per_day_df['date'].unique()
+
+            #print(dates)
+
+            # Initialize empty list to store daily team points
+            daily_team_points = []
+
+            # Loop through each date
+            for date in dates:
+                # Get data for current date
+                #print("processing for date : ", date)
+                daily_df = player_rankings_per_day_df[player_rankings_per_day_df['date'] == date]
+
+                #print(daily_df)
+                
+
+                merged_df_perday = pd.merge(players_df, daily_df, left_on="Player Name", right_on="PlayerName")
+
+                #print(merged_df_perday)
+
+                # Add Best 11 Points  
+                best_11_data_per_day = calculate_best_11(merged_df_perday)  
+
+                #print(best_11_data_per_day)
+                team_points_df_per_day = merged_df_perday.groupby('Team Name')['TotalScore'].sum().reset_index()  
+                team_points_df_per_day.rename(columns={'TotalScore': 'TotalPoints'}, inplace=True) 
+
+                #print(team_points_df_per_day)
+
+                # Add Best 11 Points  
+                best_11_dict_per_day = {team: points for team, points, _ in best_11_data_per_day}  
+                team_points_df_per_day['Best11Points'] = team_points_df_per_day['Team Name'].map(best_11_dict_per_day)    
+
+                team_points_df_per_day['date'] = date          
+                
+                
+                daily_team_points.append(team_points_df_per_day)
+                #print(daily_team_points)
+
+
+        except Exception as e:
+            logging.error(f"An error occurred during race to finish processing: {str(e)}")
+            traceback.print_exception(type(e), e, e.__traceback__)
+
+        # Combine all daily points
+        all_team_points = pd.concat(daily_team_points)
+        #print(all_team_points)
+        #exit()
+
+    
   
-    print(player_rankings_df.head())
+    #print(player_rankings_df.head())
     if not players_df.empty and not player_rankings_df.empty:        
         try:
             
@@ -1129,7 +1228,7 @@ def main(Player, PlayerRanking, player_of_the_day, team_of_the_day, league="", l
                 
                                             
             # Generate HTML report
-            generate_html_report(team_points_df, player_team_points_df, df_series, df_scoreboard, best_11_df, player_of_the_day, team_of_the_day, league, live_players_list)
+            generate_html_report(team_points_df, player_team_points_df, df_series, df_scoreboard, best_11_df, player_of_the_day, team_of_the_day, league, live_players_list, all_team_points)
             
             logging.info("Data transformation and HTML generation complete.")
             
