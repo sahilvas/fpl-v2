@@ -29,9 +29,6 @@ def create_cricbuzz_urls(matches):
             cricbuzz_urls.append(f"https://www.cricbuzz.com/api/html/cricket-scorecard/{match.matchId}")
             logging.info(f"Fetching: {match.matchId}")
         
-        elif match_date.split(" ")[0] == today.split(" ")[0] and match_date.split(" ")[1] <= today.split(" ")[1]:
-            cricbuzz_urls.append(f"https://www.cricbuzz.com/api/html/cricket-scorecard/{match.matchId}")
-            logging.info(f"Fetching: {match.matchId}")
             
         else:
             #logging.info(f"Skipping: {match.matchId}")
@@ -52,10 +49,6 @@ def create_cricbuzz_potm_urls(matches):
             cricbuzz_urls.append(f"https://www.cricbuzz.com/api/cricket-match/commentary/{match.matchId}")
             logging.info(f"Fetching: {match.matchId}")
         
-        elif match_date.split(" ")[0] == today.split(" ")[0] and match_date.split(" ")[1] <= today.split(" ")[1]:
-            cricbuzz_urls.append(f"https://www.cricbuzz.com/api/cricket-match/commentary/{match.matchId}")
-            logging.info(f"Fetching: {match.matchId}")
-            
         else:
             #logging.info(f"Skipping: {match.matchId}")
             continue
@@ -304,7 +297,12 @@ def main(Match):
     for key, df in dataframes.items():
         table_name = f'cricket_{key.lower()}'
         print(df)
-        df.to_sql(table_name, conn, if_exists='replace', index=False)
+        #df.to_sql(table_name, conn, if_exists='replace', index=False)
+        # Delete existing rows for current matchId before inserting new ones
+        for matchId in df['matchId'].unique():
+            conn.execute(f"DELETE FROM {table_name} WHERE matchId = ?", (table_keyword,))
+            logging.info(f"Deleted existing rows for matchId: {matchId} from table: {table_name}")
+        df.to_sql(table_name, conn, if_exists='append', index=False)
         logging.info(f"Stored {key} data in table: {table_name}")
 
     conn.close()
