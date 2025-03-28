@@ -1223,11 +1223,18 @@ def extract_match_details(html_file):
 def save_to_db(matches):
     json_matches = json.loads(matches)
     for match in json_matches:
+        if match["date"]:
+            last_match_date = match["date"]
+            logging.info(f"Last match date: {last_match_date}")
         #session.add(Match(date=match["date"], match_info=match["match_info"], time=match["time"]))
         new_match = Match(matchId=match["matchId"], date=match["date"], match_info=match["match_info"], time=match["time"])
         if not match["date"] and match["match_info"] in "Chennai Super Kings vs Mumbai Indians, 3rd Match":
             match["date"] = "Mar 23, Sun"
             new_match = Match(matchId=match["matchId"], date=match["date"], match_info=match["match_info"], time=match["time"])
+        elif not match["date"]:
+            match["date"] = last_match_date
+            new_match = Match(matchId=match["matchId"], date=match["date"], match_info=match["match_info"], time=match["time"])
+            logging.info(f"Last match date set up to : {last_match_date} for match : {match["match_info"]}")
         db.session.merge(new_match)
 
 
