@@ -659,8 +659,8 @@ def scheduled_task():
         get_cricbattle_data()
         jal_app.main()
         refresh_scores()
-        #df_series = update_series_stats.main(Player)
-        #df_scoreboard = update_scores_from_scoreboard.main(Match)
+        df_series = update_series_stats.main(Player)
+        df_scoreboard = update_scores_from_scoreboard.main(Match)
 
 INIT_FILE = "app_initialized.lock"
 
