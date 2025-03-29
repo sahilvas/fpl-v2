@@ -723,6 +723,13 @@ def pay():
     device_id = get_device_id()
     print(device_id)
 
+    new_device_id = request.cookies.get('device_id')  # Check if cookie exists
+
+    logging.info(f"Received device_id from cookies: {new_device_id}")
+
+    device_id = device_id + "--" + new_device_id
+    logging.info(f"Setting new super device_id: {device_id}")
+
     if is_paid_but_not_approved(device_id):
         flash("Your payment is under review. Please check back later.", "info")
         print("Your payment is under review.")
@@ -760,6 +767,26 @@ def confirm_payment():
     email = request.form.get('email')
     txn_ref = request.form.get('txn_ref')
     txn_proof = request.files.get('txn_proof')
+
+    new_device_id = request.cookies.get('device_id')  # Check if cookie exists
+
+    logging.info(f"Received device_id from cookies: {new_device_id}")
+
+    if not new_device_id:
+        new_device_id = str(uuid.uuid4())  # Generate new device ID
+        response = make_response(redirect(url_for('confirm_payment')))
+        response.set_cookie(
+            'device_id', new_device_id, 
+            max_age=60*60*24*365*5,  # 5 years
+            samesite='Lax',
+            secure=False,  # Set True for HTTPS
+            httponly=True
+        )
+        logging.info(f"Setting new device_id: {new_device_id}")
+        return response  # Send response with new cookie
+    
+    device_id = device_id + "--" + new_device_id
+    logging.info(f"Setting new super device_id: {device_id}")
 
     if email and txn_ref and txn_proof and allowed_file(txn_proof.filename):
         filename = secure_filename(txn_proof.filename)
@@ -897,6 +924,13 @@ def display_leaderboard():
     device_id = get_device_id()
     print(device_id)
 
+    new_device_id = request.cookies.get('device_id')  # Check if cookie exists
+
+    logging.info(f"Received device_id from cookies: {new_device_id}")
+
+    device_id = device_id + "--" + new_device_id
+    logging.info(f"Setting new super device_id: {device_id}")
+
     if is_paid_but_not_approved(device_id):
         flash("Your payment is under review. Please check back later.", "info")
         print("Your payment is under review")
@@ -956,6 +990,15 @@ def reset_payment():
     device_id = get_device_id()
     print(device_id)
 
+    new_device_id = request.cookies.get('device_id')  # Check if cookie exists
+
+    logging.info(f"Received device_id from cookies: {new_device_id}")
+
+    device_id = device_id + "--" + new_device_id
+    logging.info(f"Setting new super device_id: {device_id}")
+
+    
+
         
     payment = Payment.query.filter_by(deleted=0, device_id=device_id).first()
     if payment:
@@ -967,6 +1010,14 @@ def reset_payment():
 @app.route('/insights')
 def show_insights():
     device_id = get_device_id()
+
+    new_device_id = request.cookies.get('device_id')  # Check if cookie exists
+
+    logging.info(f"Received device_id from cookies: {new_device_id}")
+
+    device_id = device_id + "--" + new_device_id
+    logging.info(f"Setting new super device_id: {device_id}")
+
     if not is_approved(device_id):
         return redirect(url_for('pay'))
 
@@ -1091,6 +1142,14 @@ def activate_trial():
 def show_live_scoring():
     # check if user is paid and approved
     device_id = get_device_id()
+
+    new_device_id = request.cookies.get('device_id')  # Check if cookie exists
+
+    logging.info(f"Received device_id from cookies: {new_device_id}")
+
+    device_id = device_id + "--" + new_device_id
+    logging.info(f"Setting new super device_id: {device_id}")
+
     if not is_approved(device_id):
         return redirect(url_for('pay'))
 
@@ -1111,7 +1170,6 @@ def show_live_scoring():
         logging.info(f"Setting new device_id: {new_device_id}")
         return response  # Send response with new cookie
     
-    logging.info(f"New device ID created  : {new_device_id}")
 
     #refresh_scores()
 
@@ -1123,6 +1181,14 @@ def show_live_scoring():
 def show_jal_live_scoring():
     # check if user is paid and approved
     device_id = get_device_id()
+
+    new_device_id = request.cookies.get('device_id')  # Check if cookie exists
+
+    logging.info(f"Received device_id from cookies: {new_device_id}")
+
+    device_id = device_id + "--" + new_device_id
+    logging.info(f"Setting new super device_id: {device_id}")
+
     if not is_approved(device_id):
         return redirect(url_for('pay'))
 
@@ -1133,7 +1199,7 @@ def show_jal_live_scoring():
 
     if not new_device_id:
         new_device_id = str(uuid.uuid4())  # Generate new device ID
-        response = make_response(redirect(url_for('show_live_scoring')))
+        response = make_response(redirect(url_for('show_jal_live_scoring')))
         response.set_cookie(
             'device_id', new_device_id, 
             max_age=60*60*24*365*5,  # 5 years
@@ -1144,7 +1210,6 @@ def show_jal_live_scoring():
         logging.info(f"Setting new device_id: {new_device_id}")
         return response  # Send response with new cookie
     
-    logging.info(f"New device ID created  : {new_device_id}")
 
     latest_timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
