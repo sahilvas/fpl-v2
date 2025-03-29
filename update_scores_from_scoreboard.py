@@ -116,6 +116,8 @@ def extract_player_of_match(data):
         # ✅ Extracting players of the match
         players_of_match = data.get("matchHeader", {}).get("playersOfTheMatch", [])
 
+        matchId = data.get("matchHeader", {}).get("matchId", None)
+
         # ✅ Extract only player names
         player_names = [player["fullName"] for player in players_of_match]
 
@@ -123,6 +125,9 @@ def extract_player_of_match(data):
             # ✅ Output the player names
             logging.info(f"Player of the Match: {player_names[0]}")
             return player_names[0]
+        elif matchId and matchId == 115014:
+            logging.info(f"Player of the Match Hardcoded: Prasidh Krishna")
+            return "Prasidh Krishna"
         else:
             logging.info(f"No player of the match found.")
             return None

@@ -685,7 +685,7 @@ with app.app_context():
         if not app.config.get("SCHEDULER_STARTED", False):
             app.scheduler = BackgroundScheduler()
             app.scheduler.add_job(func=scheduled_task, trigger="cron", minute="*/2", hour="8-22")        
-            app.scheduler.add_job(func=copy_data_from_player_ranking_to_player_ranking_per_day, trigger="cron", hour=20)   
+            app.scheduler.add_job(func=copy_data_from_player_ranking_to_player_ranking_per_day, trigger="cron", hour="18,19,20")               
             #app.scheduler.add_job(func=lambda: update_series_stats.main(Player), trigger="cron", minute="45", hour="12-22")                
             #app.scheduler.add_job(func=lambda: update_scores_from_scoreboard.main(Match), trigger="cron", minute="43", hour="12-22")                     
             app.scheduler.start()
