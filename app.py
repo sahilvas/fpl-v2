@@ -727,6 +727,20 @@ def pay():
 
     logging.info(f"Received device_id from cookies: {new_device_id}")
 
+    if not new_device_id:
+        new_device_id = str(uuid.uuid4())  # Generate new device ID
+        response = make_response(redirect(url_for('show_live_scoring')))
+        response.set_cookie(
+            'device_id', new_device_id, 
+            max_age=60*60*24*365*5,  # 5 years
+            samesite='Lax',
+            secure=False,  # Set True for HTTPS
+            httponly=True
+        )
+        logging.info(f"Setting new device_id: {new_device_id}")
+        return response  # Send response with new cookie
+    
+
     device_id = device_id + "--" + new_device_id
     logging.info(f"Setting new super device_id: {device_id}")
 
@@ -928,8 +942,25 @@ def display_leaderboard():
 
     logging.info(f"Received device_id from cookies: {new_device_id}")
 
+    if not new_device_id:
+        new_device_id = str(uuid.uuid4())  # Generate new device ID
+        response = make_response(redirect(url_for('show_live_scoring')))
+        response.set_cookie(
+            'device_id', new_device_id, 
+            max_age=60*60*24*365*5,  # 5 years
+            samesite='Lax',
+            secure=False,  # Set True for HTTPS
+            httponly=True
+        )
+        logging.info(f"Setting new device_id: {new_device_id}")
+        return response  # Send response with new cookie
+    
+
     device_id = device_id + "--" + new_device_id
     logging.info(f"Setting new super device_id: {device_id}")
+
+    if not is_approved(device_id):
+        return redirect(url_for('pay'))
 
     if is_paid_but_not_approved(device_id):
         flash("Your payment is under review. Please check back later.", "info")
@@ -994,8 +1025,25 @@ def reset_payment():
 
     logging.info(f"Received device_id from cookies: {new_device_id}")
 
+    if not new_device_id:
+        new_device_id = str(uuid.uuid4())  # Generate new device ID
+        response = make_response(redirect(url_for('show_live_scoring')))
+        response.set_cookie(
+            'device_id', new_device_id, 
+            max_age=60*60*24*365*5,  # 5 years
+            samesite='Lax',
+            secure=False,  # Set True for HTTPS
+            httponly=True
+        )
+        logging.info(f"Setting new device_id: {new_device_id}")
+        return response  # Send response with new cookie
+    
+
     device_id = device_id + "--" + new_device_id
     logging.info(f"Setting new super device_id: {device_id}")
+
+    if not is_approved(device_id):
+        return redirect(url_for('pay'))
 
     
 
@@ -1015,8 +1063,25 @@ def show_insights():
 
     logging.info(f"Received device_id from cookies: {new_device_id}")
 
+    if not new_device_id:
+        new_device_id = str(uuid.uuid4())  # Generate new device ID
+        response = make_response(redirect(url_for('show_live_scoring')))
+        response.set_cookie(
+            'device_id', new_device_id, 
+            max_age=60*60*24*365*5,  # 5 years
+            samesite='Lax',
+            secure=False,  # Set True for HTTPS
+            httponly=True
+        )
+        logging.info(f"Setting new device_id: {new_device_id}")
+        return response  # Send response with new cookie
+    
+
     device_id = device_id + "--" + new_device_id
     logging.info(f"Setting new super device_id: {device_id}")
+
+    if not is_approved(device_id):
+        return redirect(url_for('pay'))
 
     if not is_approved(device_id):
         return redirect(url_for('pay'))
@@ -1147,11 +1212,38 @@ def show_live_scoring():
 
     logging.info(f"Received device_id from cookies: {new_device_id}")
 
+    if not new_device_id:
+        new_device_id = str(uuid.uuid4())  # Generate new device ID
+        response = make_response(redirect(url_for('show_live_scoring')))
+        response.set_cookie(
+            'device_id', new_device_id, 
+            max_age=60*60*24*365*5,  # 5 years
+            samesite='Lax',
+            secure=False,  # Set True for HTTPS
+            httponly=True
+        )
+        logging.info(f"Setting new device_id: {new_device_id}")
+        return response  # Send response with new cookie
+    
+
     device_id = device_id + "--" + new_device_id
     logging.info(f"Setting new super device_id: {device_id}")
 
     if not is_approved(device_id):
         return redirect(url_for('pay'))
+    
+    
+
+    #refresh_scores()
+
+    latest_timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+    return render_template('FPL-IPL2025-Points.html', timestamp=latest_timestamp)
+
+@app.route('/jal/live-scoring')
+def show_jal_live_scoring():
+    # check if user is paid and approved
+    device_id = get_device_id()
 
     new_device_id = request.cookies.get('device_id')  # Check if cookie exists
 
@@ -1171,44 +1263,11 @@ def show_live_scoring():
         return response  # Send response with new cookie
     
 
-    #refresh_scores()
-
-    latest_timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-
-    return render_template('FPL-IPL2025-Points.html', timestamp=latest_timestamp)
-
-@app.route('/jal/live-scoring')
-def show_jal_live_scoring():
-    # check if user is paid and approved
-    device_id = get_device_id()
-
-    new_device_id = request.cookies.get('device_id')  # Check if cookie exists
-
-    logging.info(f"Received device_id from cookies: {new_device_id}")
-
     device_id = device_id + "--" + new_device_id
     logging.info(f"Setting new super device_id: {device_id}")
 
     if not is_approved(device_id):
         return redirect(url_for('pay'))
-
-    #refresh_scores()
-    new_device_id = request.cookies.get('device_id')  # Check if cookie exists
-
-    logging.info(f"Received device_id from cookies: {new_device_id}")
-
-    if not new_device_id:
-        new_device_id = str(uuid.uuid4())  # Generate new device ID
-        response = make_response(redirect(url_for('show_jal_live_scoring')))
-        response.set_cookie(
-            'device_id', new_device_id, 
-            max_age=60*60*24*365*5,  # 5 years
-            samesite='Lax',
-            secure=False,  # Set True for HTTPS
-            httponly=True
-        )
-        logging.info(f"Setting new device_id: {new_device_id}")
-        return response  # Send response with new cookie
     
 
     latest_timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
