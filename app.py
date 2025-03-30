@@ -25,6 +25,7 @@ from apscheduler.schedulers.background import BackgroundScheduler
 import update_series_stats
 import update_scores_from_scoreboard
 from datetime import timedelta
+from datetime import timedelta
 
 
   
@@ -82,6 +83,14 @@ class Payment(db.Model):
     trial_expiry = db.Column(db.DateTime)
     deleted = db.Column(db.Integer, default=0)
     approved = db.Column(db.Integer, default=0)
+
+
+#model to store logs
+class Log(db.Model):
+    __tablename__ = 'logs'
+    id = db.Column(db.Integer, primary_key=True)
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+    message = db.Column(db.String)
 
 class Player(db.Model):
     __tablename__ = 'player_v3'
@@ -166,6 +175,16 @@ class PlayerRankingPerDay(db.Model):
 
 # Ensure upload folder exists
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+
+# method to store passed argument (text lines, variables, pandas df) to Log table
+def log_to_db(message):
+    try:
+        log_entry = Log(message=message)
+        db.session.add(log_entry)
+        db.session.commit()
+    except Exception as e:
+        logging.error(f"Error logging to database: {e}")
+        db.session.rollback()
 
 # Import player data from mydatabase.db
 def import_player_data():
@@ -927,6 +946,23 @@ def admin_review():
     'trial_expiry': payment.trial_expiry.strftime('%Y-%m-%d %H:%M:%S') if payment.trial_expiry else None,
     'deleted': payment.deleted
 } for payment in pending_payments])
+
+
+# create /admin/logs route to render logs.html with data frm logs table
+@app.route('/admin/logs')
+def logs():
+    if session.get('admin') != True:
+        return redirect(url_for('login'))
+    
+    # delete logs from  timestamp older than 1 week
+    one_week_ago = datetime.now() - timedelta(days=7)
+    Log.query.filter(Log.timestamp < one_week_ago).delete()
+    db.session.commit()
+    logging.info("Deleted logs older than 1 week")
+
+
+    logs = Log.query.order_by(Log.timestamp.desc()).all()    
+    return render_template('logs.html', logs=logs)
 
 
 @app.route('/')

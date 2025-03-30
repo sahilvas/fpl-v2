@@ -22,7 +22,26 @@ logging.basicConfig(
     datefmt='%Y-%m-%d %H:%M:%S'
 )
 
- 
+
+def insert_log_message(message):
+    try:
+        logging.info(f"Inserting logs")
+        # Create SQLite connection
+        conn_logs = sqlite3.connect('/mnt/sqlite/cricbattle.db' if os.environ.get("WEBSITE_SITE_NAME") else 'instance/cricbattle.db')
+        # Create a cursor object 
+        cursor = conn_logs.cursor()
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        # Insert the log message into the logs table
+        cursor.execute("INSERT INTO logs (timestamp, message) VALUES (?, ?)", (timestamp, str(message)))
+        # Commit the changes
+        conn_logs.commit()
+        # Close the connection
+        conn_logs.close()
+        logging.info(f"Inserted logs")
+    except Exception as e:
+        logging.error(f"Error inserting logs: {str(e)}") 
+
+
 
 def adjust_column_widths(sheet):  
     logging.info("Adjusting column widths")  
@@ -822,12 +841,14 @@ def replace_player_name(df, Player):
                     else:
                         df.at[index, 'Player'] = player.name
                     print("Player name replaced from %s to %s", player_name, player.name)
+                    insert_log_message(f"Player name replaced from  {player_name} to {player.name}") 
                     player_name = player.name
                     break     
 
         player = Player.query.filter_by(name=player_name).first()
         if player is None :
-            logging.error("Player name alias not found for %s", player_name)                       
+            logging.error("Player name alias not found for %s", player_name)   
+            insert_log_message(f"Player name alias not found for  {player_name}")                    
 
     return df
 
@@ -1197,6 +1218,9 @@ def main(Player, PlayerRanking, PlayerRankingPerDay, player_of_the_day, team_of_
             
                 # Filter out players who joined after the match
                 print(merged_df)
+
+                insert_log_message(merged_df)
+               
 
                 #check if mattchId col exists in merged_df
                 if 'matchId' in merged_df.columns:
