@@ -77,6 +77,7 @@ def read_excel_file(filename):
 def calculate_best_11(df):  
     #logging.info("Calculating best 11 players for each team")  
     best_11 = []  
+    #print(df)
       
     for team, group in df.groupby('Team Name'):  
         players = group.copy()  
@@ -114,7 +115,7 @@ def calculate_best_11(df):
             if player_id in selected_ids or overseas_counter >= max_overseas or ipl_team_counts.get(player_ipl_team, 0) >= max_ipl_team:
                 continue
             
-            if player_role == 'Wicket Keeper Batter':  
+            if player_role == 'Wicket-Keeper':  
                 if wk_count < 1:  # Allow multiple WKs up to 4  
                     selected.append(player)  
                     selected_ids.add(player_id)  
@@ -124,7 +125,7 @@ def calculate_best_11(df):
                     if player_is_overseas:
                         overseas_counter = overseas_counter + 1
             
-            elif player_role == 'Allrounder' and all_needed > 0:  
+            elif player_role == 'All-Rounder' and all_needed > 0:  
                 selected.append(player)  
                 selected_ids.add(player_id)  
                 all_needed -= 1   
@@ -149,7 +150,7 @@ def calculate_best_11(df):
             player_ipl_team = player['IPL Team']
             if len(selected) >= 11:  
                 break 
-            if player['Role'] in ['Batter', 'Wicket Keeper Batter'] and player['PlayerId'] not in selected_ids and len(selected) < 11:  
+            if player['Role'] in ['Batsman', 'Wicket-Keeper'] and player['PlayerId'] not in selected_ids and len(selected) < 11:  
                 selected.append(player)  
                 selected_ids.add(player['PlayerId'])  
                 wk_count += 1  
@@ -848,7 +849,7 @@ def replace_player_name(df, Player, league="FPL"):
                         df.at[index, 'Bowler'] = player.name
                     else:
                         df.at[index, 'Player'] = player.name
-                    print("Player name replaced from %s to %s", player_name, player.name)
+                    #print("Player name replaced from %s to %s", player_name, player.name)
                     #insert_log_message(f"Player name replaced from  {player_name} to {player.name}") 
                     player_name = player.name
                     break     

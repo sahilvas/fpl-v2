@@ -179,7 +179,8 @@ os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 # method to store passed argument (text lines, variables, pandas df) to Log table
 def log_to_db(message):
     try:
-        log_entry = Log(message=message)
+        timestamp = datetime.now()
+        log_entry = Log(message=message, timestamp=timestamp)
         db.session.add(log_entry)
         db.session.commit()
     except Exception as e:
@@ -676,7 +677,7 @@ def scheduled_task():
     with app.app_context():
         logging.info("Running scheduled task")
         get_cricbattle_data()
-        jal_app.main()
+        #jal_app.main()
         refresh_scores()
         df_series = update_series_stats.main(Player)
         df_scoreboard = update_scores_from_scoreboard.main(Match)
@@ -692,6 +693,7 @@ with app.app_context():
         db.create_all()
         import_player_data()
         get_cricbattle_data()
+        jal_app.main()
         #refresh_scores()
         get_players_in_action()
         #exit()
@@ -703,8 +705,8 @@ with app.app_context():
         # Initialize scheduler only if not already started
         if not app.config.get("SCHEDULER_STARTED", False):
             app.scheduler = BackgroundScheduler()
-            app.scheduler.add_job(func=scheduled_task, trigger="cron", minute="*/2", hour="8-22")        
-            app.scheduler.add_job(func=copy_data_from_player_ranking_to_player_ranking_per_day, trigger="cron", hour="18,19,20")               
+            app.scheduler.add_job(func=scheduled_task, trigger="cron", minute="*/2", hour="9-22")        
+            app.scheduler.add_job(func=copy_data_from_player_ranking_to_player_ranking_per_day, trigger="cron", hour="17,18,19")               
             #app.scheduler.add_job(func=lambda: update_series_stats.main(Player), trigger="cron", minute="45", hour="12-22")                
             #app.scheduler.add_job(func=lambda: update_scores_from_scoreboard.main(Match), trigger="cron", minute="43", hour="12-22")                     
             app.scheduler.start()
@@ -725,12 +727,39 @@ def get_device_id():
     return hashlib.sha256(f"{user_agent}{ip}".encode()).hexdigest()
 
 
+# method that uses existing device_id as input 
+# split device_id with delimitter --
+# check if any values exists in payment table with 2nd part 
+# if not then update the payment table with 2nd part
+def update_device_id(old_device_id):
+    try:
+        split_device_ids = old_device_id.split("--")
+        new_device_id = split_device_ids[1]
+        check_device_id = Payment.query.filter_by(deleted=0, device_id=new_device_id).first()
+        if check_device_id is None:
+            payment = Payment.query.filter_by(device_id=old_device_id, deleted=0).update({Payment.device_id: new_device_id})
+            db.session.commit()
+    except Exception as e:
+        logging.error(f"Error updating device ID: {e}")        
+    return True
+
+
 def is_approved(device_id):
     logging.info(f"Checking if payment is approved for device {device_id}")
-    payment = Payment.query.filter_by(deleted=0, device_id=device_id).first()
-    if payment is not None and payment.approved == 1:
-        logging.info(f"Payment found approved for device {device_id}")
-        return True
+
+    if "--" in device_id:
+        update_device_id(device_id)
+        device_id = device_id.split("--")[1]
+        logging.info(f"Updated device ID: {device_id}")
+        payment = Payment.query.filter_by(deleted=0, device_id=device_id).first()
+    else:
+        payment = Payment.query.filter(Payment.device_id.like(f"%{device_id}%"), Payment.deleted==0).first()            
+        if payment is not None and payment.approved == 1:
+            logging.info(f"Payment found approved for device {device_id}")
+            log_to_db(f"Payment found approved for device {device_id}")
+            return True
+    logging.info(f"Payment not approved for device {device_id}")
+    log_to_db(f"Payment not approved for device {device_id}")
     return False
 
 
@@ -760,7 +789,8 @@ def pay():
         return response  # Send response with new cookie
     
 
-    device_id = device_id + "--" + new_device_id
+    #device_id = device_id + "--" + new_device_id
+    device_id = new_device_id
     logging.info(f"Setting new super device_id: {device_id}")
 
     if is_paid_but_not_approved(device_id):
@@ -818,7 +848,8 @@ def confirm_payment():
         logging.info(f"Setting new device_id: {new_device_id}")
         return response  # Send response with new cookie
     
-    device_id = device_id + "--" + new_device_id
+    #device_id = device_id + "--" + new_device_id
+    device_id = new_device_id
     logging.info(f"Setting new super device_id: {device_id}")
 
     if email and txn_ref and txn_proof and allowed_file(txn_proof.filename):
@@ -857,12 +888,20 @@ def confirm_payment():
         flash("Invalid payment proof file", "danger")
     
 def is_paid_but_not_approved(device_id):
+    if "--" in device_id:
+        device_id = device_id.split("--")[1]
     payment = Payment.query.filter_by(deleted=0, device_id=device_id).first()
-    return payment is not None and payment.paid == 1 and payment.approved == 0
+    if payment is None:
+        payment = Payment.query.filter(Payment.device_id.like(f"%{device_id}%"), Payment.deleted==0).first()  
+    return payment is not None and payment.approved == 0
 
 def is_rejected(device_id):
+    if "--" in device_id:
+        device_id = device_id.split("--")[1]
     payment = Payment.query.filter_by(deleted=0, device_id=device_id).first()
-    return payment is not None and payment.paid == 1 and payment.approved == 2
+    if payment is None:
+        payment = Payment.query.filter(Payment.device_id.like(f"%{device_id}%"), Payment.deleted==0).first()  
+    return payment is not None and payment.approved == 2
 
 # method to check if trial expired for device
 def is_trial_expired(device_id):
@@ -992,11 +1031,9 @@ def display_leaderboard():
         return response  # Send response with new cookie
     
 
-    device_id = device_id + "--" + new_device_id
+    #device_id = device_id + "--" + new_device_id
+    device_id = new_device_id
     logging.info(f"Setting new super device_id: {device_id}")
-
-    if not is_approved(device_id):
-        return redirect(url_for('pay'))
 
     if is_paid_but_not_approved(device_id):
         flash("Your payment is under review. Please check back later.", "info")
@@ -1075,14 +1112,15 @@ def reset_payment():
         return response  # Send response with new cookie
     
 
-    device_id = device_id + "--" + new_device_id
+    #device_id = device_id + "--" + new_device_id
+    device_id = new_device_id
     logging.info(f"Setting new super device_id: {device_id}")
 
-    if not is_approved(device_id):
+    if not is_rejected(device_id):
+        flash("Your payment is not rejected. Please check back later.", "info")
         return redirect(url_for('pay'))
-
     
-
+    logging.info(f"Resetting payment for device {device_id}")
         
     payment = Payment.query.filter_by(deleted=0, device_id=device_id).first()
     if payment:
@@ -1113,7 +1151,8 @@ def show_insights():
         return response  # Send response with new cookie
     
 
-    device_id = device_id + "--" + new_device_id
+    #device_id = device_id + "--" + new_device_id
+    device_id = new_device_id
     logging.info(f"Setting new super device_id: {device_id}")
 
     if not is_approved(device_id):
@@ -1262,7 +1301,8 @@ def show_live_scoring():
         return response  # Send response with new cookie
     
 
-    device_id = device_id + "--" + new_device_id
+    #device_id = device_id + "--" + new_device_id
+    device_id = new_device_id
     logging.info(f"Setting new super device_id: {device_id}")
 
     if not is_approved(device_id):
@@ -1299,7 +1339,8 @@ def show_jal_live_scoring():
         return response  # Send response with new cookie
     
 
-    device_id = device_id + "--" + new_device_id
+    #device_id = device_id + "--" + new_device_id
+    device_id = new_device_id
     logging.info(f"Setting new super device_id: {device_id}")
 
     if not is_approved(device_id):
