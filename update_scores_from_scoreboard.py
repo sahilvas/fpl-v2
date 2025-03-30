@@ -305,9 +305,11 @@ def main(Match):
         #df.to_sql(table_name, conn, if_exists='replace', index=False)
         # Delete existing rows for current matchId before inserting new ones
         for matchId in df['matchId'].unique():
-            conn.execute(f"DELETE FROM {table_name} WHERE matchId = ?", (table_keyword,))
+            conn.execute(f"DELETE FROM {table_name} WHERE matchId = ?", (matchId,))
             logging.info(f"Deleted existing rows for matchId: {matchId} from table: {table_name}")
             conn.commit()
+
+            
         df.to_sql(table_name, conn, if_exists='append', index=False)
         logging.info(f"Stored {key} data in table: {table_name}")
     
