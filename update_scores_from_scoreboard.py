@@ -307,9 +307,11 @@ def main(Match):
         for matchId in df['matchId'].unique():
             conn.execute(f"DELETE FROM {table_name} WHERE matchId = ?", (table_keyword,))
             logging.info(f"Deleted existing rows for matchId: {matchId} from table: {table_name}")
+            conn.commit()
         df.to_sql(table_name, conn, if_exists='append', index=False)
         logging.info(f"Stored {key} data in table: {table_name}")
-
+    
+    conn.commit()
     conn.close()
     return dataframes
 
