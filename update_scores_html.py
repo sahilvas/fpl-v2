@@ -25,19 +25,24 @@ logging.basicConfig(
 
 def insert_log_message(message):
     try:
-        logging.info(f"Inserting logs")
+        #logging.info(f"Inserting logs")
         # Create SQLite connection
         conn_logs = sqlite3.connect('/mnt/sqlite/cricbattle.db' if os.environ.get("WEBSITE_SITE_NAME") else 'instance/cricbattle.db')
         # Create a cursor object 
         cursor = conn_logs.cursor()
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        
+        # Convert DataFrame to string if message is a DataFrame
+        if isinstance(message, pd.DataFrame):
+            message = message.to_string()
+            
         # Insert the log message into the logs table
         cursor.execute("INSERT INTO logs (timestamp, message) VALUES (?, ?)", (timestamp, str(message)))
         # Commit the changes
         conn_logs.commit()
         # Close the connection
         conn_logs.close()
-        logging.info(f"Inserted logs")
+        #logging.info(f"Inserted logs")
     except Exception as e:
         logging.error(f"Error inserting logs: {str(e)}") 
 
@@ -76,7 +81,7 @@ def calculate_best_11(df):
     for team, group in df.groupby('Team Name'):  
         players = group.copy()  
         players.sort_values(by='TotalScore', ascending=False, inplace=True)  
-        logging.info(f"Calculating best 11 players for team {team}") 
+        #logging.info(f"Calculating best 11 players for team {team}") 
           
         # Initialize constraints  
         wk_needed = 1  # At least 1 WK required
@@ -178,7 +183,7 @@ def calculate_best_11(df):
                 if player_is_overseas:
                         overseas_counter = overseas_counter + 1
   
-        logging.info(f"Finished best 11 players for team {team} - {len(selected)}")  
+        #logging.info(f"Finished best 11 players for team {team} - {len(selected)}")  
   
         # Sum the total score of best 11  
         best_11_points = sum(player['TotalScore'] for player in selected)  
@@ -814,17 +819,20 @@ def edit_dataframe_values(df, search_str, replace_str):
 # function to check if player has name_array values and use that for replacement
 # for example - if df has player name Jaddu and that exists as name_array value for a player
 # then replace Jaddu with player name found in Player model
-def replace_player_name(df, Player):
+def replace_player_name(df, Player, league="FPL"):
     # if not found then replace with player name found in Player
     #print(df)
     # first find all player rows where name_array is not null not none not blank
     players_with_aliases = Player.query.filter(
         Player.name_array.isnot(None)
-    ).all()            
+    ).all()      
+
+    if not league:
+        league="FPL"      
 
     for index, row in df.iterrows():
         #print(row)
-        print("replace_player_name using", row[0])
+        #print("replace_player_name using", row[0])
         player_name = row[0]
         player = Player.query.filter_by(name=player_name).first()
         if player is None:
@@ -841,14 +849,14 @@ def replace_player_name(df, Player):
                     else:
                         df.at[index, 'Player'] = player.name
                     print("Player name replaced from %s to %s", player_name, player.name)
-                    insert_log_message(f"Player name replaced from  {player_name} to {player.name}") 
+                    #insert_log_message(f"Player name replaced from  {player_name} to {player.name}") 
                     player_name = player.name
                     break     
 
         player = Player.query.filter_by(name=player_name).first()
         if player is None :
-            logging.error("Player name alias not found for %s", player_name)   
-            insert_log_message(f"Player name alias not found for  {player_name}")                    
+            logging.error(f"{league} : Player name alias not found for {player_name}")   
+            insert_log_message(f"{league} : Player name alias not found for  {player_name}")                    
 
     return df
 
@@ -1212,7 +1220,7 @@ def main(Player, PlayerRanking, PlayerRankingPerDay, player_of_the_day, team_of_
 
                 edit_dataframe_values(df, "Rasikh Dar Salam", "Rasikh Salam")
 
-                replace_player_name(df, Player)
+                replace_player_name(df, Player, league)
 
                 merged_df = pd.merge(players_df[['Team Name', 'Player Name', 'first_match_id']], df, left_on="Player Name", right_on=merge_column, how='right')  
             
