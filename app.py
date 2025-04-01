@@ -1,6 +1,7 @@
 from datetime import datetime
 import json
 import os
+import random
 import time
 import uuid
 import pandas as pd
@@ -171,6 +172,13 @@ class PlayerRankingPerDay(db.Model):
     TotalScore = db.Column(db.Integer)
     IsShowTrophy = db.Column(db.Integer)
     timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+
+
+class FantasyTeam(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    team_name = db.Column(db.String(100), nullable=False)
+    emoji = db.Column(db.String(10), default=None)  # Store emoji
+    emoji_expiry = db.Column(db.DateTime, default=None)  # Expiry time
 
 
 # Ensure upload folder exists
@@ -580,6 +588,52 @@ def get_players_in_action(league=""):
     return players_in_action  
 
 
+EMOJI_LIST = ["🔥", "💀", "🤯", "🎯", "🤣", "👑", "🚀", "🏆", "💩", "⚡"]
+
+def assign_daily_emoji():
+    """Assign a new emoji to all teams, valid until midnight."""
+    now = datetime.now()
+    midnight = now.replace(hour=23, minute=59, second=59)  
+
+    # insert all team names using the Player model
+    teams_fpl = Player.query.with_entities(Player.team_name).distinct().all()
+    #teams_jal = JALPlayer.query.with_entities(JALPlayer.team_name).distinct().all()
+
+    # concat both the above teams
+    teams = teams_fpl
+
+    # remove duplicates
+    teams = list(set(teams))
+
+    # remove None values
+    teams = [team for team in teams if team[0] is not None]
+
+    # insert teams into FantasyTeam model 
+    # insert teams into FantasyTeam model
+    for team in teams:
+        # Check if team already exists
+        existing_team = FantasyTeam.query.filter_by(team_name=team[0]).first()
+        if not existing_team:
+            fantasy_team = FantasyTeam(team_name=team[0])
+            db.session.add(fantasy_team)
+
+    db.session.commit()    
+
+    teams = FantasyTeam.query.all()
+    for team in teams:
+        team.emoji = random.choice(EMOJI_LIST)
+        team.emoji_expiry = midnight
+        team
+
+    db.session.commit()
+    
+
+def reset_emojis():
+    """Reset all emojis at midnight."""
+    FantasyTeam.query.update({FantasyTeam.emoji: None, FantasyTeam.emoji_expiry: None})
+    db.session.commit()
+
+
 
 # Add this in the refresh_scores() function:
 def refresh_scores():
@@ -694,13 +748,14 @@ with app.app_context():
         import_player_data()
         get_cricbattle_data()
         jal_app.main()
-        refresh_scores()
+        #refresh_scores()
         get_players_in_action()
         #exit()
         df_series = update_series_stats.main(Player)
         df_scoreboard = update_scores_from_scoreboard.main(Match)
         #copy_data_from_player_ranking_to_player_ranking_per_day()
         player_of_the_day()
+        assign_daily_emoji()
 
         # Initialize scheduler only if not already started
         if not app.config.get("SCHEDULER_STARTED", False):
