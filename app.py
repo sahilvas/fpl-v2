@@ -755,7 +755,7 @@ with app.app_context():
         df_scoreboard = update_scores_from_scoreboard.main(Match)
         #copy_data_from_player_ranking_to_player_ranking_per_day()
         player_of_the_day()
-        assign_daily_emoji()
+        #assign_daily_emoji()
 
         # Initialize scheduler only if not already started
         if not app.config.get("SCHEDULER_STARTED", False):
