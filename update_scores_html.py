@@ -47,6 +47,29 @@ def insert_log_message(message):
         logging.error(f"Error inserting logs: {str(e)}") 
 
 
+def get_team_name_and_emoji(team_name=None):
+    try:
+        #logging.info("Extracting team_name and emoji")
+        # Create SQLite connection
+        conn = sqlite3.connect('/mnt/sqlite/cricbattle.db' if os.environ.get("WEBSITE_SITE_NAME") else 'instance/cricbattle.db')
+        # Create a cursor object
+        cursor = conn.cursor()
+        
+        if team_name:
+            # Execute query for specific team
+            cursor.execute("SELECT emoji FROM fantasy_team WHERE team_name = ?", (team_name,))
+            # Fetch one row
+            row = cursor.fetchone()
+            # Close connection
+            conn.close()
+            # Return emoji if found, else None
+            return team_name + row[0] if row else None
+        return None
+            
+    except Exception as e:
+        logging.error(f"Error extracting team_name and emoji: {str(e)}")
+        return None
+
 
 def adjust_column_widths(sheet):  
     logging.info("Adjusting column widths")  
@@ -250,6 +273,10 @@ def generate_html_report(team_points_df, player_team_points_df, series_stats_df,
     
     # Create a set of (team, player) tuples from best_11_df for faster lookup
     best_11_set = set(zip(best_11_df['Team Name'], best_11_df['Player Name']))
+
+    # update team name value in team_points_df suffixing it by emoji using get_team_name_and_emoji function
+    if "JAL" not in  league:
+        team_points_df['Team Name'] = team_points_df['Team Name'].apply(get_team_name_and_emoji)  
     
 
     styled_df = player_team_points_df.copy()
@@ -1036,6 +1063,11 @@ def main(Player, PlayerRanking, PlayerRankingPerDay, player_of_the_day, team_of_
             best_11_data = calculate_best_11(merged_df)  
             team_points_df = merged_df.groupby('Team Name')['TotalScore'].sum().reset_index()  
             team_points_df.rename(columns={'TotalScore': 'TotalPoints'}, inplace=True)  
+
+             
+            #print(team_points_df)
+            #exit()
+            
               
             # Add Best 11 Points  
             best_11_dict = {team: points for team, points, _ in best_11_data}  
