@@ -694,7 +694,7 @@ with app.app_context():
         import_player_data()
         get_cricbattle_data()
         jal_app.main()
-        #refresh_scores()
+        refresh_scores()
         get_players_in_action()
         #exit()
         df_series = update_series_stats.main(Player)
@@ -1533,7 +1533,16 @@ def edit_player(id):
             player.foreign_player = data.get('foreign_player', player.foreign_player)  
             player.name_array = data.get('name_array', player.name_array)
             player.traded = data.get('traded', player.traded) 
-            db.session.merge(player)        
+            db.session.merge(player)     
+
+            # do the same for JALPlayer too
+            jal_player = JALPlayer.query.filter_by(name=player.name).first()
+            if jal_player:
+                jal_player.points_reduction = data.get('points_reduction', jal_player.points_reduction)
+                jal_player.first_match_id = data.get('first_match_id', jal_player.first_match_id)
+                jal_player.name_array = data.get('name_array', jal_player.name_array)
+                db.session.merge(jal_player)
+               
             db.session.commit()
             return {'message': 'Player updated successfully'}, 200
     return render_template('edit_player.html', player=player)
