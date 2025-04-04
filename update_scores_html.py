@@ -97,7 +97,7 @@ def read_excel_file(filename):
         print(f"An error occurred while reading '{filename}': {e}")
     return None
 
-def calculate_best_11(df):  
+def calculate_best_11_old(df):  
     #logging.info("Calculating best 11 players for each team")  
     best_11 = []  
     #print(df)
@@ -215,6 +215,101 @@ def calculate_best_11(df):
 
     
     #exit()  
+    return best_11
+
+import random
+from collections import defaultdict
+
+def calculate_best_11(df):  
+    best_11 = []  
+
+    for team, group in df.groupby('Team Name'):  
+        players = group.copy()  
+        players.sort_values(by='TotalScore', ascending=False, inplace=True)  
+
+        # Constraints  
+        min_wk = 1
+        min_bat = 4
+        min_all = 1
+        min_bowl = 3
+        max_overseas = 4
+        max_ipl_team = 3  
+
+        # Selected Players  
+        selected = []  
+        selected_ids = set()  
+        overseas_counter = 0  
+        ipl_team_counts = defaultdict(int)  
+        
+        # Role Counts  
+        wk_count, bat_count, all_count, bowl_count = 0, 0, 0, 0  
+
+        def can_select(player):
+            """Checks whether a player can be selected based on constraints."""
+            if player['PlayerId'] in selected_ids:
+                return False
+            if overseas_counter >= max_overseas and player['foreign_player']:
+                return False
+            if ipl_team_counts[player['IPL Team']] >= max_ipl_team:
+                return False
+            return True  
+
+        def add_player(player):
+            """Adds a player to the best 11 if valid."""
+            nonlocal overseas_counter, wk_count, bat_count, all_count, bowl_count  
+
+            if len(selected) >= 11:
+                return False  
+
+            if not can_select(player):
+                return False  
+
+            selected.append(player)  
+            selected_ids.add(player['PlayerId'])  
+            ipl_team_counts[player['IPL Team']] += 1  
+
+            if player['foreign_player']:
+                overseas_counter += 1  
+
+            # Role tracking  
+            if player['Role'] == 'Wicket-Keeper':
+                wk_count += 1
+                bat_count += 1  # WK counts as a batter
+            elif player['Role'] == 'Batsman':
+                bat_count += 1
+            elif player['Role'] == 'All-Rounder':
+                all_count += 1
+            elif player['Role'] == 'Bowler':
+                bowl_count += 1  
+
+            return True  
+
+        # **Step 1: Select Players Based on Role Requirements**  
+        for _, player in players.iterrows():  
+            if player['Role'] == 'Wicket-Keeper' and wk_count < min_wk:
+                add_player(player)  
+            elif player['Role'] == 'All-Rounder' and all_count < min_all:
+                add_player(player)  
+            elif player['Role'] == 'Bowler' and bowl_count < min_bowl:
+                add_player(player)  
+
+        # **Step 2: Ensure At Least 4 Batters**
+        for _, player in players.iterrows():
+            if len(selected) >= 11:
+                break
+            if player['Role'] in ['Batsman', 'Wicket-Keeper'] and bat_count < min_bat:
+                add_player(player)  
+
+        # **Step 3: Fill Remaining Spots with Highest Available Players**
+        for _, player in players.iterrows():
+            if len(selected) >= 11:
+                break
+            add_player(player)  
+
+        # Calculate best 11 total score  
+        best_11_points = sum(player['TotalScore'] for player in selected)  
+        best_11.append((team, best_11_points, selected))  
+
     return best_11
 
 

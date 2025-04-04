@@ -733,6 +733,13 @@ def scheduled_task():
         get_cricbattle_data()
         #jal_app.main()
         refresh_scores()
+        #df_series = update_series_stats.main(Player)
+        #df_scoreboard = update_scores_from_scoreboard.main(Match)
+
+# Schedule get_cricbattle_data to run every 5 minutes with app context
+def scheduled_task_cricbuzz():
+    with app.app_context():
+        logging.info("Running scheduled_task_cricbuzz")
         df_series = update_series_stats.main(Player)
         df_scoreboard = update_scores_from_scoreboard.main(Match)
 
@@ -760,7 +767,8 @@ with app.app_context():
         # Initialize scheduler only if not already started
         if not app.config.get("SCHEDULER_STARTED", False):
             app.scheduler = BackgroundScheduler()
-            app.scheduler.add_job(func=scheduled_task, trigger="cron", minute="*/2", hour="9-22")        
+            app.scheduler.add_job(func=scheduled_task, trigger="cron", minute="*/1", hour="9-22")    
+            app.scheduler.add_job(func=scheduled_task_cricbuzz, trigger="cron", minute="*/30", hour="9-22")                  
             app.scheduler.add_job(func=copy_data_from_player_ranking_to_player_ranking_per_day, trigger="cron", hour="17,18,19")               
             #app.scheduler.add_job(func=lambda: update_series_stats.main(Player), trigger="cron", minute="45", hour="12-22")                
             #app.scheduler.add_job(func=lambda: update_scores_from_scoreboard.main(Match), trigger="cron", minute="43", hour="12-22")                     
@@ -1492,6 +1500,9 @@ def save_to_db(matches):
             match["date"] = last_match_date
             new_match = Match(matchId=match["matchId"], date=match["date"], match_info=match["match_info"], time=match["time"])
             logging.info(f"Last match date set up to : {last_match_date} for match : {match["match_info"]}")
+        elif match["match_info"] in "Kolkata Knight Riders vs Lucknow Super Giants, 19th Match":
+            match["date"] = "Apr 08, Tue"
+            new_match = Match(matchId=match["matchId"], date=match["date"], match_info=match["match_info"], time=match["time"])
         db.session.merge(new_match)
 
 
