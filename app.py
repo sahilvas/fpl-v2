@@ -1057,7 +1057,7 @@ def logs():
         return redirect(url_for('login'))
     
     # delete logs from  timestamp older than 1 week
-    one_week_ago = datetime.now() - timedelta(days=7)
+    one_week_ago = datetime.now() - timedelta(days=2)
     Log.query.filter(Log.timestamp < one_week_ago).delete()
     db.session.commit()
     logging.info("Deleted logs older than 1 week")
