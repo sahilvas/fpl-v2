@@ -17,7 +17,7 @@ from email.mime.multipart import MIMEMultipart
 from werkzeug.utils import secure_filename
 import plotly.express as px
 from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy import create_engine, Column, Integer, String, update, func, case
+from sqlalchemy import create_engine, Column, Integer, String, update, func, case, text
 from sqlalchemy.orm import sessionmaker, declarative_base, aliased
 import logging  
 from datetime import datetime  
@@ -1050,16 +1050,24 @@ def admin_review():
 } for payment in pending_payments])
 
 
-# create /admin/logs route to render logs.html with data frm logs table
 @app.route('/admin/logs')
 def logs():
     if session.get('admin') != True:
         return redirect(url_for('login'))
     
-    # delete logs from  timestamp older than 1 week
+    # delete logs from timestamp older than 1 week
     one_week_ago = datetime.now() - timedelta(days=2)
     Log.query.filter(Log.timestamp < one_week_ago).delete()
     db.session.commit()
+
+    # Run VACUUM in a separate connection outside transaction
+    engine = db.engine
+    connection = engine.raw_connection()
+    try:
+        connection.execute('VACUUM')
+    finally:
+        connection.close()
+    
     logging.info("Deleted logs older than 1 week")
 
 
@@ -1612,7 +1620,6 @@ def edit_player(id):
             db.session.commit()
             return {'message': 'Player updated successfully'}, 200
     return render_template('edit_player.html', player=player)
-
 
 
 

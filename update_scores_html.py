@@ -370,8 +370,9 @@ def generate_html_report(team_points_df, player_team_points_df, series_stats_df,
     best_11_set = set(zip(best_11_df['Team Name'], best_11_df['Player Name']))
 
     # update team name value in team_points_df suffixing it by emoji using get_team_name_and_emoji function
-    if "JAL" not in  league:
-        team_points_df['Team Name'] = team_points_df['Team Name'].apply(get_team_name_and_emoji)  
+    # if "JAL" not in  league:
+    #    team_points_df['Team Name'] = team_points_df['Team Name'].apply(get_team_name_and_emoji) 
+         
     
 
     styled_df = player_team_points_df.copy()
@@ -384,6 +385,7 @@ def generate_html_report(team_points_df, player_team_points_df, series_stats_df,
     # Drop PlayerId column
     styled_df = styled_df.drop('PlayerId', axis=1)
 
+
     # Convert DataFrames to HTML tables with Bootstrap styling
 
     team_table = team_points_df.to_html(classes=['table', 'table-striped', 'table-hover'], 
@@ -392,8 +394,36 @@ def generate_html_report(team_points_df, player_team_points_df, series_stats_df,
     player_table = styled_df.to_html(classes=['table', 'table-striped', 'table-hover'],
                                    index=False,
                                    float_format=lambda x: '{:.2f}'.format(x) if pd.notnull(x) else '',
-                                   escape=False)         
-    
+                                   escape=False)    
+
+
+    # add emoji buttons to team names
+    import re
+
+    team_table = re.sub(
+        r'<tr[^>]*>(\s*)<td>([^<]+)</td>',
+        lambda m: f"""
+        <tr{' ' if m.group(1) else ''}>
+            <td>
+                <span class="team-name">{m.group(2)}</span>
+                <div class="reaction-container">
+                    <button class="emoji-button" onclick="addReaction(this, '👍')" title="Like">👍
+                        <span class="emoji-count">0</span>
+                    </button>
+                    <button class="emoji-button" onclick="addReaction(this, '❤️')" title="Love">❤️
+                    <span class="emoji-count">0</span>
+                    </button>
+                    <button class="emoji-button" onclick="addReaction(this, '🔥')" title="Fire">🔥
+                        <span class="emoji-count">0</span>
+                    </button>
+                    <button class="emoji-button" onclick="addReaction(this, '👎')" title="Dislike">👎
+                        <span class="emoji-count">0</span>
+                    </button>
+                </div>
+            </td>
+        """,
+        team_table
+    )         
     
     # Convert series stats DataFrames to HTML tables
     series_tables = ""
@@ -584,6 +614,10 @@ def generate_html_report(team_points_df, player_team_points_df, series_stats_df,
         color: #000 !important;
         font-weight: bold;
     }}
+    [data-theme="light"] #team-table tbody tr:nth-child(9) {{
+        background-color: #FF0000 !important; /* red */
+        font-weight: bold;
+    }}
 
     /* Background color for the top 3 rows in dark mode */
     [data-theme="dark"] #team-table tbody tr:nth-child(1) {{
@@ -601,6 +635,10 @@ def generate_html_report(team_points_df, player_team_points_df, series_stats_df,
         font-weight: bold;
         color: var(--text-color);
         
+    }}
+    [data-theme="dark"] #team-table tbody tr:nth-child(9) {{
+        background-color: #FF0000 !important; /* red */
+        font-weight: bold;
     }}
 
 
@@ -830,6 +868,31 @@ def generate_html_report(team_points_df, player_team_points_df, series_stats_df,
                     font-size: 14px;
                 }}
             }}
+
+            <!-- CSS for the reaction buttons -->
+                .reaction-container {{
+                    display: inline-flex;
+                    margin-left: 10px;
+                }}
+                .emoji-button {{
+                    background: none;
+                    border: none;
+                    padding: 5px;
+                    cursor: pointer;
+                    font-size: 1.2em;
+                    transition: transform 0.2s;
+                }}
+                .emoji-button:hover {{
+                    transform: scale(1.2);
+                }}
+                .emoji-count {{
+                    font-size: 0.8em;
+                    margin-left: 2px;
+                }}
+
+            
+            
+            
         </style>
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     </head>
@@ -891,7 +954,11 @@ def generate_html_report(team_points_df, player_team_points_df, series_stats_df,
             
             <h2>Points Table</h2>
             
-            <div id="team-table" class="table-container">{team_table}</div>
+            <div id="team-table" class="table-container">{team_table}
+            
+            </div>
+            
+           
             <div class="chart-container">{team_chart}</div>
             <div class="chart-container">{race_to_finish_chart}</div>
 
@@ -905,6 +972,37 @@ def generate_html_report(team_points_df, player_team_points_df, series_stats_df,
         </div>
 
         <script>
+         <!-- JavaScript to handle reactions -->
+  
+            function addReaction(button, emoji) {{
+                let countSpan = button.querySelector('.emoji-count');
+                let currentCount = parseInt(countSpan.textContent || '0');
+                countSpan.textContent = currentCount + 1;
+                
+                // Optional: Save the reaction count
+                const teamCell = button.closest('tr').querySelector('td').textContent;
+                const teamName = teamCell.split("\\n")[1].trim();                                   
+                saveReaction(teamName, emoji, currentCount + 1);
+            }}
+
+            function saveReaction(teamName, emoji, count) {{
+                // Save to localStorage
+                const key = `reaction_${{teamName}}_${{emoji}}`;
+                localStorage.setItem(key, count);
+            }}
+
+            // Load saved reactions on page load 
+            document.addEventListener('DOMContentLoaded', function() {{
+                const reactionButtons = document.querySelectorAll('.emoji-button');
+                reactionButtons.forEach(button => {{
+                    const teamCell = button.closest('tr').querySelector('td').textContent;    
+                    const teamName = teamCell.split("\\n")[1].trim();                
+                    const emoji = button.textContent.trim().split(' ')[0].trim();
+                    const key = `reaction_${{teamName}}_${{emoji}}`;
+                    const savedCount = localStorage.getItem(key) || '0';
+                    button.querySelector('.emoji-count').textContent = savedCount;
+                }});
+            }});         
             function toggleTheme() {{
                 const html = document.documentElement;
                 const currentTheme = html.getAttribute('data-theme');
@@ -1384,7 +1482,21 @@ def main(Player, PlayerRanking, PlayerRankingPerDay, player_of_the_day, team_of_
                     team_counts.index = range(1, len(team_counts) + 1)     
                     df_scoreboard[key] = team_counts           
                 
-                print(df_scoreboard[key])                               
+                print(df_scoreboard[key])      
+
+
+            # add lead_by col to team_points_df which is difference between best11points of current team vs next team
+            team_points_df['Lead'] = team_points_df['Best11Points'].diff(-1).fillna(0).abs().astype(int)                                   
+            
+
+            # add avg points per day col to team_points_df which is average points per day of current team
+            # days is number of distinct days in date col in all_team_points df
+            all_team_points_days = all_team_points['Best11Points'].groupby(all_team_points['date']).sum().reset_index()
+            print(all_team_points)
+            days = len(all_team_points_days)
+            team_points_df['DailyAvg'] = team_points_df['Best11Points'] / days
+            print(team_points_df)
+                                     
                 
                                             
             # Generate HTML report
