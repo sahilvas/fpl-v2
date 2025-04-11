@@ -1123,7 +1123,7 @@ def main(Player, PlayerRanking, PlayerRankingPerDay, player_of_the_day, team_of_
         'first_match_id': p.first_match_id,
         'selling_price': p.selling_price,
         'category': p.category,
-        'points_reduction': p.points_reduction
+        'point_reduction': p.points_reduction
 
         } for p in Player.query.all()])
     # Close database connection
@@ -1453,6 +1453,7 @@ def main(Player, PlayerRanking, PlayerRankingPerDay, player_of_the_day, team_of_
                 # Filter out players who joined after the match
                 print(merged_df)
 
+                insert_log_message("Before first match id filter")
                 insert_log_message(merged_df)
                
 
@@ -1464,7 +1465,12 @@ def main(Player, PlayerRanking, PlayerRankingPerDay, player_of_the_day, team_of_
                     del merged_df['first_match_id']
                     del merged_df["matchId"]
 
-                    logging.info(f"Removed entries for replaced players for {key}")         
+                    logging.info(f"Removed entries for replaced players for {key}")    
+                    insert_log_message(f"Removed entries for replaced players for {key}")
+
+                insert_log_message("After first match id filter")
+
+                insert_log_message(merged_df)     
                 
                 if "Field" in key:
                     #print(merged_df)

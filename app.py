@@ -1552,7 +1552,7 @@ def admin_players():
             'points_reduction': int(request.form.get('points_reduction') or 0),
             'first_match_id': int(request.form.get('first_match_id') or 0),
             'foreign_player': bool(request.form.get('foreign_player')),
-            'name_array': request.form.getlist('names[]'),
+            'name_array': ','.join(request.form.getlist('names[]')),            
             'traded': bool(request.form.get('traded'))
         }
 
@@ -1620,6 +1620,96 @@ def edit_player(id):
             db.session.commit()
             return {'message': 'Player updated successfully'}, 200
     return render_template('edit_player.html', player=player)
+
+
+@app.route('/admin/jal/players', methods=['GET', 'POST'])
+def admin_jal_players():
+    if session.get('admin') != True:
+        return redirect(url_for('login'))
+
+    if request.method == 'POST':
+        # Handle add/edit player
+        player_id = request.form.get('id')
+        player_data = {
+            'name': request.form.get('name'),
+            'role': request.form.get('role'),
+            'category': request.form.get('category'), 
+            'ipl_team': request.form.get('ipl_team'),
+            'base_price': float(request.form.get('base_price')),
+            'selling_price': float(request.form.get('selling_price')),
+            'team_name': request.form.get('team_name'),
+            'is_sold': bool(request.form.get('is_sold')),
+            'points_reduction': int(request.form.get('points_reduction') or 0),
+            'first_match_id': int(request.form.get('first_match_id') or 0),
+            'foreign_player': bool(request.form.get('foreign_player')),
+            'name_array': ','.join(request.form.getlist('names[]')),
+            'traded': bool(request.form.get('traded'))
+        }
+
+        if player_id:
+            # Edit existing player
+            JALPlayer.query.filter_by(id=player_id).update(player_data)
+            flash('JAL Player updated successfully', 'success')
+        else:
+            # Add new player
+            new_player = JALPlayer(**player_data)
+            db.session.add(new_player)
+            flash('JAL Player added successfully', 'success')
+
+        db.session.commit()
+        return redirect(url_for('admin_jal_players'))
+
+    # GET request - show all players
+    players = JALPlayer.query.all()
+    return render_template('admin_jal_players.html', players=players)
+
+@app.route('/admin/jal/players/delete/<int:id>', methods=['POST'])
+def delete_jal_player(id):
+    if session.get('admin') != True:
+        return {'error': 'Unauthorized'}, 401
+
+    player = JALPlayer.query.get_or_404(id)
+    db.session.delete(player)
+    db.session.commit()
+    flash('JAL Player deleted successfully', 'success')
+    return redirect(url_for('admin_jal_players'))
+
+@app.route('/admin/jal/players/edit/<int:id>', methods=['GET', 'POST'])
+def edit_jal_player(id):
+    if session.get('admin') != True:
+        return redirect(url_for('login'))
+
+    player = JALPlayer.query.get_or_404(id)    
+    if request.method == 'POST':
+        data = request.get_json()
+
+        if player:
+            player.name = data.get('name', player.name)
+            player.role = data.get('role', player.role)
+            player.category = data.get('category', player.category)
+            player.ipl_team = data.get('ipl_team', player.ipl_team)
+            player.base_price = data.get('base_price', player.base_price)
+            player.selling_price = data.get('selling_price', player.selling_price)
+            player.team_name = data.get('team_name', player.team_name)
+            player.is_sold = data.get('is_sold', player.is_sold)
+            player.points_reduction = data.get('points_reduction', player.points_reduction)
+            player.first_match_id = data.get('first_match_id', player.first_match_id)
+            player.foreign_player = data.get('foreign_player', player.foreign_player)
+            player.name_array = data.get('name_array', player.name_array)
+            player.traded = data.get('traded', player.traded)
+            db.session.merge(player)
+
+            # do the same for Player too
+            fpl_player = Player.query.filter_by(name=player.name).first()
+            if fpl_player:
+                fpl_player.points_reduction = data.get('points_reduction', fpl_player.points_reduction)
+                fpl_player.first_match_id = data.get('first_match_id', fpl_player.first_match_id)
+                fpl_player.name_array = data.get('name_array', fpl_player.name_array)
+                db.session.merge(fpl_player)
+
+            db.session.commit()
+            return {'message': 'JAL Player updated successfully'}, 200
+    return render_template('edit_jal_player.html', player=player)
 
 
 
