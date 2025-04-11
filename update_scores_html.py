@@ -962,7 +962,7 @@ def generate_html_report(team_points_df, player_team_points_df, series_stats_df,
                 </div>            
                 </div>
 
-                <h2>Scores Live Today</h2>
+                {'' if league == "JAL" else '<h2>Scores Live Today</h2>'}                
                 <div class="table-container">{daily_scores_table}
             
                 </div>
