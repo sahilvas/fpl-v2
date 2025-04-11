@@ -536,6 +536,12 @@ def generate_html_report(team_points_df, player_team_points_df, series_stats_df,
         leaderboard_title = "FPL IPL 2025"
         template_filename = "FPL-IPL2025-Points.html"
 
+    start_date = "22.03.25"
+    end_date = "25.05.25"
+    todays_date = datetime.now().strftime("%d.%m.%y")
+    percent_days_completed = round((datetime.now() - datetime.strptime(start_date, "%d.%m.%y")).days / (datetime.strptime(end_date, "%d.%m.%y") - datetime.strptime(start_date, "%d.%m.%y")).days * 100)
+
+
     html_content = f"""
     <!DOCTYPE html>
     <html data-theme="light">
@@ -951,8 +957,16 @@ def generate_html_report(team_points_df, player_team_points_df, series_stats_df,
                     <div class="score">{player_of_the_day_points}</div>
                 </div>            
                 </div>
-            
-            <h2>Points Table</h2>
+
+                <div style="display: flex; align-items: center; gap: 20px;">
+                    <h2>Points Table</h2>
+                    <div class="progress" style="flex: 1;">
+                        <div class="progress-bar progress-bar-striped active" role="progressbar"
+                        aria-valuenow={percent_days_completed} aria-valuemin="0" aria-valuemax="100" style="width:{percent_days_completed}%">
+                            {percent_days_completed}% Complete
+                        </div>
+                    </div>
+                </div>   
             
             <div id="team-table" class="table-container">{team_table}
             
