@@ -651,6 +651,98 @@ def generate_html_report(team_points_df, player_team_points_df, series_stats_df,
         font-weight: bold;
     }}
 
+    /* Top 3 rows styling */
+    [data-theme="light"] #team-table tbody tr:nth-child(1),
+    [data-theme="light"] #team-table tbody tr:nth-child(2),
+    [data-theme="light"] #team-table tbody tr:nth-child(3) {{
+        background: linear-gradient(90deg, rgba(255,215,0,0.3) 0%, rgba(255,215,0,0.1) 100%);
+        font-weight: bold;
+        position: relative;
+    }}
+
+    [data-theme="light"] #team-table tbody tr:nth-child(1)::after,
+    [data-theme="light"] #team-table tbody tr:nth-child(2)::after,
+    [data-theme="light"] #team-table tbody tr:nth-child(3)::after {{
+        content: "WIN";
+        position: absolute;
+        font-size: 2em;
+        opacity: 0.1;
+        color: #000;
+        z-index: 1;
+        left: 50%;
+        top: 50%;
+        transform: translate(-50%, -50%);
+        pointer-events: none;
+    }}   
+
+    /* Middle 3 rows styling */
+    [data-theme="light"] #team-table tbody tr:nth-child(4),
+    [data-theme="light"] #team-table tbody tr:nth-child(5), 
+    [data-theme="light"] #team-table tbody tr:nth-child(6) {{
+        background: linear-gradient(90deg, rgba(192,192,192,0.3) 0%, rgba(192,192,192,0.1) 100%);
+         font-weight: bold;
+        position: relative;
+    }}   
+    [data-theme="light"] #team-table tbody tr:nth-child(4)::after,
+    [data-theme="light"] #team-table tbody tr:nth-child(5)::after,
+    [data-theme="light"] #team-table tbody tr:nth-child(6)::after {{
+        content: "RESPECT";
+        position: absolute;
+        font-size: 2em;
+        opacity: 0.1;
+        color: #000;
+        z-index: 1;
+        left: 50%;
+        top: 50%;
+        transform: translate(-50%, -50%);
+        pointer-events: none;
+    }}  
+
+    /* Bottom 3 rows styling */
+    [data-theme="light"] #team-table tbody tr:nth-child(7),
+    [data-theme="light"] #team-table tbody tr:nth-child(8),
+    [data-theme="light"] #team-table tbody tr:nth-child(9) {{
+        background: linear-gradient(90deg, rgba(255,0,0,0.3) 0%, rgba(255,0,0,0.1) 100%);
+        font-weight: bold;
+        position: relative;
+    }}   
+    [data-theme="light"] #team-table tbody tr:nth-child(7)::after,
+    [data-theme="light"] #team-table tbody tr:nth-child(8)::after,
+    [data-theme="light"] #team-table tbody tr:nth-child(9)::after {{
+        content: "PAIN";
+        position: absolute;
+        font-size: 2em;
+        opacity: 0.1;
+        color: #000;
+        z-index: 1;
+        left: 50%;
+        top: 50%;
+        transform: translate(-50%, -50%);
+        pointer-events: none;
+    }}   
+
+    /* Dark theme variants */
+    [data-theme="dark"] #team-table tbody tr:nth-child(1),
+    [data-theme="dark"] #team-table tbody tr:nth-child(2),
+    [data-theme="dark"] #team-table tbody tr:nth-child(3) {{
+        background: linear-gradient(90deg, rgba(255,215,0,0.4) 0%, rgba(255,215,0,0.2) 100%);
+        color: var(--text-color);
+        font-weight: bold;
+    }}   
+
+    [data-theme="dark"] #team-table tbody tr:nth-child(4),
+    [data-theme="dark"] #team-table tbody tr:nth-child(5),
+    [data-theme="dark"] #team-table tbody tr:nth-child(6) {{
+        background: linear-gradient(90deg, rgba(169,169,169,0.4) 0%, rgba(169,169,169,0.2) 100%);
+        color: var(--text-color);
+    }}   
+
+    [data-theme="dark"] #team-table tbody tr:nth-child(7),
+    [data-theme="dark"] #team-table tbody tr:nth-child(8),
+    [data-theme="dark"] #team-table tbody tr:nth-child(9) {{
+        background: linear-gradient(90deg, rgba(255,0,0,0.4) 0%, rgba(255,0,0,0.2) 100%);
+        color: var(--text-color);
+    }}    
 
 
     body {{
