@@ -989,6 +989,20 @@ def generate_html_report(team_points_df, player_team_points_df, series_stats_df,
                 // Save to localStorage
                 const key = `reaction_${{teamName}}_${{emoji}}`;
                 localStorage.setItem(key, count);
+                // Send to server using api endpoint /emoji-reactions/<key>
+                fetch(`/emoji-reactions/${{key}}`, {{
+                    method: 'POST',
+                    headers: {{
+                        'Content-Type': 'application/json',
+                    }},
+                    body: JSON.stringify({{ value: count }}),
+                }})
+                .then(response => response.json())
+                .then(data => console.log(data.message))
+                .catch((error) => {{
+                    console.error('Error:', error);
+                }});
+
             }}
 
             // Load saved reactions on page load 
@@ -1000,7 +1014,18 @@ def generate_html_report(team_points_df, player_team_points_df, series_stats_df,
                     const emoji = button.textContent.trim().split(' ')[0].trim();
                     const key = `reaction_${{teamName}}_${{emoji}}`;
                     const savedCount = localStorage.getItem(key) || '0';
-                    button.querySelector('.emoji-count').textContent = savedCount;
+                    // get count from server using api endpoint /emoji-reactions/<key>
+                    fetch(`/emoji-reactions/${{key}}`)
+                    .then(response => response.json())
+                    .then(data => {{
+                        const count = data.reactions ? data.reactions + savedCount : savedCount;
+                        button.querySelector('.emoji-count').textContent = count;
+                    }})
+                    .catch((error) => {{
+                        console.error('Error:', error);
+                        button.querySelector('.emoji-count').textContent = savedCount;
+                    }});
+                
                 }});
             }});         
             function toggleTheme() {{
@@ -1287,10 +1312,10 @@ def main(Player, PlayerRanking, PlayerRankingPerDay, player_of_the_day, team_of_
             # Second table: Points per player per team, grouped by team using team name from players_df  
             player_team_points_df = merged_df.groupby(['PlayerId', 'Team Name', 'Player Name', 'Role', 'IPL Team'])['TotalScore'].sum().reset_index() 
             player_team_points_df.rename(columns={'TotalScore': 'PlayerPoints'}, inplace=True) 
-            print(player_team_points_df.head())
+            #print(player_team_points_df.head())
             # Add player profile URLs to the DataFrame
             player_team_points_df['PlayerId'] = player_team_points_df['PlayerId'].apply(generate_player_profile_url) 
-            print(player_team_points_df.head())    
+            #print(player_team_points_df.head())    
            
             # Get individual series stats
             #df_series = update_series_stats.main()
@@ -1451,7 +1476,7 @@ def main(Player, PlayerRanking, PlayerRankingPerDay, player_of_the_day, team_of_
                 merged_df = pd.merge(players_df[['Team Name', 'Player Name', 'first_match_id']], df, left_on="Player Name", right_on=merge_column, how='right')  
             
                 # Filter out players who joined after the match
-                print(merged_df)
+                #print(merged_df)
 
                 insert_log_message("Before first match id filter")
                 insert_log_message(merged_df)
@@ -1498,10 +1523,10 @@ def main(Player, PlayerRanking, PlayerRankingPerDay, player_of_the_day, team_of_
             # add avg points per day col to team_points_df which is average points per day of current team
             # days is number of distinct days in date col in all_team_points df
             all_team_points_days = all_team_points['Best11Points'].groupby(all_team_points['date']).sum().reset_index()
-            print(all_team_points)
+            #print(all_team_points)
             days = len(all_team_points_days)
             team_points_df['DailyAvg'] = team_points_df['Best11Points'] / days
-            print(team_points_df)
+            #print(team_points_df)
                                      
                 
                                             

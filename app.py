@@ -181,6 +181,13 @@ class FantasyTeam(db.Model):
     emoji_expiry = db.Column(db.DateTime, default=None)  # Expiry time
 
 
+class EmojiReaction(db.Model):
+    __tablename__ = 'emoji_reactions_v1'
+    id = db.Column(db.Integer, primary_key=True)
+    key = db.Column(db.String, nullable=False)
+    value = db.Column(db.String, nullable=False)
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+
 # Ensure upload folder exists
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
@@ -1712,6 +1719,45 @@ def edit_jal_player(id):
     return render_template('edit_jal_player.html', player=player)
 
 
+@app.route('/emoji-reactions/<key>', methods=['POST'])
+def add_emoji_reaction(key):
+    if not key:
+        return {'error': 'key is required'}, 400
+    
+    # Save to localStorage
+    # const key = `reaction_${{teamName}}_${{emoji}}`;
+    # localStorage.setItem(key, count);
+
+    value = request.json.get('value')
+        
+    # Get existing reactions for team
+    team_reactions = EmojiReaction.query.filter_by(key=key).first()
+    
+    if team_reactions:
+        # Update existing reaction count
+        current_reactions = team_reactions.value
+        team_reactions.value = int(current_reactions) + 1    
+    else:
+        # Create new reaction entry
+        team_reactions = EmojiReaction(
+            key=key,
+            value=value
+        )
+        
+    db.session.merge(team_reactions)
+    db.session.commit()
+    
+    return {'message': 'Reaction added successfully'}, 200
+
+@app.route('/emoji-reactions/<key>', methods=['GET']) 
+def get_emoji_reactions(key):
+    team_reactions = EmojiReaction.query.filter_by(key=key).first()
+    
+    if not team_reactions:
+        return {'reactions': 0}
+        
+    reactions = team_reactions.value
+    return {'reactions': reactions}
 
 
 @app.after_request
