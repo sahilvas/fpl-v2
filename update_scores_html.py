@@ -963,7 +963,7 @@ def generate_html_report(team_points_df, player_team_points_df, series_stats_df,
                 </div>
 
                 <h2>Scores Live Today</h2>
-                <div id="team-table" class="table-container">{daily_scores_table}
+                <div class="table-container">{daily_scores_table}
             
                 </div>
 
