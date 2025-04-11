@@ -1013,7 +1013,6 @@ def generate_html_report(team_points_df, player_team_points_df, series_stats_df,
                     const teamName = teamCell.split("\\n")[1].trim();                
                     const emoji = button.textContent.trim().split(' ')[0].trim();
                     const key = `reaction_${{teamName}}_${{emoji}}`;
-                    console.log(key);
                     const savedCount = localStorage.getItem(key) || '0';
        
                     if (savedCount && parseInt(savedCount) > 0) {{
