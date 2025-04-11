@@ -318,7 +318,7 @@ def player_of_the_day(league=""):
     db.session.commit()
 
     # Aliases for the same table (to compare today vs yesterday)
-    TodayPlayer = aliased(PlayerRankingPerDay)
+    TodayPlayer = aliased(PlayerRanking)
     YesterdayPlayer = aliased(PlayerRankingPerDay)
     DayBeforeYesterdayPlayer = aliased(PlayerRankingPerDay)
 
@@ -329,9 +329,9 @@ def player_of_the_day(league=""):
             TodayPlayer.PlayerId,
             TodayPlayer.PlayerName,
             TodayPlayer.TotalScore.label("today_score"),
-            func.max(TodayPlayer.timestamp).label("latest_timestamp")
+            
         )
-        .filter(func.date(TodayPlayer.timestamp) == today)
+       
         .filter(TodayPlayer.TotalScore > 0)
         .group_by(TodayPlayer.PlayerId)
         .subquery()
@@ -400,6 +400,9 @@ def player_of_the_day(league=""):
     # Sort players by col score_difference in descending order
     players_with_score_difference.sort(key=lambda x: x[6] if x[6] is not None else 0, reverse=True)
 
+    # convert players_with_score_difference to df
+    players_with_score_difference_df = pd.DataFrame(players_with_score_difference, columns=['id', 'name', 'team_name', 'today_score', 'yesterday_score', 'day_before_yesterday_score', 'score_difference', 'day_before_yesterday_score_difference'])
+
     # Get the player with the highest score_difference
     today_player = players_with_score_difference[0] if players_with_score_difference else None
 
@@ -423,7 +426,8 @@ def player_of_the_day(league=""):
         'name': yesterday_player.name if yesterday_player else None, 
         'team': yesterday_player.team_name if yesterday_player else None,
         'points': yesterday_player.day_before_yesterday_score_difference if yesterday_player else 0
-    }
+    },
+    'players_with_score_difference_df': players_with_score_difference_df
 }
 
 
@@ -589,7 +593,7 @@ def get_players_in_action(league=""):
 
     players_in_action = pd.DataFrame(players_in_action).sort_values('fpl_team')
     
-    print(players_in_action)
+    #print(players_in_action)
     #exit()
 
     return players_in_action  
@@ -657,8 +661,23 @@ def refresh_scores():
     pod_jal = player_of_the_day("JAL")
     totd_jal = team_of_the_day("JAL") 
 
+
+    # filter pod.players_with_score_difference_df for name in live_players_list and print
+    if not pod['players_with_score_difference_df'].empty:
+        live_player_scores_df = pod['players_with_score_difference_df'][pod['players_with_score_difference_df']['name'].isin(live_players_list['name'])]
+        live_player_scores_df = live_player_scores_df.sort_values(by='team_name')
+        live_player_scores_df = live_player_scores_df[['team_name', 'name',  'score_difference']]
+        # rename columns
+        live_player_scores_df.columns = ['Team', 'Player', 'Score']
+        # make score column integer - without any decimal value
+        live_player_scores_df['Score'] = live_player_scores_df['Score'].fillna(0).astype(int)        
+
+        # make team_name "LORDX1" where NaN
+        live_player_scores_df['Team'] = live_player_scores_df['Team'].fillna("LORDX1")
+        print(live_player_scores_df)
+
     # Update scores
-    update_scores.main(Player, PlayerRanking,PlayerRankingPerDay, pod, totd, "", live_players_list)    
+    update_scores.main(Player, PlayerRanking,PlayerRankingPerDay, pod, totd, "", live_players_list, live_player_scores_df)    
 
     # update scores for JAL
     update_scores.main(JALPlayer, PlayerRanking, PlayerRankingPerDay, pod_jal, totd_jal, "JAL")  

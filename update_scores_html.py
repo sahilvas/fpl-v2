@@ -356,7 +356,7 @@ def style_row(row, best_11_set):
         return 'background-color: #e6ffe6'  # Light green background
     return ''
 
-def generate_html_report(team_points_df, player_team_points_df, series_stats_df, scoreboard_stats_df, best_11_df, player_of_the_day, team_of_the_day, league, live_players_list, all_team_points_df):
+def generate_html_report(team_points_df, player_team_points_df, series_stats_df, scoreboard_stats_df, best_11_df, player_of_the_day, team_of_the_day, league, live_players_list, all_team_points_df, live_player_scores_df):
     
     team_chart = create_team_points_chart(team_points_df)
     player_chart = create_player_performance_chart(player_team_points_df)
@@ -396,6 +396,10 @@ def generate_html_report(team_points_df, player_team_points_df, series_stats_df,
                                    float_format=lambda x: '{:.2f}'.format(x) if pd.notnull(x) else '',
                                    escape=False)    
 
+    daily_scores_table = live_player_scores_df.to_html(classes=['table', 'table-striped', 'table-hover'],
+                                   index=False,
+                                   float_format=lambda x: '{:.2f}'.format(x) if pd.notnull(x) else '',
+                                   escape=False)    
 
     # add emoji buttons to team names
     import re
@@ -958,6 +962,11 @@ def generate_html_report(team_points_df, player_team_points_df, series_stats_df,
                 </div>            
                 </div>
 
+                <h2>Scores Live Today</h2>
+                <div id="team-table" class="table-container">{daily_scores_table}
+            
+                </div>
+
                 <div style="display: flex; align-items: center; gap: 20px;">
                     <h2>Points Table</h2>
                     <div class="progress" style="flex: 1;">
@@ -1159,7 +1168,7 @@ def create_race_to_finish_chart(all_team_points_df):
 
     return fig.to_html(full_html=False)  
 
-def main(Player, PlayerRanking, PlayerRankingPerDay, player_of_the_day, team_of_the_day, league="", live_players_list=pd.DataFrame()):
+def main(Player, PlayerRanking, PlayerRankingPerDay, player_of_the_day, team_of_the_day, league="", live_players_list=pd.DataFrame(), live_player_scores_df=pd.DataFrame()):
     #players_df = read_excel_file("players.xlsx")
     #write code to extract players table from cricbattle.db sqllite database and save as dataframe
     # Connect to SQLite database
@@ -1558,7 +1567,7 @@ def main(Player, PlayerRanking, PlayerRankingPerDay, player_of_the_day, team_of_
                 
                                             
             # Generate HTML report
-            generate_html_report(team_points_df, player_team_points_df, df_series, df_scoreboard, best_11_df, player_of_the_day, team_of_the_day, league, live_players_list, all_team_points)
+            generate_html_report(team_points_df, player_team_points_df, df_series, df_scoreboard, best_11_df, player_of_the_day, team_of_the_day, league, live_players_list, all_team_points, live_player_scores_df)
             
             logging.info("Data transformation and HTML generation complete.")
             
