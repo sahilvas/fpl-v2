@@ -981,8 +981,10 @@ def generate_html_report(team_points_df, player_team_points_df, series_stats_df,
                 
                 // Optional: Save the reaction count
                 const teamCell = button.closest('tr').querySelector('td').textContent;
-                const teamName = teamCell.split("\\n")[1].trim();                                   
-                saveReaction(teamName, emoji, currentCount + 1);
+                const teamName = teamCell.split("\\n")[1].trim();    
+                if (currentCount && parseInt(currentCount) < 100) {{                               
+                    saveReaction(teamName, emoji, currentCount + 1);
+                }}
             }}
 
             function saveReaction(teamName, emoji, count) {{
@@ -990,18 +992,23 @@ def generate_html_report(team_points_df, player_team_points_df, series_stats_df,
                 const key = `reaction_${{teamName}}_${{emoji}}`;
                 // localStorage.setItem(key, count);
                 // Send to server using api endpoint /emoji-reactions/<key>
-                fetch(`/emoji-reactions/${{key}}`, {{
-                    method: 'POST',
-                    headers: {{
-                        'Content-Type': 'application/json',
-                    }},
-                    body: JSON.stringify({{ value: count }}),
-                }})
-                .then(response => response.json())
-                .then(data => console.log(data.message))
-                .catch((error) => {{
-                    console.error('Error:', error);
-                }});
+            
+                        
+    
+                    fetch(`/emoji-reactions/${{key}}`, {{
+                        method: 'POST',
+                        headers: {{
+                            'Content-Type': 'application/json',
+                        }},
+                        body: JSON.stringify({{ value: count }}),
+                    }})
+                    .then(response => response.json())
+                    .then(data => console.log(data.message))
+                    .catch((error) => {{
+                        console.error('Error:', error);
+                    }});
+
+           
 
             }}
 

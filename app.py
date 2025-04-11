@@ -1736,7 +1736,8 @@ def add_emoji_reaction(key):
     if team_reactions:
         # Update existing reaction count
         current_reactions = team_reactions.value
-        team_reactions.value = int(current_reactions) + 1    
+        if int(current_reactions) < 100:
+            team_reactions.value = int(current_reactions) + 1    
     else:
         # Create new reaction entry
         team_reactions = EmojiReaction(
