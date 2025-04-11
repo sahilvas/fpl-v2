@@ -988,7 +988,7 @@ def generate_html_report(team_points_df, player_team_points_df, series_stats_df,
             function saveReaction(teamName, emoji, count) {{
                 // Save to localStorage
                 const key = `reaction_${{teamName}}_${{emoji}}`;
-                localStorage.setItem(key, count);
+                // localStorage.setItem(key, count);
                 // Send to server using api endpoint /emoji-reactions/<key>
                 fetch(`/emoji-reactions/${{key}}`, {{
                     method: 'POST',
@@ -1013,12 +1013,19 @@ def generate_html_report(team_points_df, player_team_points_df, series_stats_df,
                     const teamName = teamCell.split("\\n")[1].trim();                
                     const emoji = button.textContent.trim().split(' ')[0].trim();
                     const key = `reaction_${{teamName}}_${{emoji}}`;
+                    console.log(key);
                     const savedCount = localStorage.getItem(key) || '0';
+       
+                    if (savedCount && parseInt(savedCount) > 0) {{
+                        saveReaction(teamName, emoji, parseInt(savedCount));
+                        localStorage.removeItem(key);
+                    }}
+                    
                     // get count from server using api endpoint /emoji-reactions/<key>
                     fetch(`/emoji-reactions/${{key}}`)
                     .then(response => response.json())
                     .then(data => {{
-                        const count = data.reactions ? data.reactions + savedCount : savedCount;
+                        const count = data.reactions ? data.reactions : savedCount;
                         button.querySelector('.emoji-count').textContent = count;
                     }})
                     .catch((error) => {{
