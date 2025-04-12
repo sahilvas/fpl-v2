@@ -1510,7 +1510,7 @@ def main(Player, PlayerRanking, PlayerRankingPerDay, player_of_the_day, team_of_
 
             # Query batting stats
             df_scoreboard["Bat"] = pd.read_sql_query("""
-                SELECT * from cricket_bat where Runs > 50
+                SELECT * from cricket_bat 
             """, conn)
 
             # Query bowling stats  
