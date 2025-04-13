@@ -1814,20 +1814,27 @@ def increment_page_views(page):
         
     db.session.merge(page_views)
     db.session.commit()
+
+    page_views = db.session.query(db.func.sum(PageView.views)).filter_by(page=page).scalar()  or 100
+    count_of_devices = db.session.query(PageView.device_id).filter_by(page=page).distinct().count()
+
+    actual_views =  page_views - count_of_devices * 100
     
-    return {'views': views}, 200
+    return {'views': actual_views}, 200
 
 @app.route('/page-views/<page>', methods=['GET']) 
 def get_page_views(page):
     if not page or "live-scoring" not in page:
         return {'error': 'page is required'}, 400
-    page_views = PageView.query.filter_by(page=page).first()
-    
+    page_views = db.session.query(db.func.sum(PageView.views)).filter_by(page=page).scalar()  or 100
+    count_of_devices = db.session.query(PageView.device_id).filter_by(page=page).distinct().count()
+
+    actual_views =  page_views - count_of_devices * 100
+
     if not page_views:
         return {'views': 0}
         
-    views = page_views.views
-    return {'views': views}
+    return {'views': actual_views}
 
 @app.after_request
 def add_header(response):
