@@ -663,7 +663,7 @@ def generate_html_report(team_points_df, player_team_points_df, series_stats_df,
     [data-theme="light"] #team-table tbody tr:nth-child(1)::after,
     [data-theme="light"] #team-table tbody tr:nth-child(2)::after,
     [data-theme="light"] #team-table tbody tr:nth-child(3)::after {{
-        content: "WIN";
+        content: "";
         position: absolute;
         font-size: 2em;
         opacity: 0.1;
@@ -686,7 +686,7 @@ def generate_html_report(team_points_df, player_team_points_df, series_stats_df,
     [data-theme="light"] #team-table tbody tr:nth-child(4)::after,
     [data-theme="light"] #team-table tbody tr:nth-child(5)::after,
     [data-theme="light"] #team-table tbody tr:nth-child(6)::after {{
-        content: "RESPECT";
+        content: "";
         position: absolute;
         font-size: 2em;
         opacity: 0.1;
@@ -709,7 +709,7 @@ def generate_html_report(team_points_df, player_team_points_df, series_stats_df,
     [data-theme="light"] #team-table tbody tr:nth-child(7)::after,
     [data-theme="light"] #team-table tbody tr:nth-child(8)::after,
     [data-theme="light"] #team-table tbody tr:nth-child(9)::after {{
-        content: "PAIN";
+        content: "";
         position: absolute;
         font-size: 2em;
         opacity: 0.1;
@@ -1242,24 +1242,28 @@ def generate_html_report(team_points_df, player_team_points_df, series_stats_df,
             // Add this to your JavaScript code
           async function fetchPageViews() {{
               try {{
-                  const response = await fetch('/page-views/live-scoring');
-                  const data = await response.json();
-                  const viewCount = data.views;
-                  
-                  // Create view counter element
-                  const viewCounter = document.createElement('div');
-                  viewCounter.className = 'view-counter';
-                  viewCounter.innerHTML = `
-                      <i class="fas fa-eye"></i>
-                      <span>${{viewCount}} views</span>
-                  `;
-                  
-                  // Add to document
-                  document.body.appendChild(viewCounter);
-              }} catch (error) {{
-                  console.error('Error fetching page views:', error);
-              }}
-          }}
+                    const response = await fetch('/page-views/live-scoring');
+                    const data = await response.json();
+                    const viewCount = data.views || 100; // Default to 100 if undefined
+                    
+                    // Only create counter if we have a valid view count
+                    if (typeof viewCount === 'number' && !isNaN(viewCount)) {{
+                        // Create view counter element
+                        const viewCounter = document.createElement('div');
+                        viewCounter.className = 'view-counter';
+                        viewCounter.innerHTML = `
+                            <i class="fas fa-eye"></i>
+                            <span>${{viewCount}} views</span>
+                        `;
+                        
+                        // Add to document
+                        document.body.appendChild(viewCounter);
+                    }} else {{
+                        console.warn('Invalid view count received:', viewCount);
+                    }}
+                }} catch (error) {{
+                    console.error('Error fetching page views:', error);
+                }}          }}
 
           // Call function when page loads
           document.addEventListener('DOMContentLoaded', fetchPageViews);     

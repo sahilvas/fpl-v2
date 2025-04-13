@@ -1801,19 +1801,21 @@ def increment_page_views(page):
     
     if page_views:
         # Increment existing view count
-        page_views.views = page_views.views + 1
+        views =  page_views.views + 1
+        page_views.views = views
     else:
         # Create new page view entry
+        views = 100
         page_views = PageView(
             page=page,
             device_id=device_id,
-            views=100
+            views=views
         )
         
     db.session.merge(page_views)
     db.session.commit()
     
-    return {'message': 'Page view added successfully'}, 200
+    return {'views': views}, 200
 
 @app.route('/page-views/<page>', methods=['GET']) 
 def get_page_views(page):
