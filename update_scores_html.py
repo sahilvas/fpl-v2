@@ -992,6 +992,42 @@ def generate_html_report(team_points_df, player_team_points_df, series_stats_df,
                     margin-left: 2px;
                 }}
 
+                /* Add view counter styles */
+                .view-counter {{
+                    position: fixed;
+                    bottom: 20px;
+                    right: 20px;
+                    background: rgba(0,0,0,0.7);
+                    color: white;
+                    padding: 8px 15px;
+                    border-radius: 20px;
+                    font-size: 14px;
+                    display: flex;
+                    align-items: center;
+                    gap: 5px;
+                    z-index: 1000;
+                }}
+
+                .view-counter i {{
+                    font-size: 16px;
+                }}
+
+                /* Animation for view counter */
+                @keyframes fadeIn {{
+                    from {{
+                        opacity: 0;
+                        transform: translateY(20px);
+                    }}
+                    to {{
+                        opacity: 1;
+                        transform: translateY(0);
+                    }}
+                }}
+
+                .view-counter {{
+                    animation: fadeIn 0.5s ease-out;
+                }}   
+
             
             
             
@@ -1054,10 +1090,7 @@ def generate_html_report(team_points_df, player_team_points_df, series_stats_df,
                 </div>            
                 </div>
 
-                {'' if league == "JAL" else '<h2>Scores Live Today</h2>'}                
-                <div class="table-container">{daily_scores_table}
-            
-                </div>
+                
 
                 <div style="display: flex; align-items: center; gap: 20px;">
                     <h2>Points Table</h2>
@@ -1072,6 +1105,11 @@ def generate_html_report(team_points_df, player_team_points_df, series_stats_df,
             <div id="team-table" class="table-container">{team_table}
             
             </div>
+
+            {'' if league == "JAL" else '<h2>Scores Live Today</h2>'}                
+                <div class="table-container">{daily_scores_table}
+            
+                </div>
             
            
             <div class="chart-container">{team_chart}</div>
@@ -1174,6 +1212,58 @@ def generate_html_report(team_points_df, player_team_points_df, series_stats_df,
             document.documentElement.setAttribute('data-theme', storedTheme);
             const themeIcon = document.querySelector('.theme-switch-button i');
             themeIcon.className = storedTheme === 'light' ? 'fas fa-moon' : 'fas fa-sun';
+
+            // Function to update page views
+            async function updatePageViews() {{
+              try {{
+                const response = await fetch('/page-views/live-scoring', {{
+                  method: 'POST',
+                  headers: {{
+                    'Content-Type': 'application/json'
+                  }}
+                }});
+                const data = await response.json();
+                
+                // Update view counter if it exists
+                const viewCounter = document.querySelector('.view-counter');
+                if (viewCounter) {{
+                  viewCounter.innerHTML = `
+                    <i class="fas fa-eye"></i>
+                    <span>${{data.views}} views</span>
+                  `;
+                }}
+              }} catch (error) {{
+                console.error('Error updating page views:', error);
+              }}
+            }}
+
+            // Call update function when page loads
+            document.addEventListener('DOMContentLoaded', updatePageViews);            
+            // Add this to your JavaScript code
+          async function fetchPageViews() {{
+              try {{
+                  const response = await fetch('/page-views/live-scoring');
+                  const data = await response.json();
+                  const viewCount = data.views;
+                  
+                  // Create view counter element
+                  const viewCounter = document.createElement('div');
+                  viewCounter.className = 'view-counter';
+                  viewCounter.innerHTML = `
+                      <i class="fas fa-eye"></i>
+                      <span>${{viewCount}} views</span>
+                  `;
+                  
+                  // Add to document
+                  document.body.appendChild(viewCounter);
+              }} catch (error) {{
+                  console.error('Error fetching page views:', error);
+              }}
+          }}
+
+          // Call function when page loads
+          document.addEventListener('DOMContentLoaded', fetchPageViews);     
+
         </script>
     </body>
     </html>

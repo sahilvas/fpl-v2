@@ -188,6 +188,15 @@ class EmojiReaction(db.Model):
     value = db.Column(db.String, nullable=False)
     timestamp = db.Column(db.DateTime, default=datetime.utcnow)
 
+class PageView(db.Model):
+    __tablename__ = 'page_views_v1'
+    id = db.Column(db.Integer, primary_key=True)
+    page = db.Column(db.String)
+    device_id = db.Column(db.String)
+    views = db.Column(db.Integer)
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+
+
 # Ensure upload folder exists
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
@@ -1779,6 +1788,44 @@ def get_emoji_reactions(key):
     reactions = team_reactions.value
     return {'reactions': reactions}
 
+
+@app.route('/page-views/<page>', methods=['POST'])
+def increment_page_views(page):
+    if not page or "live-scoring" not in page:
+        return {'error': 'page is required'}, 400
+
+    device_id = request.cookies.get('device_id')  # Check if cookie exists
+
+     # Get existing page views
+    page_views = PageView.query.filter_by(page=page, device_id=device_id).first()
+    
+    if page_views:
+        # Increment existing view count
+        page_views.views = page_views.views + 1
+    else:
+        # Create new page view entry
+        page_views = PageView(
+            page=page,
+            device_id=device_id,
+            views=100
+        )
+        
+    db.session.merge(page_views)
+    db.session.commit()
+    
+    return {'message': 'Page view added successfully'}, 200
+
+@app.route('/page-views/<page>', methods=['GET']) 
+def get_page_views(page):
+    if not page or "live-scoring" not in page:
+        return {'error': 'page is required'}, 400
+    page_views = PageView.query.filter_by(page=page).first()
+    
+    if not page_views:
+        return {'views': 0}
+        
+    views = page_views.views
+    return {'views': views}
 
 @app.after_request
 def add_header(response):
