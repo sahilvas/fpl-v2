@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Fantasy League Table</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body {
+            background-color: #15151e;
+            color: #ffffff;
+            font-family: 'Titillium Web', sans-serif;
+            margin: 0;
+            padding: 10px;
+        }
+
+        .back-button {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            padding: 10px 20px;
+            background-color: #e10600;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            font-weight: bold;
+            transition: all 0.3s ease;
+        }
+
+        .back-button:hover {
+            background-color: #ff1a1a;
+            transform: scale(1.05);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0 4px;
+            font-family: 'Titillium Web', sans-serif;
+            margin: 20px 0;
+            background: transparent;
+            font-size: 14px;
+        }
+
+        th, td {
+            padding: 10px 5px;
+            text-align: center;
+        }
+
+        @media screen and (max-width: 600px) {
+            table {
+                font-size: 12px;
+            }
+
+            th, td {
+                padding: 8px 3px;
+            }
+
+            h2 {
+                font-size: 1.8em !important;
+            }
+
+            img {
+                width: 20px !important;
+                height: 20px !important;
+                margin-right: 5px !important;
+            }
+
+            .blast-logo {
+                width: 200px !important;
+                height: 200px !important;
+            }
+
+            td:first-child {
+                font-size: 1em !important;
+            }
+        }
+
+        th {
+            background-color: #e10600;
+            color: white;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        tr {
+            background-color: #1f1f2b;
+            transition: all 0.3s ease;
+        }
+
+        tr:hover {
+            background-color: #2a2a3a;
+            transform: scale(1.01);
+        }
+
+        tr:nth-child(-n+3) td {
+            background-color: #1f1f2b;
+            position: relative;
+        }
+
+        tr:nth-child(1) td:first-child {
+            border-left: 4px solid gold;
+        }
+
+        tr:nth-child(2) td:first-child {
+            border-left: 4px solid silver;
+        }
+
+        tr:nth-child(3) td:first-child {
+            border-left: 4px solid #cd7f32;
+        }
+
+        td {
+            border: none;
+            color: #ffffff;
+        }
+
+        td:first-child {
+            font-weight: bold;
+            font-size: 1.2em;
+        }
+
+        .circle {
+            font-size: 16px;
+            margin: 0 2px;
+            border-radius: 50%;
+            padding: 2px 6px;
+        }
+
+        .W { background-color: #27f55f; color: #000; }
+        .L { background-color: #e10600; color: #fff; }
+        .T { background-color: #ff8700; color: #000; }
+
+        h2 {
+            text-align: center;
+            color: #ffffff;
+            font-size: 2.5em;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin: 30px 0;
+            font-weight: 600;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        img {
+            width: 30px;
+            height: 30px;
+            object-fit: contain;
+            margin-right: 10px;
+            vertical-align: middle;
+        }
+
+        /* Graffiti pop effect styles */
+        .blast-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.9);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            animation: fadeOut 5s forwards;
+        }
+
+        .blast-logo {
+            width: 300px;
+            height: 300px;
+            animation: graffitiPop 1s cubic-bezier(.17,.67,.83,.67);
+            filter: drop-shadow(0 0 10px rgba(255,255,255,0.8));
+        }
+
+        @keyframes graffitiPop {
+            0% {
+                transform: scale(0) skew(15deg);
+                opacity: 0;
+                filter: blur(10px);
+            }
+            30% {
+                transform: scale(1.2) skew(-15deg);
+                opacity: 0.6;
+                filter: blur(5px);
+            }
+            60% {
+                transform: scale(0.9) skew(5deg);
+                opacity: 0.8;
+                filter: blur(2px);
+            }
+            100% {
+                transform: scale(1) skew(0);
+                opacity: 1;
+                filter: blur(0);
+            }
+        }
+
+        @keyframes fadeOut {
+            0%, 80% {
+                opacity: 1;
+            }
+            100% {
+                opacity: 0;
+                visibility: hidden;
+            }
+        }
+    </style>
+    <link href="https://fonts.googleapis.com/css2?family=Titillium+Web:wght@400;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+
+<a href="/live-scoring" class="back-button">← Back</a>
+
+<div class="blast-overlay">
+    {% with first_team = teams.iloc[0] %}
+        {% if first_team.TeamName %}
+            <img class="blast-logo" src="{{ url_for('static', filename='logos/' + first_team.TeamName + '.gif') }}" alt="{{ first_team.TeamName }}" />
+        {% endif %}
+    {% endwith %}
+</div>
+
+<h2>FPL IPL 2025 Table</h2>
+
+<table>
+    <thead>
+        <tr>
+            <th>Pos</th>
+            <th>Team</th>
+            <th>TotalPoints</th>
+            <th>Best11Points</th>
+            <th>Lead</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for index, team in teams.iterrows() %}
+        <tr>
+            <td>{{ index + 1 }}</td>            
+            <td>
+                {% if team.TeamName %}
+                    <img src="{{ url_for('static', filename='logos/' + team.TeamName + '.gif') }}" alt="{{ team.TeamName }}" />
+                {% endif %}
+                {{ team.TeamName }}
+            </td>
+            <td>{{ team.TotalPoints }}</td>
+            <td>{{ team.Best11Points }}</td>
+            <td>{{ team.Lead }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+</body>
+</html>

@@ -1051,6 +1051,10 @@ def generate_html_report(team_points_df, player_team_points_df, series_stats_df,
             <div class="header-menu">
                 <nav style="display: flex; align-items: center;">
                     <a href="/" style="font-size: 14px; padding: 8px 15px;">Home</a>
+                    <a href="/points-table" style="font-size: 14px; padding: 8px 15px; position: relative;">
+                    Points Table
+                    <span style="position: absolute; top: -8px; right: -8px; background: #ff4444; color: white; font-size: 10px; padding: 2px 6px; border-radius: 10px; animation: pulse 1.5s infinite;">NEW</span>
+                </a>   
                 </nav>
                 <div class="theme-switch">
                     <button class="theme-switch-button" onclick="toggleTheme()">
@@ -1762,6 +1766,117 @@ def main(Player, PlayerRanking, PlayerRankingPerDay, player_of_the_day, team_of_
             traceback.print_exception(type(e), e, e.__traceback__)
     else:
         logging.error("Data processing aborted due to previous errors.")
+
+
+def create_points_table(Player, PlayerRanking):
+
+    # Query players table and save as dataframe
+    players_df = pd.DataFrame([{
+        'name': p.name,
+        'team_name': p.team_name, 
+        'role': p.role,
+        'ipl_team': p.ipl_team,
+        'foreign_player': p.foreign_player,
+        'first_match_id': p.first_match_id,
+        'selling_price': p.selling_price,
+        'category': p.category,
+        'point_reduction': p.points_reduction
+
+        } for p in Player.query.all()])
+    # Close database connection
+    #conn.close()    
+
+    players_df = players_df.rename(columns={'name': 'Player Name'})
+    players_df = players_df.rename(columns={'team_name': 'Team Name'})
+    players_df = players_df.rename(columns={'role': 'Role'})
+    players_df = players_df.rename(columns={'ipl_team': 'IPL Team'})
+
+    #player_rankings_df = read_excel_file("player_rankings.xlsx")
+    # create player_rankings_df from PlayerRanking model
+
+    player_rankings_df = pd.DataFrame([{
+        'PlayerId': pr.PlayerId,
+        'PlayerName': pr.PlayerName,
+        'PlayerTypeId': pr.PlayerTypeId,
+        'PlayerFormId': pr.PlayerFormId,
+        'IsOut': pr.IsOut,
+        'IsInjured': pr.IsInjured,
+        'Price': pr.Price,
+        'RealTeamName': pr.RealTeamName,
+        'TotalScore': pr.TotalScore,
+        'IsShowTrophy': pr.IsShowTrophy,
+        'Rank': pr.Rank,
+        'PRank': pr.PRank
+        
+        } for pr in PlayerRanking.query.all()])
+    
+
+    #print(player_rankings_df.head())
+    if not players_df.empty and not player_rankings_df.empty:        
+        try:
+            
+            # Merge the dataframes
+            merged_df = pd.merge(players_df, player_rankings_df, left_on="Player Name", right_on="PlayerName")
+
+                        
+            # Apply point reduction if applicable
+            if 'point_reduction' in merged_df.columns:
+                merged_df['TotalScore'] = merged_df.apply(lambda row: int(row['TotalScore'] - row['point_reduction']) if pd.notna(row['point_reduction']) else int(row['TotalScore']), axis=1)    
+
+
+            #print(merged_df[merged_df['Player Name'].str.contains('Ben Dwarshuis', case=False)])    
+
+                  
+              
+            # Add Best 11 Points  
+            best_11_data = calculate_best_11(merged_df)  
+            team_points_df = merged_df.groupby('Team Name')['TotalScore'].sum().reset_index()  
+            team_points_df.rename(columns={'TotalScore': 'TotalPoints'}, inplace=True)  
+
+             
+            #print(team_points_df)
+            #exit()
+            
+              
+            # Add Best 11 Points  
+            best_11_dict = {team: points for team, points, _ in best_11_data}  
+            team_points_df['Best11Points'] = team_points_df['Team Name'].map(best_11_dict)  
+
+                
+            
+  
+            # Sort by Best11Points  
+            team_points_df.sort_values(by='Best11Points', ascending=False, inplace=True)
+              
+            
+     
+
+            
+            
+
+
+            
+
+            
+               
+
+                
+
+
+
+            # add lead_by col to team_points_df which is difference between best11points of current team vs next team
+            team_points_df['Lead'] = team_points_df['Best11Points'].diff(-1).fillna(0).abs().astype(int)                                   
+            
+
+    
+            #print(team_points_df)
+        except Exception as e:
+            logging.error(f"An error occurred during data processing: {str(e)}")
+            traceback.print_exception(type(e), e, e.__traceback__)
+    else:
+        logging.error("Data processing aborted due to previous errors.")
+
+    return team_points_df
 
 if __name__ == "__main__":
     main()

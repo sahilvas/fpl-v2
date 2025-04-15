@@ -380,15 +380,9 @@ def player_of_the_day(league=""):
             today_players_subquery.c.today_score,
             func.coalesce(yesterday_players_subquery.c.yesterday_score, 0).label("yesterday_score"),
             func.coalesce(day_before_yesterday_players_subquery.c.day_before_yesterday_score, 0).label("day_before_yesterday_score"),
-            case(
-                (
-                    (today_players_subquery.c.today_score - func.coalesce(yesterday_players_subquery.c.yesterday_score, 0)) < 0,
-                    0
-                ),
-                else_=(
-                    today_players_subquery.c.today_score - func.coalesce(yesterday_players_subquery.c.yesterday_score, 0)
-                )
-            ).label("score_difference"),
+        
+                    (today_players_subquery.c.today_score - func.coalesce(yesterday_players_subquery.c.yesterday_score, 0)
+                    ).label("score_difference"),
             case(
                 (
                     (yesterday_players_subquery.c.yesterday_score - func.coalesce(day_before_yesterday_players_subquery.c.day_before_yesterday_score, 0)) < 0,
@@ -450,7 +444,7 @@ def team_of_the_day(league=""):
     day_before_yesterday = today - timedelta(days=2)
 
     # Aliases for the same table (to compare today vs yesterday)
-    TodayPlayer = aliased(PlayerRankingPerDay)
+    TodayPlayer = aliased(PlayerRanking)
     YesterdayPlayer = aliased(PlayerRankingPerDay)
     DayBeforeYesterdayPlayer = aliased(PlayerRankingPerDay)
 
@@ -461,10 +455,8 @@ def team_of_the_day(league=""):
         db.session.query(
             TodayPlayer.PlayerId,
             TodayPlayer.PlayerName,
-            TodayPlayer.TotalScore.label("today_score"),
-            func.max(TodayPlayer.timestamp).label("latest_timestamp")
+            TodayPlayer.TotalScore.label("today_score")
         )
-        .filter(func.date(TodayPlayer.timestamp) == today)
         .filter(TodayPlayer.TotalScore > 0)
         .group_by(TodayPlayer.PlayerId)
         .subquery()
@@ -1835,6 +1827,22 @@ def get_page_views(page):
         return {'views': 0}
         
     return {'views': actual_views}
+
+
+
+@app.route("/points-table")
+def points_table():
+
+    teams_df = update_scores.create_points_table(Player, PlayerRanking)
+    teams_df.rename(columns={
+            'Team Name': 'TeamName',
+        }, inplace=True)
+    teams_df.reset_index(inplace=True)
+    
+    #print(teams_df)
+    
+    return render_template("points_table.html", teams=teams_df)
+
 
 @app.after_request
 def add_header(response):
