@@ -1783,7 +1783,7 @@ def get_emoji_reactions(key):
 
 @app.route('/page-views/<page>', methods=['POST'])
 def increment_page_views(page):
-    if not page or "live-scoring" not in page:
+    if not page or ("live-scoring" not in page and "points-table" not in page):
         return {'error': 'page is required'}, 400
 
     device_id = request.cookies.get('device_id')  # Check if cookie exists
@@ -1816,8 +1816,9 @@ def increment_page_views(page):
 
 @app.route('/page-views/<page>', methods=['GET']) 
 def get_page_views(page):
-    if not page or "live-scoring" not in page:
+    if not page or ("live-scoring" not in page and "points-table" not in page):
         return {'error': 'page is required'}, 400
+    
     page_views = db.session.query(db.func.sum(PageView.views)).filter_by(page=page).scalar()  or 100
     count_of_devices = db.session.query(PageView.device_id).filter_by(page=page).distinct().count()
 
@@ -1833,15 +1834,120 @@ def get_page_views(page):
 @app.route("/points-table")
 def points_table():
 
-    teams_df = update_scores.create_points_table(Player, PlayerRanking)
+    teams_df, player_team_points_df = update_scores.create_points_table(Player, PlayerRanking)
     teams_df.rename(columns={
             'Team Name': 'TeamName',
         }, inplace=True)
     teams_df.reset_index(inplace=True)
     
     #print(teams_df)
+
+    #print(player_team_points_df)
+    # extract first row from player_team_points_df
+    #mvp = player_team_points_df.iloc[0]['Player Name']
+    #print(mvp)
+    player_awards = {}
+    player_awards["MVP"] = {
+            'name': "MVP",
+            'player': player_team_points_df.iloc[0]['Player Name'],
+            'team': player_team_points_df.iloc[0]['Team Name'],
+            'points': player_team_points_df.iloc[0]['PlayerPoints']
+        }
+
+    series_df = update_scores.get_series_stats(Player, PlayerRanking)
+
+    #print(series_df)
     
-    return render_template("points_table.html", teams=teams_df)
+    for key, df in series_df.items():
+        if key == "MOST_RUNS":
+            key = "Best Batter"
+            key_col = "Runs"
+        elif key == "MOST_WICKETS":
+            key = "Best Bowler"
+            key_col = "Wkts"
+        elif key == "MOST_SIXES":
+            key = "Most Sixes"
+            key_col = "6s"
+            df.rename(columns={
+                'Batter': 'Player',
+            }, inplace=True)
+        else:
+            logging.error(f"Unknown key {key}")
+
+        #print(df)
+
+        if df.empty:
+            logging.error(f"Empty DataFrame for {key}")
+            continue
+
+        df['Team Name'] = df['Team Name'].fillna(value="LORDX1")
+        del df['Player Name']
+        cols = df.columns.tolist()
+        #print(cols)
+        cols = cols[1:2] + cols[:1] + cols[2:]        
+        #print(cols)
+        df = df[cols]
+        #print(df)
+        #extract first row of each df and save to player_awards
+        player_awards[key] = {
+            'name': key,
+            'player': df.iloc[0]['Player'],
+            'team': df.iloc[0]['Team Name'],
+            'points': df.iloc[0][key_col]
+        }
+        
+
+    #print(player_awards)
+
+    scoreboard_df = update_scores.get_scoreboard_stats(Player, PlayerRanking)
+    #print(scoreboard_df)
+
+    team_awards = {}
+    for key, df in scoreboard_df.items():
+        if key == "Bat":
+            key = "Most 50s"
+        elif key == "Bowl":
+            key = "Most 3fers"
+        elif key == "Field":
+            key = "Best Fielder"
+        elif key == "POTM":
+            key = "Most POTMs"
+        else:
+            logging.error(f"Unknown key {key}")
+
+        #print(df)
+
+        if df.empty:
+            logging.error(f"Empty DataFrame for {key}")
+            continue
+
+        #del df['Player Name']
+        cols = df.columns.tolist()
+        #print(cols)
+        cols = cols[1:2] + cols[:1] + cols[2:]
+        #print(cols)
+        df = df[cols]
+        #print(df)
+        #extract first row of each df and save to player_awards
+       
+        if key == "Best Fielder":
+            player_awards[key] = {
+            'name': key,
+            'player': df.iloc[0]['Player'],
+            'team': df.iloc[0]['Team Name'],
+            'points': df.iloc[0]['Player Count']
+        } 
+        else :
+             team_awards[key] = {
+            'name': key,
+            #'player': df.iloc[0]['Player'],
+            'team': df.iloc[0]['Team Name'],
+            'points': df.iloc[0]['Player Count']
+        }
+
+    #print(team_awards)
+    
+    return render_template("points_table.html", teams=teams_df, player_awards=player_awards, team_awards=team_awards)
 
 
 @app.after_request

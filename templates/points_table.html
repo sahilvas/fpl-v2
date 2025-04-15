@@ -1,8 +1,9 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Fantasy League Table</title>
+    <title>FPL</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/jpeg" href="{{ url_for('static', filename='fpl.jpeg') }}">
     <style>
         body {
             background-color: #15151e;
@@ -29,6 +30,16 @@
         .back-button:hover {
             background-color: #ff1a1a;
             transform: scale(1.05);
+        }
+
+        .page-views {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 10px;
+            background-color: rgba(31, 31, 43, 0.8);
+            border-radius: 5px;
+            font-size: 14px;
         }
 
         table {
@@ -207,10 +218,24 @@
         }
     </style>
     <link href="https://fonts.googleapis.com/css2?family=Titillium+Web:wght@400;600;700&display=swap" rel="stylesheet">
+    <script>
+        window.onload = function() {
+            fetch('/page-views/points-table', {
+                method: 'POST'
+            });
+            
+            fetch('/page-views/points-table')
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('viewCount').textContent = data.views;
+            });
+        }
+    </script>
 </head>
 <body>
 
 <a href="/live-scoring" class="back-button">← Back</a>
+<div class="page-views">👁️ <span id="viewCount">0</span></div>
 
 <div class="blast-overlay">
     {% with first_team = teams.iloc[0] %}
@@ -220,7 +245,10 @@
     {% endwith %}
 </div>
 
-<h2>FPL IPL 2025 Table</h2>
+<h2 style="display: flex; align-items: center; justify-content: center;">
+    <img style="width: 30px; height: 30px;" src="{{ url_for('static', filename='fpl.jpeg') }}" alt="FPL" />
+    <span style="margin-left: 10px;">FPL IPL 2025 Table</span>
+</h2>
 
 <table>
     <thead>
@@ -245,6 +273,62 @@
             <td>{{ team.TotalPoints }}</td>
             <td>{{ team.Best11Points }}</td>
             <td>{{ team.Lead }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<h2>Player Awards</h2>
+<table>
+    <thead>
+        <tr>
+            <th>Award</th>
+            <th>Team</th>
+            <th>Player</th>
+            
+            <th>Points</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for index, award in player_awards.items() %}        
+        <tr>
+            <td>{{ award.name }}</td>
+            
+            <td>
+                {% if award.team %}
+                    <img src="{{ url_for('static', filename='logos/' + award.team + '.gif') }}" alt="{{ award.team }}" />
+                    {{ award.team }}
+                {% endif %}
+            </td>
+            <td>{{ award.player }}</td>
+            <td>{{ award.points }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<h2>Team Awards</h2> 
+<table>
+    <thead>
+        <tr>
+            <th>Award</th>
+            <th>Team</th>
+         
+            <th>Points</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for index, award in team_awards.items() %}               
+        <tr>
+            <td>{{ award.name }}</td>
+            <td>
+                {% if award.team %}
+                    <img src="{{ url_for('static', filename='logos/' + award.team + '.gif') }}" alt="{{ award.team }}" />
+                    {{ award.team }}
+                {% endif %}
+            </td>
+          
+            <td>{{ award.points }}</td>
         </tr>
         {% endfor %}
     </tbody>

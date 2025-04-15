@@ -1768,8 +1768,7 @@ def main(Player, PlayerRanking, PlayerRankingPerDay, player_of_the_day, team_of_
         logging.error("Data processing aborted due to previous errors.")
 
 
-def create_points_table(Player, PlayerRanking):
-
+def init_player_df(Player, PlayerRanking):
     # Query players table and save as dataframe
     players_df = pd.DataFrame([{
         'name': p.name,
@@ -1810,6 +1809,12 @@ def create_points_table(Player, PlayerRanking):
         
         } for pr in PlayerRanking.query.all()])
     
+    return players_df, player_rankings_df
+
+
+def create_points_table(Player, PlayerRanking):
+
+    players_df, player_rankings_df = init_player_df(Player, PlayerRanking)
 
     #print(player_rankings_df.head())
     if not players_df.empty and not player_rankings_df.empty:        
@@ -1823,51 +1828,25 @@ def create_points_table(Player, PlayerRanking):
             if 'point_reduction' in merged_df.columns:
                 merged_df['TotalScore'] = merged_df.apply(lambda row: int(row['TotalScore'] - row['point_reduction']) if pd.notna(row['point_reduction']) else int(row['TotalScore']), axis=1)    
 
-
-            #print(merged_df[merged_df['Player Name'].str.contains('Ben Dwarshuis', case=False)])    
-
-                  
-              
             # Add Best 11 Points  
             best_11_data = calculate_best_11(merged_df)  
             team_points_df = merged_df.groupby('Team Name')['TotalScore'].sum().reset_index()  
             team_points_df.rename(columns={'TotalScore': 'TotalPoints'}, inplace=True)  
 
-             
-            #print(team_points_df)
-            #exit()
-            
-              
             # Add Best 11 Points  
             best_11_dict = {team: points for team, points, _ in best_11_data}  
             team_points_df['Best11Points'] = team_points_df['Team Name'].map(best_11_dict)  
 
-                
-            
-  
             # Sort by Best11Points  
             team_points_df.sort_values(by='Best11Points', ascending=False, inplace=True)
               
-            
-     
-
-            
-            
-
-
-            
-
-            
-               
-
-                
-
-
-
             # add lead_by col to team_points_df which is difference between best11points of current team vs next team
-            team_points_df['Lead'] = team_points_df['Best11Points'].diff(-1).fillna(0).abs().astype(int)                                   
-            
+            team_points_df['Lead'] = team_points_df['Best11Points'].diff(-1).fillna(0).abs().astype(int)         
 
+            player_team_points_df = merged_df.groupby(['PlayerId', 'Team Name', 'Player Name', 'Role', 'IPL Team'])['TotalScore'].sum().reset_index() 
+            player_team_points_df.rename(columns={'TotalScore': 'PlayerPoints'}, inplace=True)    
+            player_team_points_df.sort_values(by='PlayerPoints', ascending=False, inplace=True)                       
+            
     
             #print(team_points_df)
         except Exception as e:
@@ -1876,7 +1855,175 @@ def create_points_table(Player, PlayerRanking):
     else:
         logging.error("Data processing aborted due to previous errors.")
 
-    return team_points_df
+    return team_points_df, player_team_points_df
+
+
+def get_series_stats(Player, PlayerRanking):
+    
+    players_df, player_rankings_df = init_player_df(Player, PlayerRanking)
+
+    #print(player_rankings_df.head())
+    if not players_df.empty and not player_rankings_df.empty:        
+        try:
+
+            # Create SQLite connection
+            conn = sqlite3.connect('/mnt/sqlite/cricket_stats.db' if os.environ.get("WEBSITE_SITE_NAME") else 'instance/cricket_stats.db') 
+
+            # Query data from scoreboard tables
+            df_series = {}
+
+            # Query batting stats
+            try:
+                df_series["MOST_RUNS"] = pd.read_sql_query("""
+                    SELECT * from cricket_most_runs
+                """, conn)
+            except:
+                df_series["MOST_RUNS"] = pd.DataFrame()
+
+            # Query bowling stats  
+            try:
+                df_series["MOST_WICKETS"] = pd.read_sql_query("""
+                    SELECT * from cricket_most_wickets
+                """, conn)
+            except:
+                df_series["MOST_WICKETS"] = pd.DataFrame()
+
+            # Query bowling stats  
+            try:
+                df_series["MOST_SIXES"] = pd.read_sql_query("""
+                    SELECT * from cricket_most_sixes
+                """, conn)
+            except:
+                df_series["MOST_SIXES"] = pd.DataFrame()
+
+
+            # Print first few extracted tables
+            for key, df in df_series.items():
+                #print(f"\n=== {key} ===")
+                #print(df.head())
+
+                # Merge the dataframes
+                # Get the column name in df based on position (assuming the column to merge on is always in position 0)
+                #print(df)
+
+                # break if df is empty
+                if df.empty:
+                    break
+
+                
+                merge_column = df.columns[0] if len(df.columns) > 0 else None    
+                #print("merge_column :", merge_column)            
+
+                
+                merged_df = pd.merge(players_df[['Team Name', 'Player Name']], df, left_on="Player Name", right_on=merge_column, how='right')  
+                #print(merged_df.head())
+                df_series[key] = merged_df
+
+        except Exception as e:
+            logging.error(f"An error occurred during data processing: {str(e)}")
+            traceback.print_exception(type(e), e, e.__traceback__)
+    else:
+        logging.error("Data processing aborted due to previous errors.")
+
+    # Get individual series stats
+    return df_series
+
+
+def get_scoreboard_stats(Player, PlayerRanking):
+
+    players_df, player_rankings_df = init_player_df(Player, PlayerRanking)
+            
+    #print(player_rankings_df.head())
+    if not players_df.empty and not player_rankings_df.empty:        
+        try:
+
+            # Create SQLite connection
+            conn = sqlite3.connect('/mnt/sqlite/cricket_stats.db' if os.environ.get("WEBSITE_SITE_NAME") else 'instance/cricket_stats.db') 
+
+            # Query data from scoreboard tables
+            df_scoreboard = {}
+
+            # Query batting stats
+            df_scoreboard["Bat"] = pd.read_sql_query("""
+                SELECT * from cricket_bat 
+            """, conn)
+
+            # Query bowling stats  
+            df_scoreboard["Bowl"] = pd.read_sql_query("""
+                SELECT * from cricket_bowl
+            """, conn)
+
+            # Query fielding stats
+            df_scoreboard["Field"] = pd.read_sql_query("""
+                SELECT * from cricket_field
+            """, conn)
+
+             # Query potm stats
+            df_scoreboard["POTM"] = pd.read_sql_query("""
+                SELECT * from cricket_potm
+            """, conn)
+
+            conn.close()  
+
+            # Print first few extracted tables
+            for key, df in df_scoreboard.items():
+                #print(f"\n=== {key} ===")
+                #print(df.head())
+
+                # Merge the dataframes
+                # Get the column name in df based on position (assuming the column to merge on is always in position 0)
+                merge_column = df.columns[0]  # Get the first column in each DataFrame (e.g., 'Batter', 'Player', 'Bowler')
+                #print(merge_column)
+
+                # check if df has no rows
+                if df.empty:
+                    continue
+
+
+                replace_player_name(df, Player)
+
+                merged_df = pd.merge(players_df[['Team Name', 'Player Name', 'first_match_id']], df, left_on="Player Name", right_on=merge_column, how='right')  
+               
+
+                #check if mattchId col exists in merged_df
+                if 'matchId' in merged_df.columns:
+
+                    merged_df = merged_df[~((pd.notna(merged_df['first_match_id'])) & (merged_df['first_match_id'].astype(float) > merged_df['matchId'].astype(float)))]   
+
+                    del merged_df['first_match_id']
+                    del merged_df["matchId"]
+
+                    logging.info(f"Removed entries for replaced players for {key}")       
+                
+                if "Field" in key:
+                    #print(merged_df)
+                    # For fielding stats, aggregate by player name first
+                    player_catches = merged_df.groupby(['Team Name', 'Player'])['Catches'].sum().reset_index(name='Player Count')                    
+                    player_catches = player_catches.sort_values('Player Count', ascending=False)
+                    player_catches.index = range(1, len(player_catches) + 1)
+                    df_scoreboard[key] = player_catches     
+                    #print(player_catches)
+                else:
+                    #df_scoreboard[key] = merged_df
+                    #print(merged_df)
+                    team_counts = merged_df.groupby('Team Name').size().reset_index(name='Player Count')
+                    team_counts = team_counts.sort_values('Player Count', ascending=False)
+                    team_counts.index = range(1, len(team_counts) + 1)     
+                    df_scoreboard[key] = team_counts           
+                
+
+        except Exception as e:
+            logging.error(f"An error occurred during data processing: {str(e)}")
+            traceback.print_exception(type(e), e, e.__traceback__)
+    else:
+        logging.error("Data processing aborted due to previous errors.")
+
+    # Get individual series stats
+    return df_scoreboard  
+
+
+
+
 
 if __name__ == "__main__":
     main()
