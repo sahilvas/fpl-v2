@@ -2228,6 +2228,8 @@ def get_match_results():
         match.team1 = match_info.match_info.split(', ')[0].split(' vs ')[0]
         match.team2 = match_info.match_info.split(', ')[0].split(' vs ')[1]
         match.match_info = match_info.match_info
+        # remove seconds and milliseconds from timestamp
+        match.date = match.timestamp.strftime('%Y-%m-%d')
 
 
     return match_results
@@ -2260,11 +2262,14 @@ def get_predictions(matches):
         
         # Get match info and add team names
         for prediction in match_predictions:
+            
             match_info = db.session.query(Match).filter(Match.matchId==prediction.matchId).first()
             if match_info:
                 prediction.team1 = match_info.match_info.split(', ')[0].split(' vs ')[0]
                 prediction.team2 = match_info.match_info.split(', ')[0].split(' vs ')[1]
                 prediction.match_info = match_info.match_info
+                 # remove seconds and milliseconds from timestamp
+                prediction.date = prediction.timestamp.strftime('%Y-%m-%d %H:%M')
                 
         all_predictions.extend(match_predictions)
             
@@ -2295,6 +2300,8 @@ def get_user_predictions():
                 match.team1 = match_info.match_info.split(', ')[0].split(' vs ')[0] 
                 match.team2 = match_info.match_info.split(', ')[0].split(' vs ')[1]
                 match.match_info = match_info.match_info
+                 # remove seconds and milliseconds from timestamp
+                match.date = match.timestamp.strftime('%Y-%m-%d %H:%M')
 
                 # check if result available for the match
                 result = db.session.query(ActualResult).filter_by(matchId=match.matchId).first()

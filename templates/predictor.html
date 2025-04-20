@@ -456,7 +456,7 @@
     <tbody>
         {% for prediction in past_predictions %}
         <tr>
-            <td>{{ prediction.timestamp }}</td>
+            <td>{{ prediction.date }}</td>
           
             <td> {{ prediction.match_info }}</td>
             <td>{{ prediction.prediction_type.upper() }}</td>            
@@ -483,7 +483,7 @@
         {% for prediction in all_predictions %}
         <tr>
             <td>{{ prediction.username }}</td>
-            <td>{{ prediction.timestamp }}</td>
+            <td>{{ prediction.date }}</td>
       
             <td> {{ prediction.team1 }} vs {{ prediction.team2 }}</td>
 
@@ -512,7 +512,7 @@
     <tbody>
         {% for match in match_results %}
         <tr>
-            <td>{{ match.timestamp }}</td>
+            <td>{{ match.date }}</td>
             <td> {{ match.match_info }}</td>
             <td>{{ match.event_type.upper() }}</td>
             <td>{{ match.event_result }}</td>
