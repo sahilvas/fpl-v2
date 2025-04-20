@@ -1,4 +1,5 @@
 from datetime import datetime
+from functools import wraps
 import json
 import os
 import random
@@ -27,6 +28,7 @@ import update_series_stats
 import update_scores_from_scoreboard
 from datetime import timedelta
 from datetime import timedelta
+from flask import flash
 
 
   
@@ -196,6 +198,37 @@ class PageView(db.Model):
     views = db.Column(db.Integer)
     timestamp = db.Column(db.DateTime, default=datetime.utcnow)
 
+# create db model for Prediction table
+class Prediction(db.Model):
+    __tablename__ = 'prediction_v1'
+    id = db.Column(db.Integer, primary_key=True)
+    matchId = db.Column(db.String(100), nullable=False)
+    username = db.Column(db.String(100), nullable=False)
+    prediction_type = db.Column(db.String(100), default="match")
+    prediction_value = db.Column(db.String(100), nullable=False)
+    prediction_result = db.Column(db.String(100), default="pending")
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+
+
+# Add User model
+class User(db.Model):
+    __tablename__ = 'user_v1'
+    id = db.Column(db.Integer, primary_key=True)
+    username = db.Column(db.String(80), unique=True, nullable=False)
+    email = db.Column(db.String(120), unique=True, nullable=False)
+    password = db.Column(db.String(120), nullable=False)
+    is_admin = db.Column(db.Boolean, default=False)
+
+
+# Add model for actual result for prediction events
+class ActualResult(db.Model):
+    __tablename__ = 'actual_result_v1'
+    id = db.Column(db.Integer, primary_key=True)
+    matchId = db.Column(db.String(100), nullable=False)
+    event_type = db.Column(db.String(100), default="match")
+    event_result = db.Column(db.String(100), nullable=False)
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+    
 
 # Ensure upload folder exists
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
@@ -1016,7 +1049,7 @@ def is_trial_expired(device_id):
 
 
 @app.route('/admin/login', methods=['GET', 'POST'])
-def login():
+def admin_login():
     if request.method == 'POST':
         username = request.form.get('username')
         password = request.form.get('password')
@@ -1028,12 +1061,12 @@ def login():
         else:
             flash('Invalid credentials', 'danger')
             
-    return render_template('login.html')
+    return render_template('admin_login.html')
 
 @app.route('/admin/review', methods=['GET', 'POST'])
 def admin_review():
     if session.get('admin') != True:
-        return redirect(url_for('login'))
+        return redirect(url_for('admin_login'))
 
     if request.method == 'POST':
         device_id = request.form.get('device_id')
@@ -1080,7 +1113,7 @@ def admin_review():
 @app.route('/admin/logs')
 def logs():
     if session.get('admin') != True:
-        return redirect(url_for('login'))
+        return redirect(url_for('admin_login'))
     
     # delete logs from timestamp older than 1 week
     one_week_ago = datetime.now() - timedelta(days=2)
@@ -1562,7 +1595,7 @@ def show_matches():
 @app.route('/admin/players', methods=['GET', 'POST'])
 def admin_players():
     if session.get('admin') != True:
-        return redirect(url_for('login'))
+        return redirect(url_for('admin_login'))
 
     if request.method == 'POST':
         # Handle add/edit player
@@ -1614,7 +1647,7 @@ def delete_player(id):
 @app.route('/admin/players/edit/<int:id>', methods=['GET', 'POST'])
 def edit_player(id):
     if session.get('admin') != True:
-        return redirect(url_for('login'))
+        return redirect(url_for('admin_login'))
 
     player = Player.query.get_or_404(id)    
     if request.method == 'POST':
@@ -1652,7 +1685,7 @@ def edit_player(id):
 @app.route('/admin/jal/players', methods=['GET', 'POST'])
 def admin_jal_players():
     if session.get('admin') != True:
-        return redirect(url_for('login'))
+        return redirect(url_for('admin_login'))
 
     if request.method == 'POST':
         # Handle add/edit player
@@ -1704,7 +1737,7 @@ def delete_jal_player(id):
 @app.route('/admin/jal/players/edit/<int:id>', methods=['GET', 'POST'])
 def edit_jal_player(id):
     if session.get('admin') != True:
-        return redirect(url_for('login'))
+        return redirect(url_for('admin_login'))
 
     player = JALPlayer.query.get_or_404(id)    
     if request.method == 'POST':
@@ -1976,6 +2009,496 @@ def points_table():
     #print(team_awards)
     
     return render_template("points_table.html", teams=teams_df, player_awards=player_awards, team_awards=team_awards)
+
+# Hash password
+from werkzeug.security import generate_password_hash, check_password_hash   
+
+
+# Add signup route
+@app.route('/signup', methods=['GET', 'POST'])
+def signup():
+    if request.method == 'POST':
+        username = request.form.get('username')
+        password = request.form.get('password')
+        email = request.form.get('email')
+        
+        # Check if username already exists
+        if User.query.filter_by(username=username).first():
+            flash('Username already exists', 'danger')
+            return redirect(url_for('signup'))
+        
+        # Check if email already exists
+        if User.query.filter_by(email=email).first():
+            flash('Email already exists', 'danger')
+            return redirect(url_for('signup'))
+            
+        # Hash password
+        hashed_password = generate_password_hash(password)
+        
+        # Create new user
+        user = User(username=username, password=hashed_password, email=email)
+        db.session.add(user)
+        db.session.commit()
+        
+        flash('Successfully registered! Please login.', 'success')
+        return redirect(url_for('login'))
+        
+    return render_template('signup.html')
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if request.method == 'POST':
+        username = request.form.get('username')
+        password = request.form.get('password')
+        email = request.form.get('email')
+        
+        user = User.query.filter_by(username=username).first()
+
+        user_email = User.query.filter_by(email=email).first()
+        
+        if user and check_password_hash(user.password, password):
+            session['user_id'] = user.id
+            session['admin'] = user.is_admin
+            session.permanent = True
+            app.permanent_session_lifetime = timedelta(hours=1)
+            flash('Successfully logged in!', 'success')
+            return redirect(url_for('predictor'))        
+        elif user_email and check_password_hash(user_email.password, password):
+            session['user_id'] = user_email.id
+            session['admin'] = user_email.is_admin
+            session.permanent = True
+            app.permanent_session_lifetime = timedelta(hours=1)
+            flash('Successfully logged in!', 'success')
+            return redirect(url_for('predictor'))      
+        else:
+            flash('Invalid credentials', 'danger')
+            
+    return render_template('login.html')
+
+# Add logout route
+@app.route('/logout')
+def logout():
+    session.clear()
+    flash('Successfully logged out', 'info')
+    return redirect(url_for('login'))
+
+
+# add /me route
+@app.route('/me')
+def me():
+    print(session)
+    if 'user_id' not in session:
+        logging.info("User not logged in") 
+        flash('Please login first', 'warning')
+        return redirect(url_for('login'))
+    user = db.session.get(User, session['user_id'])    
+    logging.info(f"User: {user.username}")
+    if user:
+        return {'username' : user.username}, 200
+    return redirect(url_for('login'))
+
+
+# add reset password route
+@app.route('/reset_password', methods=['GET', 'POST'])
+def reset_password():
+    if request.method == 'POST':
+        username = request.form.get('username')
+        new_password = request.form.get('new_password')
+
+        user = User.query.filter_by(username=username).first()
+
+        if user:
+            # Hash new password
+            hashed_password = generate_password_hash(new_password)
+
+            # Update user's password
+            user.password = hashed_password
+            db.session.commit()
+
+            flash('Password reset successfully!', 'success')
+            return redirect(url_for('login'))
+        else:
+            flash('Invalid username', 'danger')
+
+    return render_template('reset_password.html')
+
+
+# Add login_required decorator
+def login_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if 'user_id' not in session:
+            flash('Please login first', 'warning')
+            return redirect(url_for('login'))
+        return f(*args, **kwargs)
+    return decorated_function
+
+
+# Add admin_required decorator
+def admin_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not session.get('admin'):
+            flash('Admin access required', 'danger')
+            return redirect(url_for('admin_login'))
+        return f(*args, **kwargs)
+    return decorated_function
+
+
+
+@app.route("/predictor")
+@login_required 
+def predictor():
+
+    device_id = get_device_id()
+
+    new_device_id = request.cookies.get('device_id')  # Check if cookie exists
+
+    logging.info(f"Received device_id from cookies: {new_device_id}")
+
+    if not new_device_id:
+        new_device_id = str(uuid.uuid4())  # Generate new device ID
+        response = make_response(redirect(url_for('show_live_scoring')))
+        response.set_cookie(
+            'device_id', new_device_id, 
+            max_age=60*60*24*365*5,  # 5 years
+            samesite='Lax',
+            secure=False,  # Set True for HTTPS
+            httponly=True
+        )
+        logging.info(f"Setting new device_id: {new_device_id}")
+        return response  # Send response with new cookie
+    
+
+    #device_id = device_id + "--" + new_device_id
+    device_id = new_device_id
+    logging.info(f"Setting new super device_id: {device_id}")
+
+
+    # get matches from /matches endpoint
+    matches = db.session.query(Match.matchId, Match.date, Match.match_info, Match.time).all()  
+    upcoming_matches = {}
+    index = 0
+  
+
+    # extract team1 and team2 from match_info and add to each match
+    for match in matches:        
+        match_info = match[2] # Access match_info from tuple using index
+        match_split = match_info.split(',')[0].split(' vs ')
+        team1 = match_split[0]
+        team2 = match_split[1]
+
+        match_date = match[1].split(",")[0]
+        today = pd.Timestamp('today').strftime('%b %d')  
+
+        # Convert dates to datetime for comparison
+        match_datetime = pd.to_datetime(match[1].split(",")[0], format='%b %d')
+        today_datetime = pd.to_datetime(today, format='%b %d')
+
+        if match_datetime < today_datetime:
+            continue
+
+        
+        # Convert tuple to dict to add new fields
+        match = {
+            'matchId': match[0],
+            'date': match[1], 
+            'match_info': match[2],
+            'time': match[3],
+            'team1': team1,
+            'team2': team2
+        }
+      
+        
+        upcoming_matches[index] = match  
+        index += 1
+
+    for match in upcoming_matches:
+        logging.info(f"Match: {upcoming_matches[match]['team1']}")
+
+    
+    past_predictions = get_user_predictions()
+    logging.info(f"Past predictions: {past_predictions}")
+    all_predictions = get_predictions(upcoming_matches)
+    logging.info(f"All predictions: {all_predictions}")
+    leaderboard = get_prediction_leaderboard()
+    logging.info(f"Leaderboard: {leaderboard}")
+    match_results = get_match_results()
+    logging.info(f"Match results: {match_results}")
+
+    return render_template("predictor.html", upcoming_matches=upcoming_matches, past_predictions=past_predictions, all_predictions=all_predictions, leaderboard=leaderboard, match_results=match_results)        
+
+
+# method to extract all match_results from actual_results table
+def get_match_results():
+    match_results = db.session.query(ActualResult).all()
+
+    # get match_info for matchId and add that to match_results
+    for match in match_results:
+        match_info = db.session.query(Match).filter(Match.matchId==match.matchId).first()
+
+        match.team1 = match_info.match_info.split(', ')[0].split(' vs ')[0]
+        match.team2 = match_info.match_info.split(', ')[0].split(' vs ')[1]
+        match.match_info = match_info.match_info
+
+
+    return match_results
+
+
+# method to extract all predictions from given matches
+# filter matches for todays date only
+def get_predictions(matches):
+
+    all_predictions = []
+    today = pd.Timestamp('today').strftime('%b %d')
+    
+    for match in matches:
+        matchId = matches[match]['matchId']
+        match_date = matches[match]['date'].split(", ")[0]
+        
+        # Convert dates to datetime for comparison
+        match_datetime = pd.to_datetime(match_date, format='%b %d')
+        today_datetime = pd.to_datetime(today, format='%b %d')
+        
+        # Skip if not today's match
+        if match_datetime != today_datetime:
+            continue
+            
+        # Get predictions for this match
+        match_predictions = db.session.query(Prediction).filter(Prediction.matchId==matchId).all()
+        
+        # Filter out predictions with null usernames
+        match_predictions = [p for p in match_predictions if p.username]
+        
+        # Get match info and add team names
+        for prediction in match_predictions:
+            match_info = db.session.query(Match).filter(Match.matchId==prediction.matchId).first()
+            if match_info:
+                prediction.team1 = match_info.match_info.split(', ')[0].split(' vs ')[0]
+                prediction.team2 = match_info.match_info.split(', ')[0].split(' vs ')[1]
+                prediction.match_info = match_info.match_info
+                
+        all_predictions.extend(match_predictions)
+            
+    return all_predictions
+
+
+# method to extract all past predictions for a user
+def get_user_predictions():
+    try:
+        if 'user_id' not in session:
+            return []
+            
+        user = db.session.get(User, session['user_id'])
+        if user:
+            username = user.username
+            logging.info(f"Username: {username}")
+            predictions = db.session.query(Prediction).filter_by(username=username).all()
+
+            # Include all predictions
+            filtered_predictions = []
+            today = pd.Timestamp('today').strftime('%b %d')
+
+            for match in predictions:
+                match_info = db.session.query(Match).filter(Match.matchId==match.matchId).first()
+                if not match_info:
+                    continue
+
+                match.team1 = match_info.match_info.split(', ')[0].split(' vs ')[0] 
+                match.team2 = match_info.match_info.split(', ')[0].split(' vs ')[1]
+                match.match_info = match_info.match_info
+                filtered_predictions.append(match)
+
+            return filtered_predictions        
+    except Exception as e:
+        logging.error(f"Error getting predictions: {e}")
+        return []
+              
+    return []    
+
+
+# method to create leaderboard based on prediction results 
+def get_prediction_leaderboard():
+    # get all predictions
+    predictions = db.session.query(Prediction).all()
+    # create a dataframe
+    df = pd.DataFrame([{
+        'matchId': p.matchId,
+        'username': p.username,
+        'prediction_type': p.prediction_type,
+        'prediction_value': p.prediction_value
+        } for p in predictions if p.username])
+
+    # get actual results
+    results = db.session.query(ActualResult).all()
+    results_df = pd.DataFrame([{
+        'matchId': r.matchId,
+        'event_type': r.event_type, 
+        'event_value': r.event_result
+    } for r in results])
+
+    if results_df.empty:
+        return []
+
+    # merge predictions with results
+    merged_df = pd.merge(df, results_df,
+                        left_on=['matchId', 'prediction_type'],
+                        right_on=['matchId', 'event_type'])
+
+    # calculate points
+    merged_df['points'] = 0
+    # +50 for correct toss, -50 for wrong toss
+    merged_df.loc[(merged_df['prediction_type'] == 'toss') & 
+                 (merged_df['prediction_value'] == merged_df['event_value']), 'points'] = 50
+    merged_df.loc[(merged_df['prediction_type'] == 'toss') & 
+                 (merged_df['prediction_value'] != merged_df['event_value']), 'points'] = -50
+    # +100 for correct match, -100 for wrong match
+    merged_df.loc[(merged_df['prediction_type'] == 'match') & 
+                 (merged_df['prediction_value'] == merged_df['event_value']), 'points'] = 100
+    merged_df.loc[(merged_df['prediction_type'] == 'match') & 
+                 (merged_df['prediction_value'] != merged_df['event_value']), 'points'] = -100
+
+    # create leaderboard
+    leaderboard = merged_df.groupby('username').agg({
+        'points': 'sum',
+        'prediction_type': 'count'
+    }).reset_index()
+
+    leaderboard.rename(columns={'prediction_type': 'total_predictions'}, inplace=True)
+    leaderboard['points'] = leaderboard['points'].astype(int)
+    leaderboard = leaderboard.sort_values('points', ascending=False)
+
+    # add rank
+    leaderboard['rank'] = leaderboard['points'].rank(method='min', ascending=False).astype(int)
+
+    # convert to list of dicts
+    leaderboard = leaderboard.to_dict('records')
+
+    # add rank to each dict
+    for i, user in enumerate(leaderboard):
+        user['rank'] = i + 1
+
+    return leaderboard
+
+
+@app.route('/admin/predictions', methods=['GET', 'POST'])
+@admin_required
+def manage_predictions():
+    if request.method == 'POST':
+        logging.info("Received POST request")
+        # Handle adding/updating actual results
+        matchId = request.form.get('matchId')
+
+        match_winner = request.form.get('match_winner')
+        toss_winner = request.form.get('toss_winner')
+
+        if match_winner:
+            # save to database
+            result = ActualResult(
+                matchId=matchId,
+                event_type="match",
+                event_result=match_winner
+            )
+            db.session.merge(result)
+            
+
+        if toss_winner:
+            # save to database
+            result = ActualResult(
+                matchId=matchId,
+                event_type="toss",
+                event_result=toss_winner
+            )
+            db.session.merge(result)
+            
+
+        flash('Match & Toss Result updated successfully', 'success')
+        db.session.commit()
+        
+        return redirect(url_for('manage_predictions'))
+
+    # Get all matches
+    matches = db.session.query(Match.matchId, Match.date, Match.match_info, Match.time).all()
+    
+    # Get all results
+    results = db.session.query(ActualResult).all()
+    
+    return render_template('manage_predictions.html', matches=matches, results=results)
+
+
+
+# route to /submit-prediction endpoint
+@app.route("/submit-prediction", methods=["POST"])
+@login_required 
+def submit_prediction():
+    # get form data
+    matchId = request.form.get("matchId")
+    prediction_value = request.form.get("prediction_value")
+    username = request.form.get("username")
+    match_winner = request.form.get("match_winner")
+    toss_winner = request.form.get("toss_winner")
+    logging.info(f"Match: {matchId}, {prediction_value} {username}")
+
+
+    # check if user has already submitted a prediction for this match
+    existing_prediction = Prediction.query.filter_by(matchId=matchId, username=username).first()
+    # if existing prediction then return error
+    if existing_prediction:
+        return {'message': 'Prediction already exists'}, 200
+    
+    # check if cut off passed for prediction
+    # cut off is 11 am CET everyday for today's match
+    # allow anytime for future dated matches
+    match_date = db.session.query(Match.date).filter(Match.matchId==matchId).first()[0]
+    match_date = match_date.split(", ")[0]
+
+    # Convert dates to datetime for comparison
+    match_datetime = pd.to_datetime(match_date, format='%b %d')
+    today_datetime = pd.to_datetime(pd.Timestamp('today').strftime('%b %d'), format='%b %d')
+
+    # Only check cutoff time for today's matches
+    if match_datetime == today_datetime and pd.Timestamp('today').strftime('%H:%M') > '11:00':
+        return {'message': 'Prediction cutoff was 11 am. Try again tomorrow.'}, 200
+
+    """  
+    if existing_prediction:
+        # update existing prediction
+        existing_prediction.prediction_value = prediction_value
+        db.session.commit()
+        return {'message': 'Prediction updated successfully'}, 200 """
+
+    if match_winner:
+        # save to database
+        prediction = Prediction(
+            matchId=matchId,
+            username=username,
+            prediction_type="match",
+            prediction_value=match_winner
+        )
+        db.session.add(prediction)
+
+    if toss_winner:
+        # save to database
+        prediction = Prediction(
+            matchId=matchId,
+            username=username,
+            prediction_type="toss",
+            prediction_value=toss_winner
+        )
+        db.session.add(prediction)
+
+    
+    db.session.commit()
+
+
+    # return success message
+    #flash('Prediction submitted successfully', 'success')
+    return {'message': 'Prediction submitted successfully'}, 200
+
+
+
+
+
 
 
 @app.after_request

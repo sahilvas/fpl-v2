@@ -1,0 +1,82 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+    <title>IPL Match Predictions</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+</head>
+<body>
+    <div class="container mt-5">
+        <h2>IPL Match Predictions</h2>
+        
+        <div class="table-responsive">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Match ID</th>
+                        <th>Match Date</th>
+                        <th>Match Info</th>
+                        <th>Match Winner</th>
+                        <th>Toss Winner</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% with messages = get_flashed_messages() %}
+                                {% if messages %}
+                                    {% for message in messages %}
+                                        <div class="alert alert-success alert-dismissible fade show" role="alert">
+                                            {{ message }}
+                                            <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                                                <span aria-hidden="true">&times;</span>
+                                            </button>
+                                        </div>
+                                    {% endfor %}
+                                {% endif %}
+                            {% endwith %}  
+                    
+                    {% for match in matches %}  
+                        <tr>
+                            <form method="POST" action="/admin/predictions">
+                                                          <td>
+                                    <input type="text" name="matchId" value="{{ match.matchId }}" readonly>
+                                </td>
+                                <td>
+                                    <input type="text" name="match_date" value="{{ match.date }}" readonly>
+                                </td>
+                                <td>
+                                    <input type="text" name="match_info" value="{{ match.match_info }}" readonly>
+                                </td>
+                                <td>
+                                    <select class="form-control" name="match_winner" required>
+                                        <option value="">
+                                        Select Match Winner
+                                        </option>                                        
+                                        <option value="{{ match.match_info.split(',')[0].split(' vs ')[0] }}" >{{ match.match_info.split(',')[0].split(' vs ')[0] }}</option>
+                                        <option value="{{ match.match_info.split(',')[0].split(' vs ')[1] }}" >{{ match.match_info.split(',')[0].split(' vs ')[1] }}</option>
+                                    </select>
+                                </td>
+                                <td>
+                                    <select class="form-control" name="toss_winner" required>
+                                        <option value="">Select Toss Winner</option>
+                                        <option value="{{ match.match_info.split(',')[0].split(' vs ')[0] }}">{{ match.match_info.split(',')[0].split(' vs ')[0] }}</option>
+                                        <option value="{{ match.match_info.split(',')[0].split(' vs ')[1] }}">{{ match.match_info.split(',')[0].split(' vs ')[1] }}</option>
+                                    </select>
+                                </td>
+                                <td>
+                                    <button type="submit" class="btn btn-primary btn-sm">Save</button>
+                                </td>
+                            </form>
+                        </tr>
+                        {% endfor %}
+              
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.5.4/dist/umd/popper.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+</body>
+</html>

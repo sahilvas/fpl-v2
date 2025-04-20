@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>IPL Match Predictions</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/jpeg" href="{{ url_for('static', filename='lpl.webp') }}">
+    <style>
+        
+
+        body {
+            background: linear-gradient(135deg, #1a472a, #000000);
+            color: #ffffff;
+            font-family: 'Montserrat', sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-image: url("{{ url_for('static', filename='lpl.webp') }}");
+            background-size: cover;
+            background-position: center center;
+            background-attachment: fixed;
+            background-blend-mode: overlay;
+            background-repeat: no-repeat;
+        }
+
+        .username {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            color: #ffd700;
+            font-weight: bold;
+            font-size: 16px;
+            background: rgba(0,0,0,0.7);
+            padding: 10px;
+            text-align: center;
+            border-bottom: 1px solid #ffd700;
+            z-index: 1000;
+        }
+
+        h2 {
+            color: #ffd700;
+            text-transform: uppercase;
+            text-align: center;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+            margin: 60px 0 30px 0;
+            font-size: 28px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0 8px;
+            font-family: 'Montserrat', sans-serif;
+            margin: 20px 0;
+            background: rgba(0,0,0,0.7);
+            font-size: 14px;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 0 20px rgba(0,0,0,0.3);
+        }
+
+        th, td {
+            padding: 15px 10px;
+            text-align: center;
+        }
+
+        th {
+            background: linear-gradient(45deg, #1a472a, #2e8b57);
+            color: #ffd700;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            border-bottom: 2px solid #ffd700;
+        }
+
+        tr {
+            background: rgba(255,255,255,0.1);
+            transition: all 0.3s ease;
+        }
+
+        tr:hover {
+            background: rgba(255,255,255,0.2);
+            transform: scale(1.01);
+        }
+
+        .prediction-form {
+            background: rgba(0,0,0,0.8);
+            padding: 30px;
+            border-radius: 15px;
+            margin: 20px 0;
+            border: 1px solid #ffd700;
+            box-shadow: 0 0 30px rgba(255,215,0,0.2);
+        }
+
+        .form-group {
+            margin: 15px 0;
+        }
+
+        label {
+            color: #ffd700;
+            font-weight: bold;
+            margin-right: 10px;
+        }
+
+        input, select {
+            background: rgba(255,255,255,0.1);
+            border: 1px solid #ffd700;
+            padding: 10px;
+            color: white;
+            border-radius: 5px;
+            width: 400px;
+        }
+
+        button {
+            background: linear-gradient(45deg, #1a472a, #2e8b57);
+            color: #ffd700;
+            border: 2px solid #ffd700;
+            padding: 12px 30px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-weight: bold;
+            text-transform: uppercase;
+            transition: all 0.3s ease;
+        }
+
+        button:hover {
+            background: #ffd700;
+            color: #1a472a;
+            transform: scale(1.05);
+        }
+
+        .result-correct {
+            color: #32cd32;
+            font-weight: bold;
+        }
+
+        .result-wrong {
+            color: #ff4500;
+            font-weight: bold;
+        }
+       
+.flash-messages {
+    position: fixed;
+    top: 60px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 1001;
+    width: 80%;
+    max-width: 600px;
+}
+
+.flash-message {
+    padding: 15px;
+    margin: 10px 0;
+    border-radius: 5px;
+    position: relative;
+    animation: slideIn 0.5s ease-out;
+}
+
+.flash-message.success {
+    background-color: rgba(46, 139, 87, 0.9);
+    border: 1px solid #ffd700;
+    color: white;
+}
+
+.flash-message.warning {
+    background-color: rgba(178, 34, 34, 0.9);
+    border: 1px solid #ffd700;
+    color: white;
+}
+
+.flash-message.info {
+    background-color: rgba(70, 130, 180, 0.9);
+    border: 1px solid #ffd700;
+    color: white;
+}
+
+.close-btn {
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    cursor: pointer;
+    color: white;
+    font-size: 20px;
+}
+
+@keyframes slideIn {
+    from {
+        transform: translateY(-100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+.flash-message.fade-out {
+    animation: fadeOut 0.5s ease-out forwards;
+}
+
+@keyframes fadeOut {
+    from {
+        opacity: 1;
+    }
+    to {
+        opacity: 0;
+    }
+}
+
+        /* Splash screen styles */
+.splash-screen {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: url("{{ url_for('static', filename='lpl.webp') }}") center center no-repeat;
+    background-size: 90%;
+    padding: 20px 0;
+    z-index: 9999;
+    opacity: 1;
+    transition: opacity 0.2s ease-out, transform 0.2s ease-out;
+    background-color: rgba(0,0,0,0.9);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transform: scale(1);
+}
+        .splash-screen.fade-out {
+            opacity: 0;
+        }
+
+        .content {
+            display: none;
+        }
+
+    </style>
+</head>
+<body>
+
+     <!-- Splash screen -->
+     <div class="splash-screen"></div>
+
+     <!-- Wrap existing content -->
+    <div class="content">
+        <!-- Rest of existing HTML content... -->
+  
+
+            <!-- Add this right after the <body> tag -->
+<div class="flash-messages">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="flash-message {{ category }}">
+                    {{ message }}
+                    <span class="close-btn" onclick="this.parentElement.style.display='none'">&times;</span>
+                </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+</div>
+
+
+    <div class="username">
+    <div style="display: flex; justify-content: space-between; align-items: center;">
+        <div id="username-display" style="display: none;">👤 <span id="username-text"></span></div>
+        <a href="/logout" style="color: #ffd700; text-decoration: none; font-weight: bold; margin-left: 20px;">Logout</a>
+    </div>
+
+            <script>
+        async function getUsername() {
+            try {
+                const response = await fetch('/me');
+                const data = await response.json();
+                return data.username;
+            } catch (error) {
+                console.error('Error fetching username:', error);
+                return null;
+            }
+        }
+
+        window.onload = async function() {
+            const usernameDisplay = document.getElementById('username-display');
+            const usernameForm = document.getElementById('username-form'); 
+            const usernameText = document.getElementById('username-text');
+            
+            const username = await getUsername();
+            
+            if (username) {
+                usernameText.textContent = username;
+                usernameDisplay.style.display = 'block';
+                if (usernameForm) {
+                    usernameForm.style.display = 'none';
+                }
+                localStorage.setItem('username', username);
+                const usernameInput = document.querySelector('input[name=username]');
+                if (usernameInput) {
+                    usernameInput.value = username;
+                }
+            } else {
+                // Redirect to login page if username not found
+                window.location.href = '/login';
+            }
+        }
+</script>
+</div>
+
+
+<h2>🏏 Luck Premier League (LPL)</h2>
+<div class="prediction-form">
+    <form action="/submit-prediction" method="POST">
+
+
+
+            
+    <div class="form-group">
+            <label>🏆 Match: </label>
+            <select name="matchId" id="match-select" onchange="updateTeams()">
+                {% for match in upcoming_matches %}                    
+                <option value="{{ upcoming_matches[match]['matchId'] }}" data-team1="{{ upcoming_matches[match]['team1'] }}" data-team2="{{ upcoming_matches[match]['team2']}}">{{ upcoming_matches[match]['team1'] }} vs {{ upcoming_matches[match]['team2'] }} - {{   upcoming_matches[match]['date'] }}</option>
+                
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label>👑 Match Winner: </label>
+            <select name="match_winner" id="match-winner">
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label>🎲 Toss Winner: </label>
+            <select name="toss_winner" id="toss-winner">
+            </select>
+        </div>
+
+        <script>
+            function updateTeams() {
+                const matchSelect = document.getElementById('match-select');
+                const selectedOption = matchSelect.options[matchSelect.selectedIndex];
+                const team1 = selectedOption.getAttribute('data-team1');
+                const team2 = selectedOption.getAttribute('data-team2');
+
+                const matchWinner = document.getElementById('match-winner');
+                const tossWinner = document.getElementById('toss-winner');
+           
+
+                // Clear existing options
+                matchWinner.innerHTML = '';
+                tossWinner.innerHTML = '';
+       
+
+                // Add new options
+                [team1, team2].forEach(team => {
+                    const matchOption = new Option(team, team);
+                    const tossOption = new Option(team, team);
+                    matchWinner.add(matchOption);
+                    tossWinner.add(tossOption);
+
+                });
+            }
+
+            // Initialize on page load
+            document.addEventListener('DOMContentLoaded', updateTeams);
+        </script>        
+        
+        <input type="hidden" name="username" id="username" value="{{ username }}">   
+        
+
+        <!-- Info tip about cutoff time -->
+        <div style="color: #ffd700; font-size: 12px; margin-top: 10px; font-style: italic;">
+            ⏰ Prediction cutoff time is 11:00 AM CET every day
+        </div>
+        <button type="submit" onclick="return validateForm(event)">Make Prediction</button>       
+       <script>
+
+            function validateForm(event) {
+                event.preventDefault();
+                
+                if (!checkUsername()) {
+                    return false;
+                }
+
+                const formData = new FormData(event.target.form);
+                
+                fetch('/submit-prediction', {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => response.json())
+                .then(data => {
+                    // Create and show flash message
+                    const flashMessagesDiv = document.querySelector('.flash-messages');
+                    const flashMessage = document.createElement('div');
+                    flashMessage.className = `flash-message ${data.category || 'info'}`;
+                    flashMessage.innerHTML = `
+                        ${data.message}
+                        <span class="close-btn" onclick="this.parentElement.style.display='none'">&times;</span>
+                    `;
+                    flashMessagesDiv.appendChild(flashMessage);
+
+                    // Auto-hide message after 5 seconds
+                    setTimeout(() => {
+                        flashMessage.classList.add('fade-out');
+                        setTimeout(() => {
+                            flashMessage.style.display = 'none';
+                        }, 500);
+                    }, 5000);
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                });
+
+                return false;
+            }
+
+            function checkUsername() {
+                if (!localStorage.getItem('username')) {
+                    alert('Please enter a username first before making predictions');
+                    return false;
+                }
+                return true;
+            }
+</script>    
+</form>
+</div>
+</div>
+
+<h2>🎯 Match Results</h2>
+<table>
+    <thead>
+        <tr>
+            <th>Date</th>
+            <th>Teams</th>
+            <th>Event</th>
+            <th>Winner</th>
+       
+   
+        </tr>
+    </thead>
+    <tbody>
+        {% for match in match_results %}
+        <tr>
+            <td>{{ match.timestamp }}</td>
+            <td> {{ match.match_info }}</td>
+            <td>{{ match.event_type.upper() }}</td>
+            <td>{{ match.event_result }}</td>
+      
+      
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<h2>📊 Your Predictions</h2>
+<table>
+    <thead>
+        <tr>
+            <th>Date</th>
+            <th>Match</th>
+            <th>Event</th>
+            <th>Prediction</th>
+            <th>Points</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for prediction in past_predictions %}
+        <tr>
+            <td>{{ prediction.timestamp }}</td>
+          
+            <td> {{ prediction.match_info }}</td>
+            <td>{{ prediction.prediction_type.upper() }}</td>            
+            <td class="{{ 'result-correct' if prediction.winner_correct else 'result-wrong' }}">
+                {{ prediction.prediction_value }}
+            </td>           
+            <td>{{ prediction.points }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<h2>🎲 Today's Match Predictions</h2>
+<table>
+    <thead>
+        <tr>
+            <th>User</th>
+            <th>Date</th>
+            <th>Match</th>
+            <th>Event</th>
+            <th>Prediction</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for prediction in all_predictions %}
+        <tr>
+            <td>{{ prediction.username }}</td>
+            <td>{{ prediction.timestamp }}</td>
+      
+            <td> {{ prediction.team1 }} vs {{ prediction.team2 }}</td>
+
+            <td>{{ prediction.prediction_type.upper() }}</td>     
+            <td>{{ prediction.prediction_value }}</td>
+          
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<h2>🏆 Leaderboard</h2>
+<table>
+    <thead>
+        <tr>
+            <th>Rank</th>
+            <th>User</th>
+            <th>Total Points</th>
+       
+        </tr>
+    </thead>
+    <tbody>
+        {% for user in leaderboard %}
+        <tr>
+            <td>{{ loop.index }}</td>
+            <td>{{ user.username }}</td>
+            <td>{{ user.points }}</td>
+       
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const flashMessages = document.querySelectorAll('.flash-message');
+        flashMessages.forEach(message => {
+            setTimeout(() => {
+                message.classList.add('fade-out');
+                setTimeout(() => {
+                    message.style.display = 'none';
+                }, 500);
+            }, 5000);
+        });
+    });
+
+     // Splash screen handler
+     document.addEventListener('DOMContentLoaded', function() {
+            const splashScreen = document.querySelector('.splash-screen');
+            const content = document.querySelector('.content');
+            
+            setTimeout(() => {
+                splashScreen.classList.add('fade-out');
+                content.style.display = 'block';
+                
+                setTimeout(() => {
+                    splashScreen.style.display = 'none';
+                }, 500);
+            }, 5000);
+        });
+
+    </script> 
+
+</div>
+
+</body>
+</html>
