@@ -76,7 +76,7 @@
                         <h3 class="mb-4">Create Account</h3>
                         <form action="{{ url_for('signup') }}" method="POST" autocomplete="off" onsubmit="return validatePasswords()">
                             <div class="mb-3">
-                                <input type="text" class="form-control" name="username" placeholder="Username" required>
+                                <input type="text" class="form-control" name="username" placeholder="Username" required maxlength="30">
                             </div>
                             <div class="mb-3">
                                 <input type="email" class="form-control" name="email" placeholder="Email" required>
