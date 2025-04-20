@@ -212,12 +212,13 @@ class Prediction(db.Model):
 
 # Add User model
 class User(db.Model):
-    __tablename__ = 'user_v1'
+    __tablename__ = 'user_v2'
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True, nullable=False)
     email = db.Column(db.String(120), unique=True, nullable=False)
     password = db.Column(db.String(120), nullable=False)
     is_admin = db.Column(db.Boolean, default=False)
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
 
 
 # Add model for actual result for prediction events
@@ -1135,6 +1136,9 @@ def logs():
     return render_template('logs.html', logs=logs)
 
 
+
+
+
 @app.route('/')
 def welcome():
     return render_template('welcome.html')
@@ -2043,7 +2047,7 @@ def signup():
         flash('Successfully registered! Please login.', 'success')
         return redirect(url_for('login'))
         
-    return render_template('signup.html')
+    return render_template('login.html')
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -2103,9 +2107,11 @@ def me():
 def reset_password():
     if request.method == 'POST':
         username = request.form.get('username')
+        email = request.form.get('email')
         new_password = request.form.get('new_password')
 
-        user = User.query.filter_by(username=username).first()
+        #user = User.query.filter_by(username=username).first()
+        user = User.query.filter_by(email=email).first()
 
         if user:
             # Hash new password
@@ -2120,7 +2126,7 @@ def reset_password():
         else:
             flash('Invalid username', 'danger')
 
-    return render_template('reset_password.html')
+    return render_template('login.html')
 
 
 # Add login_required decorator
@@ -2144,6 +2150,13 @@ def admin_required(f):
         return f(*args, **kwargs)
     return decorated_function
 
+
+# admin route to render signed_up_users.html with user table export
+@app.route("/admin/lpl/users")
+@admin_required
+def admin():
+    users = User.query.all()
+    return render_template("signed_up_users.html", users=users)
 
 
 @app.route("/predictor")

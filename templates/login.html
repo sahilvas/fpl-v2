@@ -72,7 +72,7 @@
                 <!-- Sign Up Form -->
                 <div class="card p-4 mb-4" id="signupForm" style="display: none;">
                     <div class="card-body text-center">
-                        <img src="{{ url_for('static', filename='lpl-2.webppeg') }}" alt="IPL Logo" class="logo">
+                        <img src="{{ url_for('static', filename='lpl-2.webp') }}" alt="IPL Logo" class="logo">
                         <h3 class="mb-4">Create Account</h3>
                         <form action="{{ url_for('signup') }}" method="POST" autocomplete="off" onsubmit="return validatePasswords()">
                             <div class="mb-3">
@@ -117,12 +117,19 @@
                 <!-- Reset Password Form -->
                 <div class="card p-4" id="resetForm" style="display: none;">
                     <div class="card-body text-center">
-                        <img src="{{ url_for('static', filename='lpl-2.webppeg') }}" alt="IPL Logo" class="logo">
+                        <img src="{{ url_for('static', filename='lpl-2.webp') }}" alt="IPL Logo" class="logo">
                         <h3 class="mb-4">Reset Password</h3>
                         <form action="{{ url_for('reset_password') }}" method="POST">
                             <div class="mb-3">
                                 <input type="email" class="form-control" name="email" placeholder="Enter your email" required>
                             </div>
+                            <div class="mb-3">
+                                <input type="password" class="form-control" id="new-password" name="new_password" placeholder="Password" required 
+                                       pattern="^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$"
+                                       title="Password must be at least 8 characters long and include uppercase, lowercase, number and special character"
+                                       autocomplete="new-password">
+                            </div>
+                       
                             <button type="submit" class="btn btn-primary w-100 mb-3">Reset Password</button>
                             <a href="#" onclick="showForm('loginForm')" class="text-muted">Back to Login</a>
                         </form>
