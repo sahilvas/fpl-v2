@@ -33,6 +33,7 @@
         .logo {
             width: 100px;
             margin-bottom: 20px;
+            border-radius: 50%;
         }
     </style>
 </head>
@@ -43,7 +44,7 @@
                 <!-- Login Form -->
                 <div class="card p-4 mb-4" id="loginForm">
                     <div class="card-body text-center">
-                        <img src="{{ url_for('static', filename='fpl.jpeg') }}" alt="IPL Logo" class="logo">
+                        <img src="{{ url_for('static', filename='lpl-2.webp') }}" alt="IPL Logo" class="logo">
                         <h3 class="mb-4">Login to Predictor</h3>
                         {% with messages = get_flashed_messages() %}
                             {% if messages %}

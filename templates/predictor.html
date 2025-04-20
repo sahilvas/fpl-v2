@@ -3,22 +3,21 @@
 <head>
     <title>IPL Match Predictions</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="icon" type="image/jpeg" href="{{ url_for('static', filename='lpl.webp') }}">
+    <link rel="icon" type="image/jpeg" href="{{ url_for('static', filename='lpl-2.webp') }}">
     <style>
-        
-
         body {
-            background: linear-gradient(135deg, #1a472a, #000000);
+            background: linear-gradient(135deg, #00337C, #000000);
             color: #ffffff;
             font-family: 'Montserrat', sans-serif;
             margin: 0;
             padding: 20px;
-            background-image: url("{{ url_for('static', filename='lpl.webp') }}");
-            background-size: cover;
+            background-image: url("{{ url_for('static', filename='lpl-2.webp') }}");
+            background-size: contain;
             background-position: center center;
             background-attachment: fixed;
             background-blend-mode: overlay;
             background-repeat: no-repeat;
+            background-color: #333333;        
         }
 
         .username {
@@ -26,23 +25,32 @@
             top: 0;
             left: 0;
             right: 0;
-            color: #ffd700;
+            color: #FFD700;
             font-weight: bold;
             font-size: 16px;
             background: rgba(0,0,0,0.7);
             padding: 10px;
             text-align: center;
-            border-bottom: 1px solid #ffd700;
+            border-bottom: 1px solid #FFD700;
             z-index: 1000;
         }
 
         h2 {
-            color: #ffd700;
+            color: #FFD700;
             text-transform: uppercase;
             text-align: center;
             text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
             margin: 60px 0 30px 0;
             font-size: 28px;
+        }
+
+        h3 {
+            color: #FFD700;
+            text-transform: uppercase;
+            text-align: center;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+            margin: 60px 0 30px 0;
+            font-size: 20px;
         }
 
         table {
@@ -64,12 +72,12 @@
         }
 
         th {
-            background: linear-gradient(45deg, #1a472a, #2e8b57);
-            color: #ffd700;
+            background: linear-gradient(45deg, #00337C, #004AAD);
+            color: #FFD700;
             font-weight: 600;
             text-transform: uppercase;
             letter-spacing: 1px;
-            border-bottom: 2px solid #ffd700;
+            border-bottom: 2px solid #FFD700;
         }
 
         tr {
@@ -87,7 +95,7 @@
             padding: 30px;
             border-radius: 15px;
             margin: 20px 0;
-            border: 1px solid #ffd700;
+            border: 1px solid #FFD700;
             box-shadow: 0 0 30px rgba(255,215,0,0.2);
         }
 
@@ -96,14 +104,14 @@
         }
 
         label {
-            color: #ffd700;
+            color: #FFD700;
             font-weight: bold;
             margin-right: 10px;
         }
 
         input, select {
             background: rgba(255,255,255,0.1);
-            border: 1px solid #ffd700;
+            border: 1px solid #FFD700;
             padding: 10px;
             color: white;
             border-radius: 5px;
@@ -111,9 +119,9 @@
         }
 
         button {
-            background: linear-gradient(45deg, #1a472a, #2e8b57);
-            color: #ffd700;
-            border: 2px solid #ffd700;
+            background: linear-gradient(45deg, #00337C, #004AAD);
+            color: #FFD700;
+            border: 2px solid #FFD700;
             padding: 12px 30px;
             border-radius: 25px;
             cursor: pointer;
@@ -123,8 +131,8 @@
         }
 
         button:hover {
-            background: #ffd700;
-            color: #1a472a;
+            background: #FFD700;
+            color: #00337C;
             transform: scale(1.05);
         }
 
@@ -157,20 +165,20 @@
 }
 
 .flash-message.success {
-    background-color: rgba(46, 139, 87, 0.9);
-    border: 1px solid #ffd700;
+    background-color: rgba(0, 51, 124, 0.9);
+    border: 1px solid #FFD700;
     color: white;
 }
 
 .flash-message.warning {
     background-color: rgba(178, 34, 34, 0.9);
-    border: 1px solid #ffd700;
+    border: 1px solid #FFD700;
     color: white;
 }
 
 .flash-message.info {
-    background-color: rgba(70, 130, 180, 0.9);
-    border: 1px solid #ffd700;
+    background-color: rgba(0, 74, 173, 0.9);
+    border: 1px solid #FFD700;
     color: white;
 }
 
@@ -209,24 +217,27 @@
 }
 
         /* Splash screen styles */
-.splash-screen {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: url("{{ url_for('static', filename='lpl.webp') }}") center center no-repeat;
-    background-size: 90%;
-    padding: 20px 0;
-    z-index: 9999;
-    opacity: 1;
-    transition: opacity 0.2s ease-out, transform 0.2s ease-out;
-    background-color: rgba(0,0,0,0.9);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transform: scale(1);
-}
+        .splash-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: url("{{ url_for('static', filename='lpl-2.webp') }}") center center no-repeat;
+            border-radius: 15px;            
+            background-size: 50%;
+            padding: 20px 0;
+            z-index: 9999;
+            opacity: 1;
+            transition: opacity 0.2s ease-out, transform 0.2s ease-out;
+            background-color: rgba(0,0,0,0.9);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transform: scale(1);
+            -webkit-mask-image: radial-gradient(circle at center, black 70%, transparent 100%);
+            mask-image: radial-gradient(circle at center, black 70%, transparent 100%);
+        }
         .splash-screen.fade-out {
             opacity: 0;
         }
@@ -235,31 +246,122 @@
             display: none;
         }
 
+        @media screen and (max-width: 768px) {
+    .flash-messages {
+        width: 95%;
+        top: 40px;
+    }
+
+    .flash-message {
+        font-size: 14px;
+        padding: 10px;
+        margin: 5px 0;
+    }
+
+    .close-btn {
+        font-size: 18px;
+        padding: 5px;
+    }
+}
+
+@media screen and (max-width: 480px) {
+    .flash-messages {
+        width: 100%;
+        top: 30px;
+    }
+
+    .flash-message {
+        font-size: 12px;
+        padding: 8px;
+        border-radius: 3px;
+    }
+
+    .close-btn {
+        font-size: 16px;
+    }
+}
+
+.prediction-form {
+    max-width: 600px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+.form-group {
+    margin-bottom: 20px;
+    display: flex;
+    flex-direction: column;
+}
+
+.form-group label {
+    margin-bottom: 8px;
+}
+
+.form-group select {
+    width: 100%;
+    max-width: 100%;
+    padding: 12px;
+}
+
+.cutoff-info {
+    text-align: center;
+    margin: 15px 0;
+}
+
+.cutoff-info p {
+    color: #ffd700;
+    font-size: 14px;
+    font-style: italic;
+    margin: 0;
+}
+
+.button-container {
+    text-align: center;
+    margin-top: 20px;
+}
+
+@media screen and (max-width: 480px) {
+    .prediction-form {
+        padding: 10px;
+    }
+    
+    .form-group select {
+        font-size: 14px;
+    }
+    
+    button {
+        width: 100%;
+        padding: 15px;
+    }
+}
+
     </style>
 </head>
 <body>
 
      <!-- Splash screen -->
-     <div class="splash-screen"></div>
-
+     <div class="splash-screen">
+        <span class="close-btn" onclick="closeSplashScreen()" style="position: absolute; top: 20px; right: 20px; color: #FFD700; font-size: 24px; cursor: pointer; z-index: 10000;">&times;</span>
+    </div>
      <!-- Wrap existing content -->
     <div class="content">
         <!-- Rest of existing HTML content... -->
   
 
             <!-- Add this right after the <body> tag -->
-<div class="flash-messages">
-    {% with messages = get_flashed_messages(with_categories=true) %}
-        {% if messages %}
-            {% for category, message in messages %}
-                <div class="flash-message {{ category }}">
-                    {{ message }}
-                    <span class="close-btn" onclick="this.parentElement.style.display='none'">&times;</span>
-                </div>
-            {% endfor %}
-        {% endif %}
-    {% endwith %}
-</div>
+            <div class="flash-messages">
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                    {% if messages %}
+                        {% for category, message in messages %}
+                            <div class="flash-message {{ category }}">
+                                {{ message }}
+                                <span class="close-btn" onclick="this.parentElement.style.display='none'">&times;</span>
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+                {% endwith %}
+            </div>
+
 
 
     <div class="username">
@@ -268,76 +370,159 @@
         <a href="/logout" style="color: #ffd700; text-decoration: none; font-weight: bold; margin-left: 20px;">Logout</a>
     </div>
 
-            <script>
-        async function getUsername() {
-            try {
-                const response = await fetch('/me');
-                const data = await response.json();
-                return data.username;
-            } catch (error) {
-                console.error('Error fetching username:', error);
-                return null;
-            }
-        }
 
-        window.onload = async function() {
-            const usernameDisplay = document.getElementById('username-display');
-            const usernameForm = document.getElementById('username-form'); 
-            const usernameText = document.getElementById('username-text');
-            
-            const username = await getUsername();
-            
-            if (username) {
-                usernameText.textContent = username;
-                usernameDisplay.style.display = 'block';
-                if (usernameForm) {
-                    usernameForm.style.display = 'none';
-                }
-                localStorage.setItem('username', username);
-                const usernameInput = document.querySelector('input[name=username]');
-                if (usernameInput) {
-                    usernameInput.value = username;
-                }
-            } else {
-                // Redirect to login page if username not found
-                window.location.href = '/login';
-            }
-        }
-</script>
 </div>
 
 
-<h2>🏏 Luck Premier League (LPL)</h2>
+<h2>🏏 LPL </h2>
 <div class="prediction-form">
-    <form action="/submit-prediction" method="POST">
-
-
-
-            
-    <div class="form-group">
-            <label>🏆 Match: </label>
+    <form action="/submit-prediction" method="POST">  
+        <div class="form-group">
+            <label for="match-select">🏆 Match:</label>
             <select name="matchId" id="match-select" onchange="updateTeams()">
                 {% for match in upcoming_matches %}                    
-                <option value="{{ upcoming_matches[match]['matchId'] }}" data-team1="{{ upcoming_matches[match]['team1'] }}" data-team2="{{ upcoming_matches[match]['team2']}}">{{ upcoming_matches[match]['team1'] }} vs {{ upcoming_matches[match]['team2'] }} - {{   upcoming_matches[match]['date'] }}</option>
-                
+                <option value="{{ upcoming_matches[match]['matchId'] }}" 
+                        data-team1="{{ upcoming_matches[match]['team1'] }}" 
+                        data-team2="{{ upcoming_matches[match]['team2']}}">
+                    {{ upcoming_matches[match]['team1'] }} vs {{ upcoming_matches[match]['team2'] }} - {{ upcoming_matches[match]['date'] }}
+                </option>
                 {% endfor %}
             </select>
         </div>
 
         <div class="form-group">
-            <label>👑 Match Winner: </label>
+            <label for="match-winner">👑 Match Winner:</label>
             <select name="match_winner" id="match-winner">
             </select>
         </div>
 
         <div class="form-group">
-            <label>🎲 Toss Winner: </label>
+            <label for="toss-winner">🎲 Toss Winner:</label>
             <select name="toss_winner" id="toss-winner">
             </select>
         </div>
+      
+        <input type="hidden" name="username" id="username" value="{{ username }}">   
 
-        <script>
-            function updateTeams() {
+        <div class="cutoff-info">
+            <p>⏰ Prediction cutoff time is 11:00 AM CET every day</p>
+        </div>
+
+        <div class="button-container">
+            <button type="submit" onclick="return validateForm(event)">Make Prediction</button>
+        </div>
+    </form>
+</div>
+
+
+<h3>🏆 Leaderboard</h3>
+<table>
+    <thead>
+        <tr>
+            <th>Rank</th>
+            <th>User</th>
+            <th>Total Points</th>
+       
+        </tr>
+    </thead>
+    <tbody>
+        {% for user in leaderboard %}
+        <tr>
+            <td>{{ loop.index }}</td>
+            <td>{{ user.username }}</td>
+            <td>{{ user.points }}</td>
+       
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+
+<h3>📊 Your Predictions</h3>
+<table>
+    <thead>
+        <tr>
+            <th>Date</th>
+            <th>Match</th>
+            <th>Event</th>
+            <th>Prediction</th>
+            <th>Points</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for prediction in past_predictions %}
+        <tr>
+            <td>{{ prediction.timestamp }}</td>
+          
+            <td> {{ prediction.match_info }}</td>
+            <td>{{ prediction.prediction_type.upper() }}</td>            
+            <td class="{{ 'result-correct' if prediction.winner_correct else 'result-wrong' }}">
+                {{ prediction.prediction_value }}
+            </td>           
+            <td>{{ prediction.points }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<h3>🎲 Today's Predictions</h3>
+<table>
+    <thead>
+        <tr>
+            <th>User</th>
+            <th>Date</th>
+            <th>Match</th>
+            <th>Event</th>
+            <th>Prediction</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for prediction in all_predictions %}
+        <tr>
+            <td>{{ prediction.username }}</td>
+            <td>{{ prediction.timestamp }}</td>
+      
+            <td> {{ prediction.team1 }} vs {{ prediction.team2 }}</td>
+
+            <td>{{ prediction.prediction_type.upper() }}</td>     
+            <td>{{ prediction.prediction_value }}</td>
+          
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+
+
+<h3>🎯 Match Results</h3>
+<table>
+    <thead>
+        <tr>
+            <th>Date</th>
+            <th>Teams</th>
+            <th>Event</th>
+            <th>Winner</th>
+       
+   
+        </tr>
+    </thead>
+    <tbody>
+        {% for match in match_results %}
+        <tr>
+            <td>{{ match.timestamp }}</td>
+            <td> {{ match.match_info }}</td>
+            <td>{{ match.event_type.upper() }}</td>
+            <td>{{ match.event_result }}</td>
+      
+      
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<script>
+
+ function updateTeams() {
                 const matchSelect = document.getElementById('match-select');
                 const selectedOption = matchSelect.options[matchSelect.selectedIndex];
                 const team1 = selectedOption.getAttribute('data-team1');
@@ -364,19 +549,35 @@
 
             // Initialize on page load
             document.addEventListener('DOMContentLoaded', updateTeams);
-        </script>        
-        
-        <input type="hidden" name="username" id="username" value="{{ username }}">   
-        
 
-        <!-- Info tip about cutoff time -->
-        <div style="color: #ffd700; font-size: 12px; margin-top: 10px; font-style: italic;">
-            ⏰ Prediction cutoff time is 11:00 AM CET every day
-        </div>
-        <button type="submit" onclick="return validateForm(event)">Make Prediction</button>       
-       <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const flashMessages = document.querySelectorAll('.flash-message');
+        flashMessages.forEach(message => {
+            setTimeout(() => {
+                message.classList.add('fade-out');
+                setTimeout(() => {
+                    message.style.display = 'none';
+                }, 500);
+            }, 5000);
+        });
+    });
 
-            function validateForm(event) {
+     // Splash screen handler
+     document.addEventListener('DOMContentLoaded', function() {
+            const splashScreen = document.querySelector('.splash-screen');
+            const content = document.querySelector('.content');
+            
+            setTimeout(() => {
+                splashScreen.classList.add('fade-out');
+                content.style.display = 'block';
+                
+                setTimeout(() => {
+                    splashScreen.style.display = 'none';
+                }, 500);
+            }, 5000);
+        });
+
+        function validateForm(event) {
                 event.preventDefault();
                 
                 if (!checkUsername()) {
@@ -423,140 +624,52 @@
                 }
                 return true;
             }
-</script>    
-</form>
-</div>
-</div>
 
-<h2>🎯 Match Results</h2>
-<table>
-    <thead>
-        <tr>
-            <th>Date</th>
-            <th>Teams</th>
-            <th>Event</th>
-            <th>Winner</th>
-       
-   
-        </tr>
-    </thead>
-    <tbody>
-        {% for match in match_results %}
-        <tr>
-            <td>{{ match.timestamp }}</td>
-            <td> {{ match.match_info }}</td>
-            <td>{{ match.event_type.upper() }}</td>
-            <td>{{ match.event_result }}</td>
-      
-      
-        </tr>
-        {% endfor %}
-    </tbody>
-</table>
+             function closeSplashScreen() {
+    const splashScreen = document.querySelector('.splash-screen');
+    const content = document.querySelector('.content');
+    
+    splashScreen.classList.add('fade-out');
+    content.style.display = 'block';
+    
+    setTimeout(() => {
+        splashScreen.style.display = 'none';
+    }, 500);
+}                    
+async function getUsername() {
+            try {
+                const response = await fetch('/me');
+                const data = await response.json();
+                return data.username;
+            } catch (error) {
+                console.error('Error fetching username:', error);
+                return null;
+            }
+        }
 
-<h2>📊 Your Predictions</h2>
-<table>
-    <thead>
-        <tr>
-            <th>Date</th>
-            <th>Match</th>
-            <th>Event</th>
-            <th>Prediction</th>
-            <th>Points</th>
-        </tr>
-    </thead>
-    <tbody>
-        {% for prediction in past_predictions %}
-        <tr>
-            <td>{{ prediction.timestamp }}</td>
-          
-            <td> {{ prediction.match_info }}</td>
-            <td>{{ prediction.prediction_type.upper() }}</td>            
-            <td class="{{ 'result-correct' if prediction.winner_correct else 'result-wrong' }}">
-                {{ prediction.prediction_value }}
-            </td>           
-            <td>{{ prediction.points }}</td>
-        </tr>
-        {% endfor %}
-    </tbody>
-</table>
-
-<h2>🎲 Today's Match Predictions</h2>
-<table>
-    <thead>
-        <tr>
-            <th>User</th>
-            <th>Date</th>
-            <th>Match</th>
-            <th>Event</th>
-            <th>Prediction</th>
-        </tr>
-    </thead>
-    <tbody>
-        {% for prediction in all_predictions %}
-        <tr>
-            <td>{{ prediction.username }}</td>
-            <td>{{ prediction.timestamp }}</td>
-      
-            <td> {{ prediction.team1 }} vs {{ prediction.team2 }}</td>
-
-            <td>{{ prediction.prediction_type.upper() }}</td>     
-            <td>{{ prediction.prediction_value }}</td>
-          
-        </tr>
-        {% endfor %}
-    </tbody>
-</table>
-
-<h2>🏆 Leaderboard</h2>
-<table>
-    <thead>
-        <tr>
-            <th>Rank</th>
-            <th>User</th>
-            <th>Total Points</th>
-       
-        </tr>
-    </thead>
-    <tbody>
-        {% for user in leaderboard %}
-        <tr>
-            <td>{{ loop.index }}</td>
-            <td>{{ user.username }}</td>
-            <td>{{ user.points }}</td>
-       
-        </tr>
-        {% endfor %}
-    </tbody>
-</table>
-
-<script>
-    document.addEventListener('DOMContentLoaded', function() {
-        const flashMessages = document.querySelectorAll('.flash-message');
-        flashMessages.forEach(message => {
-            setTimeout(() => {
-                message.classList.add('fade-out');
-                setTimeout(() => {
-                    message.style.display = 'none';
-                }, 500);
-            }, 5000);
-        });
-    });
-
-     // Splash screen handler
-     document.addEventListener('DOMContentLoaded', function() {
-            const splashScreen = document.querySelector('.splash-screen');
-            const content = document.querySelector('.content');
+        window.onload = async function() {
+            const usernameDisplay = document.getElementById('username-display');
+            const usernameForm = document.getElementById('username-form'); 
+            const usernameText = document.getElementById('username-text');
             
-            setTimeout(() => {
-                splashScreen.classList.add('fade-out');
-                content.style.display = 'block';
-                
-                setTimeout(() => {
-                    splashScreen.style.display = 'none';
-                }, 500);
-            }, 5000);
-        });
+            const username = await getUsername();
+            
+            if (username) {
+                usernameText.textContent = username;
+                usernameDisplay.style.display = 'block';
+                if (usernameForm) {
+                    usernameForm.style.display = 'none';
+                }
+                localStorage.setItem('username', username);
+                const usernameInput = document.querySelector('input[name=username]');
+                if (usernameInput) {
+                    usernameInput.value = username;
+                }
+            } else {
+                // Redirect to login page if username not found
+                window.location.href = '/login';
+            }
+        }
 
     </script> 
 
