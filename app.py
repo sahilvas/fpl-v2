@@ -2307,6 +2307,32 @@ def get_user_predictions():
                 match.team1 = match_info.match_info.split(', ')[0].split(' vs ')[0] 
                 match.team2 = match_info.match_info.split(', ')[0].split(' vs ')[1]
                 match.match_info = match_info.match_info
+
+                # check if result available for the match
+                result = db.session.query(ActualResult).filter_by(matchId=match.matchId).first()
+                if result:
+                    match.result = result.event_result
+                    match.event_type = result.event_type
+
+                    # calculate points won/lost for the match
+                    # +50 for correct toss, -50 for wrong toss
+                    # +100 for correct match, -100 for wrong match
+                    if match.prediction_type == 'toss':
+                        if match.prediction_value == result.event_result:
+                            match.points = 50
+                        else:
+                            match.points = -50
+                    if match.prediction_type == 'match':
+                        if match.prediction_value == result.event_result:
+                            match.points = 100
+                        else:
+                            match.points = -100
+                else:
+                    match.result = None
+                    match.event_type = None
+                    match.points = 0
+
+
                 filtered_predictions.append(match)
 
             return filtered_predictions        
