@@ -2150,31 +2150,6 @@ def admin_required(f):
 @login_required 
 def predictor():
 
-    device_id = get_device_id()
-
-    new_device_id = request.cookies.get('device_id')  # Check if cookie exists
-
-    logging.info(f"Received device_id from cookies: {new_device_id}")
-
-    if not new_device_id:
-        new_device_id = str(uuid.uuid4())  # Generate new device ID
-        response = make_response(redirect(url_for('show_live_scoring')))
-        response.set_cookie(
-            'device_id', new_device_id, 
-            max_age=60*60*24*365*5,  # 5 years
-            samesite='Lax',
-            secure=False,  # Set True for HTTPS
-            httponly=True
-        )
-        logging.info(f"Setting new device_id: {new_device_id}")
-        return response  # Send response with new cookie
-    
-
-    #device_id = device_id + "--" + new_device_id
-    device_id = new_device_id
-    logging.info(f"Setting new super device_id: {device_id}")
-
-
     # get matches from /matches endpoint
     matches = db.session.query(Match.matchId, Match.date, Match.match_info, Match.time).all()  
     upcoming_matches = {}
