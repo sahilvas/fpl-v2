@@ -48,7 +48,7 @@
                                     <input type="text" name="match_info" value="{{ match.match_info }}" readonly>
                                 </td>
                                 <td>
-                                    <select class="form-control" name="match_winner" required>
+                                    <select class="form-control" name="match_winner">
                                         <option value="">
                                         Select Match Winner
                                         </option>                                        
@@ -57,7 +57,7 @@
                                     </select>
                                 </td>
                                 <td>
-                                    <select class="form-control" name="toss_winner" required>
+                                    <select class="form-control" name="toss_winner">
                                         <option value="">Select Toss Winner</option>
                                         <option value="{{ match.match_info.split(',')[0].split(' vs ')[0] }}">{{ match.match_info.split(',')[0].split(' vs ')[0] }}</option>
                                         <option value="{{ match.match_info.split(',')[0].split(' vs ')[1] }}">{{ match.match_info.split(',')[0].split(' vs ')[1] }}</option>

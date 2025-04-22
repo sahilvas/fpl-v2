@@ -2343,10 +2343,11 @@ def get_user_predictions():
                 match.date = match.timestamp.strftime('%Y-%m-%d %H:%M')
 
                 # check if result available for the match
-                result = db.session.query(ActualResult).filter_by(matchId=match.matchId).first()
+                result = db.session.query(ActualResult).filter_by(matchId=match.matchId, event_type=match.prediction_type).first()
                 if result:
                     match.result = result.event_result
                     match.event_type = result.event_type
+                    print(result.matchId, match.prediction_type, result.event_type, match.prediction_value,result.event_result  )
 
                     # calculate points won/lost for the match
                     # +50 for correct toss, -50 for wrong toss

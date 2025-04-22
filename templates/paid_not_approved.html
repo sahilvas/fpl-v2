@@ -53,19 +53,16 @@
         <div class="row">
             <div class="col">
                 <div class="card shadow">
-                    <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
-                        <h4 class="mb-0">Manage Devices</h4>
-                        <div>
-                            <a href="/admin/players" class="btn btn-light me-2">View Players</a>
-                        </div>
-                        <div>
-                            <a href="/admin/logs" class="btn btn-light me-2">View Logs</a>
-                        </div>
-                        <div>
-                            <a href="/admin/predictions" class="btn btn-light me-2">Manage Predictions</a>
-                        </div>
-                        <div>
-                            <button class="btn btn-light" onclick="logout()">Logout</button>
+                    <div class="card-header bg-primary text-white">
+                        <div class="d-flex flex-column flex-md-row justify-content-between align-items-center">
+                            <h4 class="mb-3 mb-md-0">Manage Devices</h4>
+                            <div class="d-flex flex-wrap gap-2">
+                                <a href="/admin/players" class="btn btn-light btn-sm">View Players</a>
+                                <a href="/admin/logs" class="btn btn-light btn-sm">View Logs</a>
+                                <a href="/admin/predictions" class="btn btn-light btn-sm">Manage Predictions</a>
+                                <a href="/admin/lpl/users" class="btn btn-light btn-sm">LPL Users</a>
+                                <button class="btn btn-light btn-sm" onclick="logout()">Logout</button>
+                            </div>
                         </div>
                     </div>
                     <div class="card-body">

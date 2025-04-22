@@ -430,16 +430,17 @@
        
         </tr>
     </thead>
-    <tbody>
-        {% for user in leaderboard %}
-        <tr>
-            <td>{{ loop.index }}</td>
-            <td>{{ user.username }}</td>
-            <td>{{ user.points }}</td>
-       
-        </tr>
-        {% endfor %}
-    </tbody>
+        <tbody>
+            {% for user in leaderboard %}
+            <tr data-username="{{ user.username | lower }}">
+                <td>{{ loop.index }}</td>
+                <td>{{ user.username }}</td>
+                <td>{{ user.points }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+      
+      
 </table>
 
 
@@ -696,6 +697,22 @@ async function getUsername() {
                 window.location.href = '/login';
             }
         }
+
+    
+            document.addEventListener("DOMContentLoaded", async function () {
+                const currentUsername = await getUsername();
+                const rows = document.querySelectorAll("tr[data-username]");
+       
+
+                rows.forEach(row => {
+           
+                if (row.dataset.username === currentUsername) {
+                    row.style.backgroundColor = "rgba(255,215,0,0.2)";
+                }
+                });
+            });
+
+
 
     </script> 
 
