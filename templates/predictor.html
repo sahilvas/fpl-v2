@@ -344,10 +344,10 @@
 <body>
 
      <!-- Splash screen -->
-     <div class="splash-screen">
-        <span class="close-btn" onclick="closeSplashScreen()" style="position: absolute; top: 20px; right: 20px; color: #FFD700; font-size: 24px; cursor: pointer; z-index: 10000;">&times;</span>
-    </div>
-     <!-- Wrap existing content -->
+<div class="splash-screen" id="splash-screen">
+    <span class="close-btn" onclick="closeSplashScreen()" style="position: absolute; top: 20px; right: 20px; color: #FFD700; font-size: 24px; cursor: pointer; z-index: 10000;">&times;</span>
+    
+</div>     <!-- Wrap existing content -->
     <div class="content">
         <!-- Rest of existing HTML content... -->
   
@@ -528,6 +528,21 @@
 <script>
 
 
+        // Check if splash screen was shown today
+        const lastShown = localStorage.getItem('splashLastShown');
+        const today = new Date().toDateString();
+        
+        if (lastShown === today) {
+            // Already shown today, hide splash screen
+            document.getElementById('splash-screen').style.display = 'none';
+            document.querySelector('.content').style.display = 'block';
+        } else {
+            // First time today, show splash and store date
+            localStorage.setItem('splashLastShown', today);
+        }
+   
+
+
  function updateTeams() {
                 const matchSelect = document.getElementById('match-select');
                 const selectedOption = matchSelect.options[matchSelect.selectedIndex];
@@ -629,13 +644,16 @@
                     `;
                     flashMessagesDiv.appendChild(flashMessage);
 
-                    // Auto-hide message after 5 seconds
+                    // Auto-hide message after 5 seconds and reload page
                     setTimeout(() => {
                         flashMessage.classList.add('fade-out');
                         setTimeout(() => {
                             flashMessage.style.display = 'none';
+                            window.location.reload(); // Move reload here after message fades
                         }, 500);
                     }, 5000);
+
+                                  
                 })
                 .catch(error => {
                     console.error('Error:', error);

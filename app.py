@@ -2382,6 +2382,10 @@ def get_user_predictions():
 def get_prediction_leaderboard():
     # get all predictions
     predictions = db.session.query(Prediction).all()
+    
+    if not predictions:
+        return []
+    
     # create a dataframe
     df = pd.DataFrame([{
         'matchId': p.matchId,
