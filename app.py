@@ -200,7 +200,7 @@ class PageView(db.Model):
 
 # create db model for Prediction table
 class Prediction(db.Model):
-    __tablename__ = 'prediction_v2'
+    __tablename__ = 'prediction_v1'
     id = db.Column(db.Integer, primary_key=True)
     matchId = db.Column(db.String(100), nullable=False)
     username = db.Column(db.String(100), nullable=False)
