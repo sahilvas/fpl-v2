@@ -1,0 +1,440 @@
+
+<!-- sidebet.html -->
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Side Bets - LPL Predictor</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/lpl_styles.css') }}">    
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+</head>
+
+<style>
+    .container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 20px;
+    }
+
+    .glass-container {
+        background: rgba(0, 0, 0, 0.5); 
+        border-radius: 8px;
+        padding: 20px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+
+    .content-section {
+        margin-bottom: 30px;
+    }
+
+    .section-title {
+        font-size: 20px;
+        margin-bottom: 15px;
+        text-align: center;
+        color: #fff;
+    }
+
+    .glass-panel {
+        background: rgba(0, 0, 0, 0.3);
+        border-radius: 8px;
+        padding: 15px;
+        margin: 10px 0;
+    }
+
+    .form-select {
+        width: 100%;
+        padding: 8px;
+        margin: 8px 0;
+        border-radius: 4px;
+        background: rgba(0, 0, 0, 0.3);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        color: #fff;
+    }
+
+    .button-group {
+        display: flex;
+        gap: 8px;
+        justify-content: center;
+        margin-top: 15px;
+    }
+
+    .btn-primary, .btn-secondary, .btn-success, .btn-danger {
+        padding: 8px 16px;
+        border-radius: 4px;
+        border: none;
+        cursor: pointer;
+        font-weight: normal;
+        transition: all 0.2s ease;
+        color: #fff;
+    }
+
+    .btn-primary {
+        background: #007bff;
+    }
+
+    .btn-secondary {
+        background: #6c757d;
+    }
+
+    .btn-success {
+        background: #28a745;
+    }
+
+    .btn-danger {
+        background: #dc3545;
+    }
+
+    .glow-effect:hover {
+        opacity: 0.9;
+    }
+
+    .challenge-card {
+        padding: 15px;
+        margin: 10px 0;
+        border-radius: 8px;
+        background: rgba(0, 0, 0, 0.3);
+        transition: opacity 0.2s ease;
+    }
+
+    .challenge-card:hover {
+        opacity: 0.9;
+    }
+
+    .card-text {
+        margin: 8px 0;
+        color: #fff;
+    }
+
+    .leaderboard-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .leaderboard-table th, .leaderboard-table td {
+        padding: 8px;
+        text-align: left;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .hover-highlight:hover {
+        background: rgba(0, 0, 0, 0.2);
+    }
+
+    .tabs {
+        display: flex;
+        gap: 8px;
+        margin-bottom: 15px;
+    }
+
+    .btn-tab {
+        flex: 1;
+        padding: 8px;
+        background: rgba(0, 0, 0, 0.3);
+        border: none;
+        color: #fff;
+        cursor: pointer;
+    }
+
+    .btn-tab.active {
+        background: #007bff;
+    }
+
+    .notifications {
+        position: relative;
+        display: inline-block;
+    }
+
+    .dropdown-content {
+        display: none;
+        position: absolute;
+        right: 0;
+        min-width: 200px;
+        background: rgba(0, 0, 0, 0.9);
+        border-radius: 4px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        z-index: 1;
+    }
+
+    .notification {
+        padding: 8px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .badge {
+        background: #dc3545;
+        color: white;
+        padding: 2px 4px;
+        border-radius: 50%;
+        font-size: 11px;
+    }
+</style>
+
+<body class="dark-theme">
+
+      <!-- Add this right after the <body> tag -->
+        <div class="flash-messages">
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        <div class="flash-message {{ category }}">
+                            {{ message }}
+                            <span class="close-btn" onclick="this.parentElement.style.display='none'">&times;</span>
+                        </div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+        </div>
+
+
+        
+    <div class="container glass-container" style="display: flex; justify-content: space-between; align-items: center; padding: 1rem; background: rgba(0, 0, 0, 0.5);">
+       
+        <div style="display: flex; gap: 1rem; align-items: center;">
+            <div id="username-display" style="display: none;">👤 <span id="username-text"></span></div>
+            <a href="{{ url_for('predictor') }}" style="text-decoration: none; color: #fff; padding: 0.5rem 1rem; border-radius: 4px; transition: background-color 0.3s;">Predictor</a>
+            <a href="{{ url_for('side_bets') }}" class="active" style="text-decoration: none; color: #fff; padding: 0.5rem 1rem; border-radius: 4px; background: rgba(255, 255, 255, 0.1); transition: background-color 0.3s;">Side Bets</a>
+            
+        </div>
+       
+       
+        <div class="notifications" style="position: relative; display: flex; align-items: center;">
+    <button id="notificationBtn" class="btn-primary" style="display: flex; align-items: center; gap: 0.5rem;" onclick="toggleNotifications()">
+        <i class="fas fa-bell"></i> Notifications <span id="notifCount" class="badge">0</span>
+    </button>
+    
+    <div id="notificationDropdown" class="dropdown-content dark">
+        <!-- Notifications will be populated here -->
+    </div>
+</div>
+
+<script>
+function toggleNotifications() {
+    const dropdown = document.getElementById('notificationDropdown');
+    if(dropdown.style.display === 'block') {
+        dropdown.style.display = 'none';
+    } else {
+        dropdown.style.display = 'block';
+    }
+}
+</script>        
+<a href="/logout" style="color: #ffd700; text-decoration: none; font-weight: bold; margin-left: 20px;">Logout</a>
+   
+
+        
+</div>
+<br/>
+    <div class="container glass-container">
+        <div class="content-section">
+            <h2 class="section-title gradient-text">Create Side Bet Challenge</h2>
+            <form id="sideBetForm" class="prediction-form glass-panel">
+                <select id="opponent" required class="form-select glass-input">
+                    <option value="">Select Opponent</option>
+                    {% for user in all_users %}
+              
+                            <option value="{{ user.id }}">{{ user.username }}</option>
+    
+                    {% endfor %}
+                </select>
+
+                <select id="match" required class="form-select glass-input">
+                    <option value="">Select Match</option>
+                    {% for match in upcoming_matches %}
+                        <option value="{{ match.id }}">{{ upcoming_matches[match].team1 }} vs {{ upcoming_matches[match].team2 }}</option>
+                    {% endfor %}
+                </select>
+
+                <select id="points" required class="form-select glass-input">
+                    {% for points in range(10, 101, 10) %}
+                        <option value="{{ points }}">{{ points }} Points</option>
+                    {% endfor %}
+                </select>
+
+                <div class="button-group">
+                    <button type="submit" class="btn-primary glow-effect">Send Challenge</button>
+                    <button type="button" id="shareWhatsApp" class="btn-secondary glow-effect">Share on WhatsApp</button>
+                </div>
+            </form>
+        </div>
+
+        <div class="content-section">
+            <h2 class="section-title gradient-text">Side Bet Leaderboard</h2>
+            <div class="glass-panel">
+                <table id="sideBetLeaderboard" class="leaderboard-table">
+                    <tr>
+                        <th>Rank</th>
+                        <th>Username</th>
+                        <th>Side Bet Points</th>
+                        <th>Wins</th>
+                    </tr>
+                    {% for rank, user in sidebet_leaderboard %}
+                    <tr class="hover-highlight">
+                        <td>{{ rank }}</td>
+                        <td>{{ user.username }}</td>
+                        <td>{{ user.sidebet_points }}</td>
+                        <td>{{ user.sidebet_wins }}</td>
+                    </tr>
+                    {% endfor %}
+                </table>
+            </div>
+        </div>
+
+        <div class="content-section">
+            <h2 class="section-title gradient-text">My Side Bet Challenges</h2>
+            <div class="tabs glass-panel">
+                <button class="tablinks btn-tab active glow-effect" onclick="openTab(event, 'pending')">Pending</button>
+                <button class="tablinks btn-tab glow-effect" onclick="openTab(event, 'active')">Active</button>
+                <button class="tablinks btn-tab glow-effect" onclick="openTab(event, 'completed')">Completed</button>
+            </div>
+
+            <div id="pending" class="tabcontent glass-panel">
+                {% for challenge in pending_challenges %}
+                <div class="challenge-card glass-card hover-effect">
+                    <p class="card-text">{{ challenge.challenger }} vs {{ challenge.opponent }}</p>
+                    <p class="card-text">Match: {{ challenge.match_details }}</p>
+                    <p class="card-text">Points: {{ challenge.points }}</p>
+                    {% if challenge.is_receiver %}
+                        <div class="button-group">
+                            <button onclick="acceptChallenge({{ challenge.id }})" class="btn-success glow-effect">Accept</button>
+                            <button onclick="rejectChallenge({{ challenge.id }})" class="btn-danger glow-effect">Reject</button>
+                        </div>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+
+            <div id="active" class="tabcontent glass-panel" style="display:none">
+                {% for challenge in active_challenges %}
+                <div class="challenge-card glass-card hover-effect">
+                    <p class="card-text">{{ challenge.challenger }} vs {{ challenge.opponent }}</p>
+                    <p class="card-text">Match: {{ challenge.match_details }}</p>
+                    <p class="card-text">Points: {{ challenge.points }}</p>
+                    <p class="card-text status">Status: Waiting for match result</p>
+                </div>
+                {% endfor %}
+            </div>
+
+            <div id="completed" class="tabcontent glass-panel" style="display:none">
+                {% for challenge in completed_challenges %}
+                <div class="challenge-card glass-card hover-effect">
+                    <p class="card-text">{{ challenge.challenger }} vs {{ challenge.opponent }}</p>
+                    <p class="card-text">Match: {{ challenge.match_details }}</p>
+                    <p class="card-text">Points: {{ challenge.points }}</p>
+                    <p class="card-text winner">Winner: {{ challenge.winner }}</p>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Handle notifications
+        function updateNotifications() {
+            $.get('/notifications', function(data) {
+                $('#notifCount').text(data.length);
+                let dropdown = $('#notificationDropdown');
+                dropdown.empty();
+                data.forEach(notif => {
+                    dropdown.append(`<div class="notification">${notif.message}</div>`);
+                });
+            });
+        }
+
+        // Toggle notification dropdown
+        $('#notificationBtn').click(function() {
+            $('#notificationDropdown').toggle();
+        });
+
+        // Handle side bet form submission
+        $('#sideBetForm').submit(function(e) {
+            e.preventDefault();
+            $.post('/create-side-bet', {
+                opponent: $('#opponent').val(),
+                match: $('#match').val(),
+                points: $('#points').val()
+            }, function(response) {
+                window.location.reload();
+            });
+        });
+
+        // WhatsApp share button
+        $('#shareWhatsApp').click(function() {
+            let opponent = $('#opponent option:selected').text();
+            let match = $('#match option:selected').text();
+            let points = $('#points').val();
+            let message = `Hey! I challenge you to a side bet for ${match} - ${points} points at stake! Join here: ${window.location.origin}/sidebet`;
+            let whatsappUrl = `https://wa.me/?text=${encodeURIComponent(message)}`;
+            window.open(whatsappUrl);
+        });
+
+        // Tab functionality
+        function openTab(evt, tabName) {
+            $('.tabcontent').hide();
+            $('.tablinks').removeClass('active');
+            $(`#${tabName}`).show();
+            $(evt.currentTarget).addClass('active');
+        }
+
+        // Accept/Reject challenge functions
+        function acceptChallenge(challengeId) {
+            $.post('/accept_sidebet', {
+                challenge_id: challengeId
+            }, function(response) {
+                alert(response.message);
+                location.reload();
+            });
+        }
+
+        function rejectChallenge(challengeId) {
+            $.post('/reject_sidebet', {
+                challenge_id: challengeId
+            }, function(response) {
+                alert(response.message);
+                location.reload();
+            });
+        }
+
+        // Update notifications every 30 seconds
+        setInterval(updateNotifications, 30000);
+        updateNotifications();
+
+                   
+
+                 
+async function getUsername() {
+        try {
+            const response = await fetch('/me');
+            const data = await response.json();
+            return data.username;
+        } catch (error) {
+            console.error('Error fetching username:', error);
+            return null;
+        }
+    }
+
+    window.onload = async function() {
+        const usernameDisplay = document.getElementById('username-display');
+        const usernameForm = document.getElementById('username-form'); 
+        const usernameText = document.getElementById('username-text');
+        
+        const username = await getUsername();
+        
+        if (username) {
+            usernameText.textContent = username;
+            usernameDisplay.style.display = 'block';
+            if (usernameForm) {
+                usernameForm.style.display = 'none';
+            }
+            localStorage.setItem('username', username);
+            const usernameInput = document.querySelector('input[name=username]');
+            if (usernameInput) {
+                usernameInput.value = username;
+            }
+        } else {
+            // Redirect to login page if username not found
+            window.location.href = '/login';
+        }
+    }
+
+
+    </script>
+</body>
+</html>

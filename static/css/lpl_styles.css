@@ -1,0 +1,334 @@
+
+body {
+    background: linear-gradient(135deg, #00337C, #000000);
+    color: #ffffff;
+    font-family: 'Montserrat', sans-serif;
+    margin: 0;
+    padding: 20px;
+    background-image: url("{{ url_for('static', filename='lpl-2.webp') }}");
+    background-size: contain;
+    background-position: center center;
+    background-attachment: fixed;
+    background-blend-mode: overlay;
+    background-repeat: no-repeat;
+    background-color: #333333;        
+}
+
+.username {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    color: #FFD700;
+    font-weight: bold;
+    font-size: 16px;
+    background: rgba(0,0,0,0.7);
+    padding: 10px;
+    text-align: center;
+    border-bottom: 1px solid #FFD700;
+    z-index: 1000;
+}
+
+h2 {
+    color: #FFD700;
+    text-transform: uppercase;
+    text-align: center;
+    text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+    margin: 60px 0 30px 0;
+    font-size: 28px;
+}
+
+h3 {
+    color: #FFD700;
+    text-transform: uppercase;
+    text-align: center;
+    text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+    margin: 60px 0 30px 0;
+    font-size: 20px;
+}
+
+table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0 8px;
+    font-family: 'Montserrat', sans-serif;
+    margin: 20px 0;
+    background: rgba(0,0,0,0.7);
+    font-size: 14px;
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: 0 0 20px rgba(0,0,0,0.3);
+}
+
+th, td {
+    padding: 15px 10px;
+    text-align: center;
+}
+
+th {
+    background: linear-gradient(45deg, #00337C, #004AAD);
+    color: #FFD700;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    border-bottom: 2px solid #FFD700;
+}
+
+tr {
+    background: rgba(255,255,255,0.1);
+    transition: all 0.3s ease;
+}
+
+tr:hover {
+    background: rgba(255,255,255,0.2);
+    transform: scale(1.01);
+}
+
+.prediction-form {
+    background: rgba(0,0,0,0.8);
+    padding: 30px;
+    border-radius: 15px;
+    margin: 20px 0;
+    border: 1px solid #FFD700;
+    box-shadow: 0 0 30px rgba(255,215,0,0.2);
+}
+
+.form-group {
+    margin: 15px 0;
+}
+
+label {
+    color: #FFD700;
+    font-weight: bold;
+    margin-right: 10px;
+}
+
+input, select {
+    background: rgba(255,255,255,0.1);
+    border: 1px solid #FFD700;
+    padding: 10px;
+    color: white;
+    border-radius: 5px;
+    width: 400px;
+}
+
+button {
+    background: linear-gradient(45deg, #00337C, #004AAD);
+    color: #FFD700;
+    border: 2px solid #FFD700;
+    padding: 12px 30px;
+    border-radius: 25px;
+    cursor: pointer;
+    font-weight: bold;
+    text-transform: uppercase;
+    transition: all 0.3s ease;
+}
+
+button:hover {
+    background: #FFD700;
+    color: #00337C;
+    transform: scale(1.05);
+}
+
+.result-correct {
+    color: #32cd32;
+    font-weight: bold;
+}
+
+.result-wrong {
+    color: #ff4500;
+    font-weight: bold;
+}
+
+.result-pending {
+    color: #ffa500;
+    font-weight: bold;
+}               
+.flash-messages {
+position: fixed;
+top: 60px;
+left: 50%;
+transform: translateX(-50%);
+z-index: 1001;
+width: 80%;
+max-width: 600px;
+}
+
+.flash-message {
+padding: 15px;
+margin: 10px 0;
+border-radius: 5px;
+position: relative;
+animation: slideIn 0.5s ease-out;
+}
+
+.flash-message.success {
+background-color: rgba(0, 51, 124, 0.9);
+border: 1px solid #FFD700;
+color: white;
+}
+
+.flash-message.warning {
+background-color: rgba(178, 34, 34, 0.9);
+border: 1px solid #FFD700;
+color: white;
+}
+
+.flash-message.info {
+background-color: rgba(0, 74, 173, 0.9);
+border: 1px solid #FFD700;
+color: white;
+}
+
+.close-btn {
+position: absolute;
+right: 10px;
+top: 50%;
+transform: translateY(-50%);
+cursor: pointer;
+color: white;
+font-size: 20px;
+}
+
+@keyframes slideIn {
+from {
+transform: translateY(-100%);
+opacity: 0;
+}
+to {
+transform: translateY(0);
+opacity: 1;
+}
+}
+
+.flash-message.fade-out {
+animation: fadeOut 0.5s ease-out forwards;
+}
+
+@keyframes fadeOut {
+from {
+opacity: 1;
+}
+to {
+opacity: 0;
+}
+}
+
+/* Splash screen styles */
+.splash-screen {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: url("{{ url_for('static', filename='lpl-2.webp') }}") center center no-repeat;
+    border-radius: 15px;            
+    background-size: 50%;
+    padding: 20px 0;
+    z-index: 9999;
+    opacity: 1;
+    transition: opacity 0.2s ease-out, transform 0.2s ease-out;
+    background-color: rgba(0,0,0,0.9);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transform: scale(1);
+    -webkit-mask-image: radial-gradient(circle at center, black 70%, transparent 100%);
+    mask-image: radial-gradient(circle at center, black 70%, transparent 100%);
+}
+.splash-screen.fade-out {
+    opacity: 0;
+}
+
+.content {
+    display: none;
+}
+
+@media screen and (max-width: 768px) {
+.flash-messages {
+width: 95%;
+top: 40px;
+}
+
+.flash-message {
+font-size: 14px;
+padding: 10px;
+margin: 5px 0;
+}
+
+.close-btn {
+font-size: 18px;
+padding: 5px;
+}
+}
+
+@media screen and (max-width: 480px) {
+.flash-messages {
+width: 100%;
+top: 30px;
+}
+
+.flash-message {
+font-size: 12px;
+padding: 8px;
+border-radius: 3px;
+}
+
+.close-btn {
+font-size: 16px;
+}
+}
+
+.prediction-form {
+max-width: 600px;
+margin: 0 auto;
+padding: 20px;
+}
+
+.form-group {
+margin-bottom: 20px;
+display: flex;
+flex-direction: column;
+}
+
+.form-group label {
+margin-bottom: 8px;
+}
+
+.form-group select {
+width: 100%;
+max-width: 100%;
+padding: 12px;
+}
+
+.cutoff-info {
+text-align: center;
+margin: 15px 0;
+}
+
+.cutoff-info p {
+color: #ffd700;
+font-size: 14px;
+font-style: italic;
+margin: 0;
+}
+
+.button-container {
+text-align: center;
+margin-top: 20px;
+}
+
+@media screen and (max-width: 480px) {
+.prediction-form {
+padding: 10px;
+}
+
+.form-group select {
+font-size: 14px;
+}
+
+button {
+width: 100%;
+padding: 15px;
+}
+}

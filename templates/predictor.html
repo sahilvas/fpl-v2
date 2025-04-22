@@ -372,10 +372,10 @@
     <div style="display: flex; justify-content: space-between; align-items: center;">
         <div id="username-display" style="display: none;">👤 <span id="username-text"></span></div>
         <a href="/logout" style="color: #ffd700; text-decoration: none; font-weight: bold; margin-left: 20px;">Logout</a>
+        </div>
+
+
     </div>
-
-
-</div>
 
 
 <h2>🏏 LPL </h2>
@@ -387,7 +387,8 @@
                 {% for match in upcoming_matches %}                    
                 <option value="{{ upcoming_matches[match]['matchId'] }}" 
                         data-team1="{{ upcoming_matches[match]['team1'] }}" 
-                        data-team2="{{ upcoming_matches[match]['team2']}}">
+                        data-team2="{{ upcoming_matches[match]['team2']}}"
+                        data-time="{{ upcoming_matches[match]['time'] }}">
                     {{ upcoming_matches[match]['team1'] }} vs {{ upcoming_matches[match]['team2'] }} - {{ upcoming_matches[match]['date'] }}
                 </option>
                 {% endfor %}
@@ -409,8 +410,8 @@
         <input type="hidden" name="username" id="username" value="{{ username }}">   
 
         <div class="cutoff-info">
-            <p>⏰ Prediction cutoff time is 11:00 AM CET every day</p>
-        </div>
+            <p></p>
+        </div>              
 
         <div class="button-container">
             <button type="submit" onclick="return validateForm(event)">Make Prediction</button>
@@ -525,15 +526,37 @@
 
 <script>
 
+
  function updateTeams() {
                 const matchSelect = document.getElementById('match-select');
                 const selectedOption = matchSelect.options[matchSelect.selectedIndex];
                 const team1 = selectedOption.getAttribute('data-team1');
                 const team2 = selectedOption.getAttribute('data-team2');
+                const matchDateTime = selectedOption.getAttribute('data-time');
 
                 const matchWinner = document.getElementById('match-winner');
                 const tossWinner = document.getElementById('toss-winner');
-           
+
+          
+                const matchDate = selectedOption.text.split('-')[1].trim();
+                
+                
+                // Set cutoff time to 11:00 AM CET on match day
+                const cutoffTime = new Date(matchDateTime);
+                cutoffTime.setHours(11, 0, 0, 0);
+                
+                // Format cutoff time
+                const options = { 
+                    hour: 'numeric',
+                    minute: 'numeric',
+                    hour12: true,
+                    timeZone: 'CET'
+                };
+                const formattedCutoff = cutoffTime.toLocaleString('en-US', options);
+                
+                // Update cutoff message
+                const cutoffInfo = document.querySelector('.cutoff-info p');
+                cutoffInfo.innerHTML = `⏰ Prediction cutoff time is ${matchDateTime} CET on ${matchDate}`;
 
                 // Clear existing options
                 matchWinner.innerHTML = '';

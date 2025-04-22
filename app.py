@@ -231,6 +231,43 @@ class ActualResult(db.Model):
     timestamp = db.Column(db.DateTime, default=datetime.utcnow)
     
 
+# Side Bet model for user challenges
+class SideBet(db.Model):
+    __tablename__ = 'side_bet'
+    id = db.Column(db.Integer, primary_key=True)
+    challenger_id = db.Column(db.Integer, db.ForeignKey('user_v2.id'))
+    challenged_id = db.Column(db.Integer, db.ForeignKey('user_v2.id'))
+    match_id = db.Column(db.Integer)
+    bet_type = db.Column(db.String(20), default="match")  # match or toss
+    challenger_prediction = db.Column(db.String(100), nullable=False)
+    challenged_prediction = db.Column(db.String(100), nullable=True)  # Null until accepted
+    points_value = db.Column(db.Integer, nullable=False)  # 10-100 in multiples of 10
+    status = db.Column(db.String(20), default="pending")  # pending, accepted, rejected, completed
+    winner_id = db.Column(db.Integer, db.ForeignKey('user_v2.id'), nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Define relationships
+    challenger = db.relationship('User', foreign_keys=[challenger_id], backref='side_bets_created')
+    challenged = db.relationship('User', foreign_keys=[challenged_id], backref='side_bets_received')
+    winner = db.relationship('User', foreign_keys=[winner_id], backref='side_bets_won')
+
+
+# Notification model for user alerts
+class Notification(db.Model):
+    __tablename__ = 'notification'
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user_v2.id'))
+    message = db.Column(db.String(255), nullable=False)
+    related_to = db.Column(db.String(50), nullable=False)  # e.g., "side_bet"
+    related_id = db.Column(db.Integer, nullable=True)  # e.g., side_bet_id
+    is_read = db.Column(db.Boolean, default=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # Define relationship
+    user = db.relationship('User', backref='notifications')
+
+
 # Ensure upload folder exists
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
@@ -2186,13 +2223,15 @@ def predictor():
         if match_datetime < today_datetime:
             continue
 
+        # create cutoff time using time value 02:00 PM GMT / 07:30 PM LOCAL from match[3]
+        cutoff_time = match[3].split("GMT")[0]
         
         # Convert tuple to dict to add new fields
         match = {
             'matchId': match[0],
             'date': match[1], 
             'match_info': match[2],
-            'time': match[3],
+            'time': cutoff_time,
             'team1': team1,
             'team2': team2
         }
@@ -2465,7 +2504,7 @@ def submit_prediction():
     existing_prediction = Prediction.query.filter_by(matchId=matchId, username=username).first()
     # if existing prediction then return error
     if existing_prediction:
-        return {'message': 'Prediction already exists'}, 200
+        return {'message': 'Prediction already exists. You can predict for the next game.'}, 200
     
     # check if cut off passed for prediction
     # cut off is 11 am CET everyday for today's match
@@ -2473,13 +2512,18 @@ def submit_prediction():
     match_date = db.session.query(Match.date).filter(Match.matchId==matchId).first()[0]
     match_date = match_date.split(", ")[0]
 
+    match_time = db.session.query(Match.time).filter(Match.matchId==matchId).first()[0]
+    match_time = match_time.split("GMT")[0]
+    # Convert time like "02:00 PM" to datetime for comparison
+    match_time = datetime.strptime(match_time.strip(), '%I:%M %p').strftime('%H:%M')    
+
     # Convert dates to datetime for comparison
     match_datetime = pd.to_datetime(match_date, format='%b %d')
     today_datetime = pd.to_datetime(pd.Timestamp('today').strftime('%b %d'), format='%b %d')
 
     # Only check cutoff time for today's matches
-    if match_datetime == today_datetime and pd.Timestamp('today').strftime('%H:%M') > '11:00':
-        return {'message': 'Prediction cutoff was 11 am. Try again tomorrow.'}, 200
+    if match_datetime == today_datetime and pd.Timestamp('today').strftime('%H:%M') >  match_time:
+        return {'message': 'Prediction cutoff has passed. You can predict for the next game.'}, 200
 
     """  
     if existing_prediction:
@@ -2529,7 +2573,398 @@ def add_header(response):
     response.headers["Expires"] = "0"
     return response
 
+
+# Side Bet Routes
+
+@app.route("/side-bets")
+@login_required
+def side_bets():
+    """Display the side bet page with leaderboard and past/future challenges"""
+    user_id = session.get('user_id')
+    user = db.session.get(User, user_id)
+
+    # Get all users except the logged in user
+    users = User.query.filter(User.id != user_id).all()
+
     
+    # Get all side bets where the user is involved (as challenger or challenged)
+    user_side_bets = SideBet.query.filter(
+        db.or_(
+            SideBet.challenger_id == user_id,
+            SideBet.challenged_id == user_id
+        )
+    ).order_by(SideBet.created_at.desc()).all()
+    
+    # Get pending side bet challenges for this user
+    pending_challenges = SideBet.query.filter_by(
+        challenged_id=user_id,
+        status='pending'
+    ).order_by(SideBet.created_at.desc()).all()
+    
+    # Get match information for all side bets
+    match_info = {}
+    for bet in user_side_bets:
+        if bet.match_id not in match_info:
+            match = Match.query.filter_by(matchId=bet.match_id).first()
+            if match:
+                match_info[bet.match_id] = {
+                    'match_info': match.match_info,
+                    'date': match.date
+                }
+    
+    # Get side bet leaderboard (1v1 records)
+    # This query gets the count of wins for each user pair
+    leaderboard_query = db.session.query(
+        SideBet.challenger_id,
+        SideBet.challenged_id,
+        db.func.count(SideBet.id).label('total_bets'),
+        db.func.sum(db.case((SideBet.winner_id == SideBet.challenger_id, 1), else_=0)).label('challenger_wins'),
+        db.func.sum(db.case((SideBet.winner_id == SideBet.challenged_id, 1), else_=0)).label('challenged_wins')
+    ).filter(
+        SideBet.status == 'completed'
+    ).group_by(
+        SideBet.challenger_id,
+        SideBet.challenged_id
+    ).all()
+    
+    # Format leaderboard data
+    leaderboard = []
+    for entry in leaderboard_query:
+        challenger = db.session.get(User, entry.challenger_id)
+        challenged = db.session.get(User, entry.challenged_id)
+        if challenger and challenged:
+            leaderboard.append({
+                'user1': challenger.username,
+                'user2': challenged.username,
+                'total_bets': entry.total_bets,
+                'user1_wins': entry.challenger_wins,
+                'user2_wins': entry.challenged_wins
+            })
+    
+    # Get all users for the challenge dropdown
+    all_users = User.query.filter(User.id != user_id).all()
+    
+    # Get upcoming matches for the challenge form
+    upcoming_matches = {}
+    matches = Match.query.all()
+    index = 0
+    
+    for match in matches:
+        match_info_str = match.match_info
+        match_split = match_info_str.split(',')[0].split(' vs ')
+        team1 = match_split[0]
+        team2 = match_split[1]
+        
+        match_date = match.date.split(",")[0]
+        today = pd.Timestamp('today').strftime('%b %d')
+        
+        # Convert dates to datetime for comparison
+        match_datetime = pd.to_datetime(match.date.split(",")[0], format='%b %d')
+        today_datetime = pd.to_datetime(today, format='%b %d')
+        
+        if match_datetime < today_datetime:
+            continue
+        
+        # Convert tuple to dict to add new fields
+        match_dict = {
+            'matchId': match.matchId,
+            'date': match.date,
+            'match_info': match.match_info,
+            'time': match.time,
+            'team1': team1,
+            'team2': team2
+        }
+        
+        upcoming_matches[index] = match_dict
+        index += 1
+    
+    return render_template(
+        "side_bets.html",
+        user=user,
+        user_side_bets=user_side_bets,
+        pending_challenges=pending_challenges,
+        match_info=match_info,
+        leaderboard=leaderboard,
+        all_users=all_users,
+        upcoming_matches=upcoming_matches
+    )
+
+
+@app.route("/create-side-bet", methods=["POST"])
+@login_required
+def create_side_bet():
+    """Create a new side bet challenge"""
+    user_id = session.get('user_id')
+    
+    # Get form data
+    challenged_id = request.form.get("challenged_id")
+    match_id = request.form.get("match_id")
+    bet_type = request.form.get("bet_type")
+    challenger_prediction = request.form.get("challenger_prediction")
+    points_value = request.form.get("points_value")
+    
+    # Validate form data
+    if not all([challenged_id, match_id, bet_type, challenger_prediction, points_value]):
+        flash("All fields are required", "warning")
+        return redirect(url_for("side_bets"))
+    
+    # Validate points value (10-100 in multiples of 10)
+    try:
+        points_value = int(points_value)
+        if points_value < 10 or points_value > 100 or points_value % 10 != 0:
+            flash("Points value must be between 10 and 100 in multiples of 10", "warning")
+            return redirect(url_for("side_bets"))
+    except ValueError:
+        flash("Invalid points value", "warning")
+        return redirect(url_for("side_bets"))
+    
+    # Create side bet
+    side_bet = SideBet(
+        challenger_id=user_id,
+        challenged_id=challenged_id,
+        match_id=match_id,
+        bet_type=bet_type,
+        challenger_prediction=challenger_prediction,
+        points_value=points_value
+    )
+    db.session.add(side_bet)
+    db.session.commit()
+    
+    # Create notification for challenged user
+    challenger = db.session.get(User, user_id)
+    notification = Notification(
+        user_id=challenged_id,
+        message=f"{challenger.username} has challenged you to a side bet!",
+        related_to="side_bet",
+        related_id=side_bet.id
+    )
+    db.session.add(notification)
+    db.session.commit()
+    
+    flash("Side bet challenge created successfully", "success")
+    return redirect(url_for("side_bets"))
+
+
+@app.route("/respond-to-side-bet/<int:side_bet_id>", methods=["POST"])
+@login_required
+def respond_to_side_bet(side_bet_id):
+    """Accept or reject a side bet challenge"""
+    user_id = session.get('user_id')
+    
+    # Get side bet
+    side_bet = SideBet.query.get_or_404(side_bet_id)
+    
+    # Verify that the current user is the challenged user
+    if side_bet.challenged_id != user_id:
+        flash("You are not authorized to respond to this challenge", "warning")
+        return redirect(url_for("side_bets"))
+    
+    # Get response action (accept or reject)
+    action = request.form.get("action")
+    
+    if action == "accept":
+        # Get challenged user's prediction
+        challenged_prediction = request.form.get("challenged_prediction")
+        
+        if not challenged_prediction:
+            flash("Prediction is required to accept the challenge", "warning")
+            return redirect(url_for("side_bets"))
+        
+        # Update side bet
+        side_bet.challenged_prediction = challenged_prediction
+        side_bet.status = "accepted"
+        
+        # Create notification for challenger
+        notification = Notification(
+            user_id=side_bet.challenger_id,
+            message=f"{side_bet.challenged.username} has accepted your side bet challenge!",
+            related_to="side_bet",
+            related_id=side_bet.id
+        )
+        db.session.add(notification)
+        
+        flash("Side bet challenge accepted", "success")
+    
+    elif action == "reject":
+        # Update side bet
+        side_bet.status = "rejected"
+        
+        # Create notification for challenger
+        notification = Notification(
+            user_id=side_bet.challenger_id,
+            message=f"{side_bet.challenged.username} has rejected your side bet challenge.",
+            related_to="side_bet",
+            related_id=side_bet.id
+        )
+        db.session.add(notification)
+        
+        flash("Side bet challenge rejected", "info")
+    
+    db.session.commit()
+    return redirect(url_for("side_bets"))
+
+
+@app.route("/notifications")
+@login_required
+def notifications():
+    """Display user notifications"""
+    user_id = session.get('user_id')
+    
+    # Get unread notifications
+    unread_notifications = Notification.query.filter_by(
+        user_id=user_id,
+        is_read=False
+    ).order_by(Notification.created_at.desc()).all()
+    
+    # Get read notifications (limit to 20)
+    read_notifications = Notification.query.filter_by(
+        user_id=user_id,
+        is_read=True
+    ).order_by(Notification.created_at.desc()).limit(20).all()
+    
+    return render_template(
+        "side_bets.html",
+        unread_notifications=unread_notifications,
+        read_notifications=read_notifications
+    )
+    #return redirect(url_for("side_bets"))
+
+
+@app.route("/mark-notification-read/<int:notification_id>")
+@login_required
+def mark_notification_read(notification_id):
+    """Mark a notification as read"""
+    user_id = session.get('user_id')
+    
+    # Get notification
+    notification = Notification.query.get_or_404(notification_id)
+    
+    # Verify that the current user owns this notification
+    if notification.user_id != user_id:
+        flash("You are not authorized to access this notification", "warning")
+        return redirect(url_for("notifications"))
+    
+    # Mark as read
+    notification.is_read = True
+    db.session.commit()
+    
+    # If the notification is related to a side bet, redirect to side bets page
+    if notification.related_to == "side_bet":
+        return redirect(url_for("side_bets"))
+    
+    return redirect(url_for("notifications"))
+
+
+@app.route("/generate-share-link/<int:side_bet_id>")
+@login_required
+def generate_share_link(side_bet_id):
+    """Generate a WhatsApp share link for a side bet challenge"""
+    user_id = session.get('user_id')
+    
+    # Get side bet
+    side_bet = SideBet.query.get_or_404(side_bet_id)
+    
+    # Verify that the current user is involved in this side bet
+    if side_bet.challenger_id != user_id and side_bet.challenged_id != user_id:
+        flash("You are not authorized to share this challenge", "warning")
+        return redirect(url_for("side_bets"))
+    
+    # Get match information
+    match = Match.query.filter_by(matchId=side_bet.match_id).first()
+    
+    if not match:
+        flash("Match information not found", "warning")
+        return redirect(url_for("side_bets"))
+    
+    # Create share message
+    challenger = db.session.get(User, side_bet.challenger_id)
+    message = f"🏏 Side Bet Challenge! 🏏\n\n"
+    message += f"{challenger.username} is challenging you for {side_bet.bet_type} prediction on {match.match_info}!\n"
+    message += f"Points at stake: {side_bet.points_value}\n\n"
+    message += f"Login to LPL app to accept the challenge!"
+    
+    # Encode message for WhatsApp URL
+    encoded_message = requests.utils.quote(message)
+    whatsapp_link = f"https://wa.me/?text={encoded_message}"
+    
+    return jsonify({"whatsapp_link": whatsapp_link})
+
+
+# Function to settle side bets when match results are available
+def settle_side_bets(match_id, event_type, event_result):
+    """Settle side bets for a completed match"""
+    # Find all accepted side bets for this match and event type
+    side_bets = SideBet.query.filter_by(
+        match_id=match_id,
+        bet_type=event_type,
+        status="accepted"
+    ).all()
+    
+    for bet in side_bets:
+        # Determine winner
+        if bet.challenger_prediction == event_result:
+            bet.winner_id = bet.challenger_id
+            winner = bet.challenger
+            loser = bet.challenged
+        elif bet.challenged_prediction == event_result:
+            bet.winner_id = bet.challenged_id
+            winner = bet.challenged
+            loser = bet.challenger
+        else:
+            # No winner (draw or invalid result)
+            continue
+        
+        # Update bet status
+        bet.status = "completed"
+        
+        # Create notifications for both users
+        challenger_notification = Notification(
+            user_id=bet.challenger_id,
+            message=f"Your side bet with {bet.challenged.username} has been settled. {winner.username} won {bet.points_value} points!",
+            related_to="side_bet",
+            related_id=bet.id
+        )
+        
+        challenged_notification = Notification(
+            user_id=bet.challenged_id,
+            message=f"Your side bet with {bet.challenger.username} has been settled. {winner.username} won {bet.points_value} points!",
+            related_to="side_bet",
+            related_id=bet.id
+        )
+        
+        db.session.add(challenger_notification)
+        db.session.add(challenged_notification)
+    
+    db.session.commit()
+
+
+# Update the existing route that processes match results to also settle side bets
+def update_actual_result(match_id, event_type, event_result):
+    """Update actual result and settle side bets"""
+    # Check if result already exists
+    existing_result = ActualResult.query.filter_by(
+        matchId=match_id,
+        event_type=event_type
+    ).first()
+    
+    if existing_result:
+        existing_result.event_result = event_result
+    else:
+        # Create new result
+        result = ActualResult(
+            matchId=match_id,
+            event_type=event_type,
+            event_result=event_result
+        )
+        db.session.add(result)
+    
+    db.session.commit()
+    
+    # Settle side bets for this match and event type
+    settle_side_bets(match_id, event_type, event_result)
+
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=8000, debug=debug)
+
+
