@@ -2527,11 +2527,12 @@ def submit_prediction():
     match_datetime = pd.to_datetime(match_date, format='%b %d')
     today_datetime = pd.to_datetime(pd.Timestamp('today').strftime('%b %d'), format='%b %d')
 
-    cet_time = (pd.Timestamp('today') + pd.Timedelta(hours=1)).strftime('%H:%M')
+    cet_time = (pd.Timestamp('today') + pd.Timedelta(hours=2)).strftime('%H:%M')
+    match_time = (pd.to_datetime(match_time) + pd.Timedelta(hours=1)).strftime('%H:%M')   
     logging.info(f"{cet_time}, {match_time}, {match_datetime}, {today_datetime}")
 
     # Only check cutoff time for today's matches
-    if match_datetime == today_datetime and pd.Timestamp('today').strftime('%H:%M') >  match_time:
+    if match_datetime == today_datetime and cet_time >  match_time:
         return {'message': 'Prediction cutoff has passed. You can predict for the next game.'}, 200
 
     """  
