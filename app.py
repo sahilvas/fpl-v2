@@ -200,7 +200,7 @@ class PageView(db.Model):
 
 # create db model for Prediction table
 class Prediction(db.Model):
-    __tablename__ = 'prediction_v1'
+    __tablename__ = 'prediction_v2'
     id = db.Column(db.Integer, primary_key=True)
     matchId = db.Column(db.String(100), nullable=False)
     username = db.Column(db.String(100), nullable=False)
@@ -2225,13 +2225,14 @@ def predictor():
 
         # create cutoff time using time value 02:00 PM GMT / 07:30 PM LOCAL from match[3]
         cutoff_time = match[3].split("GMT")[0]
+        cet_time = (pd.to_datetime(cutoff_time) + pd.Timedelta(hours=1)).strftime('%H:%M')                
         
         # Convert tuple to dict to add new fields
         match = {
             'matchId': match[0],
             'date': match[1], 
             'match_info': match[2],
-            'time': cutoff_time,
+            'time': cet_time,
             'team1': team1,
             'team2': team2
         }
@@ -2525,6 +2526,9 @@ def submit_prediction():
     # Convert dates to datetime for comparison
     match_datetime = pd.to_datetime(match_date, format='%b %d')
     today_datetime = pd.to_datetime(pd.Timestamp('today').strftime('%b %d'), format='%b %d')
+
+    cet_time = (pd.Timestamp('today') + pd.Timedelta(hours=1)).strftime('%H:%M')
+    logging.info(f"{cet_time}, {match_time}, {match_datetime}, {today_datetime}")
 
     # Only check cutoff time for today's matches
     if match_datetime == today_datetime and pd.Timestamp('today').strftime('%H:%M') >  match_time:
