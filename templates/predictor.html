@@ -421,109 +421,354 @@
 
 
 <h3>🏆 Leaderboard</h3>
-<table>
-    <thead>
-        <tr>
-            <th>Rank</th>
-            <th>User</th>
-            <th>Total Points</th>
-       
-        </tr>
-    </thead>
-        <tbody>
+<div class="leaderboard-container">
+    <table>
+        <thead>
+            <tr>
+                <th>Rank</th>
+                <th>User</th>
+                <th>Total Points</th>
+            </tr>
+        </thead>
+        <tbody id="leaderboard-body">
             {% for user in leaderboard %}
-            <tr data-username="{{ user.username | lower }}">
+            <tr data-username="{{ user.username | lower }}" class="leaderboard-row {% if loop.index > 10 %}hidden{% endif %}">
                 <td>{{ loop.index }}</td>
                 <td>{{ user.username }}</td>
                 <td>{{ user.points }}</td>
             </tr>
             {% endfor %}
         </tbody>
-      
-      
-</table>
+    </table>
 
+    <div class="pagination">
+        <button id="prev-page" onclick="changePage(-1)" disabled>&laquo; Previous</button>
+        <span id="page-info" style="white-space: nowrap;"><span id="current-page">1</span> of <span id="total-pages">1</span></span>        
+        <button id="next-page" onclick="changePage(1)">Next &raquo;</button>
+    </div>
+</div>
+
+<style>
+.leaderboard-container {
+    overflow-x: auto;
+}
+
+.pagination {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin: 15px 0;
+    gap: 10px;
+}
+
+.pagination button {
+    background: rgba(0,0,0,0.7);
+    color: #FFD700;
+    border: 1px solid #FFD700;
+    padding: 6px 12px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 12px;
+}
+
+.pagination button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+[id$="page-info"] {
+    color: #FFD700;
+    font-size: 12px;
+}
+
+.hidden {
+    display: none;
+}
+
+@media screen and (max-width: 768px) {
+    .pagination {
+        flex-direction: row;
+        gap: 8px;
+        margin: 10px 0;
+    }
+    
+    .pagination button {
+        padding: 4px 8px;
+        font-size: 11px;
+    }
+    
+    [id$="page-info"] {
+    font-size: 11px;
+}
+}
+
+@media screen and (max-width: 480px) {
+    .pagination {
+        gap: 5px;
+        margin: 8px 0;
+    }
+    
+    .pagination button {
+        padding: 3px 6px;
+        font-size: 10px;
+    }
+    
+    [id$="page-info"] {
+    font-size: 10px;
+}
+}
+</style>
+
+<script>
+const L_ITEMS_PER_PAGE = 10;
+let currentPage = 1;
+
+function initializeLeaderboard() {
+    const rows = document.querySelectorAll('.leaderboard-row');
+    const totalPages = Math.ceil(rows.length / L_ITEMS_PER_PAGE);
+    document.getElementById('total-pages').textContent = totalPages;
+    
+    // Find logged in user's row and move to first page if needed
+    const loggedInUsername = localStorage.getItem('username').toLowerCase();
+    const loggedInRow = document.querySelector(`tr[data-username="${loggedInUsername}"]`);
+    
+    if (loggedInRow) {
+        const loggedInIndex = Array.from(rows).indexOf(loggedInRow);
+        const loggedInPage = Math.ceil((loggedInIndex + 1) / L_ITEMS_PER_PAGE);
+        
+        if (loggedInPage > 1) {
+            // Clone and insert at start of first page
+            const clonedRow = loggedInRow.cloneNode(true);
+            rows[0].parentNode.insertBefore(clonedRow, rows[0]);
+            loggedInRow.classList.add('hidden');
+        }
+    }
+    
+    updatePageDisplay();
+}
+
+function changePage(direction) {
+    const rows = document.querySelectorAll('.leaderboard-row');
+    const totalPages = Math.ceil(rows.length / L_ITEMS_PER_PAGE);
+
+    
+    
+    currentPage += direction;
+    
+    if (currentPage < 1) currentPage = 1;
+    if (currentPage > totalPages) currentPage = totalPages;
+    
+    updatePageDisplay();
+}
+
+function updatePageDisplay() {
+    const rows = document.querySelectorAll('.leaderboard-row');
+    const totalPages = Math.ceil(rows.length / L_ITEMS_PER_PAGE);
+
+
+    
+    rows.forEach((row, index) => {
+        if (index < L_ITEMS_PER_PAGE * currentPage && index >= L_ITEMS_PER_PAGE * (currentPage - 1)) {
+            row.classList.remove('hidden');
+        } else {
+            row.classList.add('hidden');
+        }
+    });
+    
+    document.getElementById('current-page').textContent = currentPage;
+    document.getElementById('prev-page').disabled = currentPage === 1;
+    document.getElementById('next-page').disabled = currentPage === totalPages;
+}
+
+document.addEventListener('DOMContentLoaded', initializeLeaderboard);
+</script>
 
 <h3>📊 Your Predictions</h3>
-<table>
-    <thead>
-        <tr>
-            <th>Date</th>
-            <th>Match</th>
-            <th>Event</th>
-            <th>Prediction</th>
-            <th>Points</th>
-        </tr>
-    </thead>
-    <tbody>
-        {% for prediction in past_predictions %}
-        <tr>
-            <td>{{ prediction.date }}</td>
-          
-            <td> {{ prediction.match_info }}</td>
-            <td>{{ prediction.prediction_type.upper() }}</td>            
-            <td class="{{ 'result-correct' if prediction.points > 0 else 'result-wrong' if prediction.points < 0 else 'result-pending' }}">              {{ prediction.prediction_value }}</td> 
-                      
-            <td>{{ '-' if prediction.points == 0 else prediction.points }}</td>        
-        </tr>
-        {% endfor %}
-    </tbody>
-</table>
+<div class="table-container">
+    <table>
+        <thead>
+            <tr>
+                <th>Date</th>
+                <th>Match</th>
+                <th>Event</th>
+                <th>Prediction</th>
+                <th>Points</th>
+            </tr>
+        </thead>
+        <tbody id="predictions-body">
+            {% for prediction in past_predictions %}
+            <tr class="predictions-row {% if loop.index > 10 %}hidden{% endif %}">
+                <td>{{ prediction.date }}</td>
+                <td>{{ prediction.match_info }}</td>
+                <td>{{ prediction.prediction_type.upper() }}</td>            
+                <td class="{{ 'result-correct' if prediction.points > 0 else 'result-wrong' if prediction.points < 0 else 'result-pending' }}">{{ prediction.prediction_value }}</td>                      
+                <td>{{ '-' if prediction.points == 0 else prediction.points }}</td>        
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    <div class="pagination">
+        <button id="prev-predictions" onclick="changePredictionsPage(-1)" disabled>&laquo; Previous</button>
+        <span id="predictions-page-info" style="white-space: nowrap;"> <span id="current-predictions-page">1</span> of <span id="total-predictions-pages">1</span></span>
+        <button id="next-predictions" onclick="changePredictionsPage(1)">Next &raquo;</button>
+    </div>
+</div>
+
+<script>
+    const ITEMS_PER_PAGE = 10;
+    let currentPredictionsPage = 1;
+    let currentTodayPage = 1;
+    let currentResultsPage = 1;
+    
+    function initializePagination() {
+        initializeTable('predictions');
+        initializeTable('today'); 
+        initializeTable('results');
+    }
+    
+    function initializeTable(tableType) {
+        const rows = document.querySelectorAll(`.${tableType}-row`);
+        const totalPages = Math.ceil(rows.length / ITEMS_PER_PAGE);
+
+        document.getElementById(`total-${tableType}-pages`).textContent = totalPages;
+        updateTableDisplay(tableType);
+    }
+    
+    function changePredictionsPage(direction) {
+        changePage('predictions', direction);
+    }
+    
+    function changeTodayPage(direction) {
+        changePage('today', direction);
+    }
+    
+    function changeResultsPage(direction) {
+        changePage('results', direction);
+    }
+    
+    function changePage(tableType, direction) {
+        const rows = document.querySelectorAll(`.${tableType}-row`);
+        const totalPages = Math.ceil(rows.length / ITEMS_PER_PAGE);
+
+  
+        
+        switch(tableType) {
+            case 'predictions':
+                currentPredictionsPage += direction;
+                if (currentPredictionsPage < 1) currentPredictionsPage = 1;
+                if (currentPredictionsPage > totalPages) currentPredictionsPage = totalPages;
+                break;
+            case 'today':
+                currentTodayPage += direction;
+                if (currentTodayPage < 1) currentTodayPage = 1;
+                if (currentTodayPage > totalPages) currentTodayPage = totalPages;
+                break;
+            case 'results':
+                currentResultsPage += direction;
+                if (currentResultsPage < 1) currentResultsPage = 1;
+                if (currentResultsPage > totalPages) currentResultsPage = totalPages;
+                break;
+        }
+        
+        updateTableDisplay(tableType);
+    }
+    
+    function updateTableDisplay(tableType) {
+        const rows = document.querySelectorAll(`.${tableType}-row`);
+        const totalPages = Math.ceil(rows.length / ITEMS_PER_PAGE);
+
+
+        let currentPage;
+        
+        switch(tableType) {
+            case 'predictions':
+                currentPage = currentPredictionsPage;
+                break;
+            case 'today':
+                currentPage = currentTodayPage;
+                break;
+            case 'results':
+                currentPage = currentResultsPage;
+                break;
+        }
+        
+        rows.forEach((row, index) => {
+            if (index < ITEMS_PER_PAGE * currentPage && index >= ITEMS_PER_PAGE * (currentPage - 1)) {
+                row.classList.remove('hidden');
+            } else {
+                row.classList.add('hidden');
+            }
+        });
+        
+        document.getElementById(`current-${tableType}-page`).textContent = currentPage;
+        document.getElementById(`prev-${tableType}`).disabled = currentPage === 1;
+        document.getElementById(`next-${tableType}`).disabled = currentPage === totalPages;
+    }
+    
+    document.addEventListener('DOMContentLoaded', initializePagination);
+    </script>
 
 <h3>🎲 Today's Predictions</h3>
-<table>
-    <thead>
-        <tr>
-            <th>User</th>
-            <th>Date</th>
-            <th>Match</th>
-            <th>Event</th>
-            <th>Prediction</th>
-        </tr>
-    </thead>
-    <tbody>
-        {% for prediction in all_predictions %}
-        <tr>
-            <td>{{ prediction.username }}</td>
-            <td>{{ prediction.date }}</td>
-      
-            <td> {{ prediction.team1 }} vs {{ prediction.team2 }}</td>
-
-            <td>{{ prediction.prediction_type.upper() }}</td>     
-            <td>{{ prediction.prediction_value }}</td>
-          
-        </tr>
-        {% endfor %}
-    </tbody>
-</table>
-
-
+<div class="table-container">
+    <table>
+        <thead>
+            <tr>
+                <th>User</th>
+                <th>Date</th>
+                <th>Match</th>
+                <th>Event</th>
+                <th>Prediction</th>
+            </tr>
+        </thead>
+        <tbody id="today-predictions-body">
+            {% for prediction in all_predictions %}
+            <tr class="today-row {% if loop.index > 10 %}hidden{% endif %}">
+                <td>{{ prediction.username }}</td>
+                <td>{{ prediction.date }}</td>
+                <td>{{ prediction.team1 }} vs {{ prediction.team2 }}</td>
+                <td>{{ prediction.prediction_type.upper() }}</td>     
+                <td>{{ prediction.prediction_value }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    <div class="pagination">
+        <button id="prev-today" onclick="changeTodayPage(-1)" disabled>&laquo; Previous</button>
+        <span id="today-page-info" style="white-space: nowrap;"><span id="current-today-page">1</span> of <span id="total-today-pages">1</span></span>
+        <button id="next-today" onclick="changeTodayPage(1)">Next &raquo;</button>
+    </div>
+</div>
 
 <h3>🎯 Match Results</h3>
-<table>
-    <thead>
-        <tr>
-            <th>Date</th>
-            <th>Match</th>
-            <th>Event</th>
-            <th>Winner</th>
-       
-   
-        </tr>
-    </thead>
-    <tbody>
-        {% for match in match_results %}
-        <tr>
-            <td>{{ match.date }}</td>
-            <td> {{ match.match_info }}</td>
-            <td>{{ match.event_type.upper() }}</td>
-            <td>{{ match.event_result }}</td>
-      
-      
-        </tr>
-        {% endfor %}
-    </tbody>
-</table>
+<div class="table-container">
+    <table>
+        <thead>
+            <tr>
+                <th>Date</th>
+                <th>Match</th>
+                <th>Event</th>
+                <th>Winner</th>
+            </tr>
+        </thead>
+        <tbody id="results-body">
+            {% for match in match_results %}
+            <tr class="results-row {% if loop.index > 10 %}hidden{% endif %}">
+                <td>{{ match.date }}</td>
+                <td>{{ match.match_info }}</td>
+                <td>{{ match.event_type.upper() }}</td>
+                <td>{{ match.event_result }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+ 
+    <div class="pagination">
+        <button id="prev-results" onclick="changeResultsPage(-1)" disabled>&laquo; Previous</button>
+        <span id="results-page-info" style="white-space: nowrap;"> <span id="current-results-page">1</span> of <span id="total-results-pages">1</span></span>
+        <button id="next-results" onclick="changeResultsPage(1)">Next &raquo;</button>
+    </div>
+</div>
+
 
 <script>
 
@@ -649,7 +894,7 @@
                         flashMessage.classList.add('fade-out');
                         setTimeout(() => {
                             flashMessage.style.display = 'none';
-                            window.location.reload(); // Move reload here after message fades
+                            //window.location.reload(); // Move reload here after message fades
                         }, 500);
                     }, 5000);
 
