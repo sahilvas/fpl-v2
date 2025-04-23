@@ -1608,7 +1608,6 @@ def save_to_db(matches):
         elif not match["date"]:
             match["date"] = last_match_date
             new_match = Match(matchId=match["matchId"], date=match["date"], match_info=match["match_info"], time=match["time"])
-            logging.info(f"Last match date set up to : {last_match_date} for match : {match["match_info"]}")
         elif match["match_info"] in "Kolkata Knight Riders vs Lucknow Super Giants, 19th Match":
             match["date"] = "Apr 08, Tue"
             new_match = Match(matchId=match["matchId"], date=match["date"], match_info=match["match_info"], time=match["time"])
