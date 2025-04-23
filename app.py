@@ -2062,6 +2062,10 @@ def signup():
         username = request.form.get('username')
         password = request.form.get('password')
         email = request.form.get('email')
+
+        # remove @email.com suffix from username if exists
+        if '@' in username:
+            username = username.split('@')[0]
         
         # Check if username already exists
         if User.query.filter_by(username=username).first():
@@ -2241,18 +2245,14 @@ def predictor():
         upcoming_matches[index] = match  
         index += 1
 
-    for match in upcoming_matches:
-        logging.info(f"Match: {upcoming_matches[match]['team1']}")
-
-    
     past_predictions = get_user_predictions()
-    logging.info(f"Past predictions: {past_predictions}")
+    #logging.info(f"Past predictions: {past_predictions}")
     all_predictions = get_predictions(upcoming_matches)
-    logging.info(f"All predictions: {all_predictions}")
+    #logging.info(f"All predictions: {all_predictions}")
     leaderboard = get_prediction_leaderboard()
-    logging.info(f"Leaderboard: {leaderboard}")
+    #logging.info(f"Leaderboard: {leaderboard}")
     match_results = get_match_results()
-    logging.info(f"Match results: {match_results}")
+    #logging.info(f"Match results: {match_results}")
 
     return render_template("predictor.html", upcoming_matches=upcoming_matches, past_predictions=past_predictions, all_predictions=all_predictions, leaderboard=leaderboard, match_results=match_results)        
 
@@ -2325,7 +2325,7 @@ def get_user_predictions():
         user = db.session.get(User, session['user_id'])
         if user:
             username = user.username
-            logging.info(f"Username: {username}")
+            #logging.info(f"Username: {username}")
             predictions = db.session.query(Prediction).filter_by(username=username).all()
 
             # Include all predictions
@@ -2348,7 +2348,7 @@ def get_user_predictions():
                 if result:
                     match.result = result.event_result
                     match.event_type = result.event_type
-                    print(result.matchId, match.prediction_type, result.event_type, match.prediction_value,result.event_result  )
+                    #print(result.matchId, match.prediction_type, result.event_type, match.prediction_value,result.event_result  )
 
                     # calculate points won/lost for the match
                     # +50 for correct toss, -50 for wrong toss
@@ -2451,7 +2451,7 @@ def get_prediction_leaderboard():
 @admin_required
 def manage_predictions():
     if request.method == 'POST':
-        logging.info("Received POST request")
+        #logging.info("Received POST request")
         # Handle adding/updating actual results
         matchId = request.form.get('matchId')
 
@@ -2499,11 +2499,12 @@ def manage_predictions():
 def submit_prediction():
     # get form data
     matchId = request.form.get("matchId")
-    prediction_value = request.form.get("prediction_value")
+    #prediction_value = request.form.get("prediction_value")
     username = request.form.get("username")
     match_winner = request.form.get("match_winner")
     toss_winner = request.form.get("toss_winner")
-    logging.info(f"Match: {matchId}, {prediction_value} {username}")
+    logging.info(f"Match: {matchId}, match_winner: {match_winner} , toss_winner: {toss_winner} , username : {username}")
+    log_to_db(f"Submit prediction for Match: {username} , Match: {matchId}, match_winner: {match_winner} , toss_winner: {toss_winner} ")
 
 
     # check if user has already submitted a prediction for this match

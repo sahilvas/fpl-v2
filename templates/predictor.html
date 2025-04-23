@@ -442,9 +442,9 @@
     </table>
 
     <div class="pagination">
-        <button id="prev-page" onclick="changePage(-1)" disabled>&laquo; Previous</button>
+        <button id="prev-page" onclick="changeLBPage(-1)" disabled>&laquo; Previous</button>
         <span id="page-info" style="white-space: nowrap;"><span id="current-page">1</span> of <span id="total-pages">1</span></span>        
-        <button id="next-page" onclick="changePage(1)">Next &raquo;</button>
+        <button id="next-page" onclick="changeLBPage(1)">Next &raquo;</button>
     </div>
 </div>
 
@@ -539,15 +539,15 @@ function initializeLeaderboard() {
         if (loggedInPage > 1) {
             // Clone and insert at start of first page
             const clonedRow = loggedInRow.cloneNode(true);
-            rows[0].parentNode.insertBefore(clonedRow, rows[0]);
+            rows[9].parentNode.insertBefore(clonedRow, rows[9]);
             loggedInRow.classList.add('hidden');
         }
     }
     
-    updatePageDisplay();
+    updateLBPageDisplay();
 }
 
-function changePage(direction) {
+function changeLBPage(direction) {
     const rows = document.querySelectorAll('.leaderboard-row');
     const totalPages = Math.ceil(rows.length / L_ITEMS_PER_PAGE);
 
@@ -558,13 +558,12 @@ function changePage(direction) {
     if (currentPage < 1) currentPage = 1;
     if (currentPage > totalPages) currentPage = totalPages;
     
-    updatePageDisplay();
+    updateLBPageDisplay();
 }
 
-function updatePageDisplay() {
+function updateLBPageDisplay() {
     const rows = document.querySelectorAll('.leaderboard-row');
     const totalPages = Math.ceil(rows.length / L_ITEMS_PER_PAGE);
-
 
     
     rows.forEach((row, index) => {
