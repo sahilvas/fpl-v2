@@ -1153,9 +1153,19 @@ def logs():
     if session.get('admin') != True:
         return redirect(url_for('admin_login'))
     
-    # delete logs from timestamp older than 1 week
-    one_week_ago = datetime.now() - timedelta(days=2)
-    Log.query.filter(Log.timestamp < one_week_ago).delete()
+    # save latest 2000 logs in temp table
+    latest_logs = Log.query.order_by(Log.timestamp.desc()).limit(3000).all()
+
+    # truncate the logs table
+    db.session.query(Log).delete()
+
+    # insert back the saved logs
+    for log in latest_logs:
+        db.session.expunge(log)
+        db.make_transient(log)
+        db.session.add(log)
+
+    # commit changes
     db.session.commit()
 
     # Run VACUUM in a separate connection outside transaction
@@ -2131,7 +2141,7 @@ def logout():
 # add /me route
 @app.route('/me')
 def me():
-    print(session)
+    #print(session)
     if 'user_id' not in session:
         logging.info("User not logged in") 
         flash('Please login first', 'warning')
