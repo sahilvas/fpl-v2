@@ -1156,10 +1156,16 @@ def logs():
     # save latest 2000 logs in temp table
     latest_logs = Log.query.order_by(Log.timestamp.desc()).limit(3000).all()
 
-    # truncate the logs table
-    db.session.query(Log).delete()
+    # Run VACUUM in a separate connection outside transaction
+    engine = db.engine
+    connection = engine.raw_connection()
 
-    # insert back the saved logs
+    connection.execute('DROP TABLE IF EXISTS logs') 
+    
+    # Assuming you're using SQLAlchemy models, recreate the table
+    Log.__table__.create(bind=db.engine)
+
+    # Insert back the saved logs
     for log in latest_logs:
         db.session.expunge(log)
         db.make_transient(log)
@@ -1168,9 +1174,7 @@ def logs():
     # commit changes
     db.session.commit()
 
-    # Run VACUUM in a separate connection outside transaction
-    engine = db.engine
-    connection = engine.raw_connection()
+    
     try:
         connection.execute('VACUUM')
     finally:
