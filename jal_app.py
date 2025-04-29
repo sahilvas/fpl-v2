@@ -33,6 +33,9 @@ def main():
     if os.environ.get("WEBSITE_SITE_NAME"):  # This env var exists only in Azure App Service
         DB_PATH = "/mnt/sqlite/cricbattle.db"
         debug = False
+    elif os.environ.get("GOOGLE_CLOUD_PROJECT"):  # This env var exists only in GCP Cloud Run
+        DB_PATH = "/mnt/sqlite/cricbattle.db"
+        debug = False
     else:
         # Local development (stores DB in the instance folder)
         DB_PATH = "instance/cricbattle.db"
@@ -107,7 +110,8 @@ def main():
     print("Data successfully inserted into SQLite database.")
 
     # Connect to cricbattle.db and players.db
-    conn_cricbattle = sqlite3.connect('/mnt/sqlite/cricbattle.db' if os.environ.get("WEBSITE_SITE_NAME") else 'instance/cricbattle.db')    
+    conn_cricbattle = sqlite3.connect('/mnt/sqlite/cricbattle.db' if os.environ.get("GOOGLE_CLOUD_PROJECT") else 'instance/cricbattle.db')    
+
     #conn_players = sqlite3.connect('players.db')
 
     # Get player info from cricbattle.db

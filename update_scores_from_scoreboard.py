@@ -217,8 +217,9 @@ def main(Match):
     logging.info(f"Number of POTM URLs: {len(cricbuzz_potm_urls)}")
 
     # Create SQLite connection
-    conn = sqlite3.connect('/mnt/sqlite/cricket_stats.db' if os.environ.get("WEBSITE_SITE_NAME") else 'instance/cricket_stats.db')  
+    conn = sqlite3.connect('/mnt/sqlite/cricket_stats.db' if os.environ.get("WEBSITE_SITE_NAME") else '/mnt/sqlite/cricket_stats.db' if os.environ.get("GOOGLE_CLOUD_PROJECT") else 'instance/cricket_stats.db')    
     
+      
     # Process each API URL
     dataframes = {}
     for i, url in enumerate(cricbuzz_urls):

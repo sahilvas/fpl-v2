@@ -51,6 +51,9 @@ ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'pdf'}
 if os.environ.get("WEBSITE_SITE_NAME"):  # This env var exists only in Azure App Service
     DB_PATH = "/mnt/sqlite/cricbattle.db"
     debug = False
+elif os.environ.get("GOOGLE_CLOUD_PROJECT"):  # This env var exists only in GCP Cloud Run
+        DB_PATH = "/mnt/sqlite/cricbattle.db"
+        debug = False
 else:
     # Local development (stores DB in the instance folder)
     DB_PATH = "cricbattle.db"

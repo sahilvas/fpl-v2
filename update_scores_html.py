@@ -27,7 +27,9 @@ def insert_log_message(message):
     try:
         #logging.info(f"Inserting logs")
         # Create SQLite connection
-        conn_logs = sqlite3.connect('/mnt/sqlite/cricbattle.db' if os.environ.get("WEBSITE_SITE_NAME") else 'instance/cricbattle.db')
+        #conn_logs = sqlite3.connect('/mnt/sqlite/cricbattle.db' if os.environ.get("WEBSITE_SITE_NAME") else 'instance/cricbattle.db')
+        conn_logs = sqlite3.connect('/mnt/sqlite/cricket_stats.db' if os.environ.get("WEBSITE_SITE_NAME") else '/mnt/sqlite/cricket_stats.db' if os.environ.get("GOOGLE_CLOUD_PROJECT") else 'instance/cricket_stats.db')  
+
         # Create a cursor object 
         cursor = conn_logs.cursor()
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -51,7 +53,11 @@ def get_team_name_and_emoji(team_name=None):
     try:
         #logging.info("Extracting team_name and emoji")
         # Create SQLite connection
-        conn = sqlite3.connect('/mnt/sqlite/cricbattle.db' if os.environ.get("WEBSITE_SITE_NAME") else 'instance/cricbattle.db')
+        #conn = sqlite3.connect('/mnt/sqlite/cricbattle.db' if os.environ.get("WEBSITE_SITE_NAME") else 'instance/cricbattle.db')
+
+        conn = sqlite3.connect('/mnt/sqlite/cricket_stats.db' if os.environ.get("WEBSITE_SITE_NAME") else '/mnt/sqlite/cricket_stats.db' if os.environ.get("GOOGLE_CLOUD_PROJECT") else 'instance/cricket_stats.db')  
+
+
         # Create a cursor object
         cursor = conn.cursor()
         
@@ -1547,7 +1553,8 @@ def main(Player, PlayerRanking, PlayerRankingPerDay, player_of_the_day, team_of_
             #df_series = update_series_stats.main()
 
             # Create SQLite connection
-            conn = sqlite3.connect('/mnt/sqlite/cricket_stats.db' if os.environ.get("WEBSITE_SITE_NAME") else 'instance/cricket_stats.db') 
+            conn = sqlite3.connect('/mnt/sqlite/cricket_stats.db' if os.environ.get("WEBSITE_SITE_NAME") else '/mnt/sqlite/cricket_stats.db' if os.environ.get("GOOGLE_CLOUD_PROJECT") else 'instance/cricket_stats.db')  
+
 
             # Query data from scoreboard tables
             df_series = {}
@@ -1867,7 +1874,8 @@ def get_series_stats(Player, PlayerRanking):
         try:
 
             # Create SQLite connection
-            conn = sqlite3.connect('/mnt/sqlite/cricket_stats.db' if os.environ.get("WEBSITE_SITE_NAME") else 'instance/cricket_stats.db') 
+            conn = sqlite3.connect('/mnt/sqlite/cricket_stats.db' if os.environ.get("WEBSITE_SITE_NAME") else '/mnt/sqlite/cricket_stats.db' if os.environ.get("GOOGLE_CLOUD_PROJECT") else 'instance/cricket_stats.db')  
+
 
             # Query data from scoreboard tables
             df_series = {}
@@ -1938,7 +1946,8 @@ def get_scoreboard_stats(Player, PlayerRanking):
         try:
 
             # Create SQLite connection
-            conn = sqlite3.connect('/mnt/sqlite/cricket_stats.db' if os.environ.get("WEBSITE_SITE_NAME") else 'instance/cricket_stats.db') 
+            conn = sqlite3.connect('/mnt/sqlite/cricket_stats.db' if os.environ.get("WEBSITE_SITE_NAME") else '/mnt/sqlite/cricket_stats.db' if os.environ.get("GOOGLE_CLOUD_PROJECT") else 'instance/cricket_stats.db')  
+
 
             # Query data from scoreboard tables
             df_scoreboard = {}

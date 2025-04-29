@@ -80,7 +80,8 @@ def replace_nan_values(df):
 def main(Player):
 
     # Create SQLite connection
-    conn = sqlite3.connect('/mnt/sqlite/cricket_stats.db' if os.environ.get("WEBSITE_SITE_NAME") else 'instance/cricket_stats.db') 
+    conn = sqlite3.connect('/mnt/sqlite/cricket_stats.db' if os.environ.get("WEBSITE_SITE_NAME") else '/mnt/sqlite/cricket_stats.db' if os.environ.get("GOOGLE_CLOUD_PROJECT") else 'instance/cricket_stats.db')  
+
     
     # Process each API URL
     dataframes = {}
