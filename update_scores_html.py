@@ -28,7 +28,7 @@ def insert_log_message(message):
         #logging.info(f"Inserting logs")
         # Create SQLite connection
         #conn_logs = sqlite3.connect('/mnt/sqlite/cricbattle.db' if os.environ.get("WEBSITE_SITE_NAME") else 'instance/cricbattle.db')
-        conn_logs = sqlite3.connect('/mnt/sqlite/cricket_stats.db' if os.environ.get("WEBSITE_SITE_NAME") else '/mnt/sqlite/cricket_stats.db' if os.environ.get("GOOGLE_CLOUD_PROJECT") else 'instance/cricket_stats.db')  
+        conn_logs = sqlite3.connect('/mnt/sqlite/cricbattle.db' if os.environ.get("WEBSITE_SITE_NAME") else '/mnt/sqlite/cricbattle.db' if os.environ.get("GOOGLE_CLOUD_PROJECT") else 'instance/cricbattle.db')  
 
         # Create a cursor object 
         cursor = conn_logs.cursor()
