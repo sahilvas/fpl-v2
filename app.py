@@ -666,6 +666,11 @@ def get_players_in_action(league=""):
                     'fpl_team': player.team_name
                 })
 
+    # check if players_in_action has data
+    if not players_in_action:
+        logging.info("No players in action")
+        return players_in_action
+
     players_in_action = pd.DataFrame(players_in_action).sort_values('fpl_team')
     
     #print(players_in_action)
@@ -1586,7 +1591,10 @@ def extract_match_details(html_file):
 
         # Extract date (from the nearest schedule-date class)
         date_tag = entry.find_previous("div", class_="schedule-date")
+        date_tag_2 = entry.find_previous("a", class_="cb-text-upcoming")
         date = date_tag.text.strip() if date_tag else "Unknown"
+        if date == "Unknown":
+            date = date_tag_2.text.strip() if date_tag_2 else "Unknown"
 
         # Extract match details
         match_info_tag = entry.find("a", class_="text-hvr-underline")
@@ -1609,6 +1617,48 @@ def extract_match_details(html_file):
     
 
     return match_data_json
+# New schedule data extracted from your IPL new schedule
+# Format: (matchId, date, match_info, time)
+new_schedule = [
+    (118811, 'May 17, Sat', 'Royal Challengers Bengaluru vs Kolkata Knight Riders, 58th Match', '02:00 PM GMT / 07:30 PM LOCAL'),
+    (118820, 'May 18, Sun', 'Rajasthan Royals vs Punjab Kings, 59th Match', '10:00 AM GMT / 03:30 PM LOCAL'),
+    (118829, 'May 18, Sun', 'Delhi Capitals vs Gujarat Titans, 60th Match', '02:00 PM GMT / 07:30 PM LOCAL'),
+    (118838, 'May 19, Mon', 'Lucknow Super Giants vs Sunrisers Hyderabad, 61st Match', '02:00 PM GMT / 07:30 PM LOCAL'),
+    (118847, 'May 20, Tue', 'Chennai Super Kings vs Rajasthan Royals, 62nd Match', '02:00 PM GMT / 07:30 PM LOCAL'),
+    (118853, 'May 21, Wed', 'Mumbai Indians vs Delhi Capitals, 63rd Match', '02:00 PM GMT / 07:30 PM LOCAL'),
+    (118862, 'May 22, Thu', 'Gujarat Titans vs Lucknow Super Giants, 64th Match', '02:00 PM GMT / 07:30 PM LOCAL'),
+    (118865, 'May 23, Fri', 'Royal Challengers Bengaluru vs Sunrisers Hyderabad, 65th Match', '02:00 PM GMT / 07:30 PM LOCAL'),
+    (118874, 'May 24, Sat', 'Punjab Kings vs Delhi Capitals, 66th Match', '02:00 PM GMT / 07:30 PM LOCAL'),
+    (118880, 'May 25, Sun', 'Gujarat Titans vs Chennai Super Kings, 67th Match', '10:00 AM GMT / 03:30 PM LOCAL'),
+    (118883, 'May 25, Sun', 'Sunrisers Hyderabad vs Kolkata Knight Riders, 68th Match', '02:00 PM GMT / 07:30 PM LOCAL'),
+    (118892, 'May 26, Mon', 'Punjab Kings vs Mumbai Indians, 69th Match', '02:00 PM GMT / 07:30 PM LOCAL'),
+    (118898, 'May 27, Tue', 'Lucknow Super Giants vs Royal Challengers Bengaluru, 70th Match', '02:00 PM GMT / 07:30 PM LOCAL'),
+    # Playoffs (TBC teams)
+    (118907, 'May 29, Thu', 'TBC vs TBC, Qualifier 1', '02:00 PM GMT / 07:30 PM LOCAL'),
+    (118916, 'May 30, Fri', 'TBC vs TBC, Eliminator', '02:00 PM GMT / 07:30 PM LOCAL'),
+    (118919, 'Jun 01, Sun', 'TBC vs TBC, Qualifier 2', '02:00 PM GMT / 07:30 PM LOCAL'),
+    (118928, 'Jun 03, Tue', 'TBC vs TBC, Final', '02:00 PM GMT / 07:30 PM LOCAL'),
+]
+
+
+def update_schedule(session, schedule):
+    for matchId, date, match_info, time in schedule:
+        # Check if match already exists
+        match = session.query(Match).filter_by(matchId=matchId).first()
+        if match:
+            # Update existing
+            match.date = date
+            match.match_info = match_info
+            match.time = time
+            print(f"Updated matchId {matchId}")
+        else:
+            # Insert new
+            new_match = Match(matchId=matchId, date=date, match_info=match_info, time=time)
+            session.add(new_match)
+            print(f"Inserted matchId {matchId}")
+
+    session.commit()
+    print("Schedule update complete.")
 
 # Insert extracted data into SQLite
 def save_to_db(matches):
@@ -1631,6 +1681,11 @@ def save_to_db(matches):
             new_match = Match(matchId=match["matchId"], date=match["date"], match_info=match["match_info"], time=match["time"])
         db.session.merge(new_match)
 
+    # delete matches where date between 8 may to 25 may
+    db.session.query(Match).filter(Match.date.between('May 08, Mon', 'May 25, Sun')).delete()
+
+    # Run the update
+    update_schedule(db.session, new_schedule)
 
     db.session.commit()
 
