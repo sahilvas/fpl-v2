@@ -743,7 +743,7 @@ def refresh_scores():
 
 
     # filter pod.players_with_score_difference_df for name in live_players_list and print
-    if not pod['players_with_score_difference_df'].empty:
+    if not pod['players_with_score_difference_df'].empty and len(live_players_list) > 0:
         live_player_scores_df = pod['players_with_score_difference_df'][pod['players_with_score_difference_df']['name'].isin(live_players_list['name'])]
         live_player_scores_df = live_player_scores_df.sort_values(by='team_name')
         live_player_scores_df = live_player_scores_df[['team_name', 'name',  'score_difference']]
@@ -756,11 +756,11 @@ def refresh_scores():
         live_player_scores_df['Team'] = live_player_scores_df['Team'].fillna("LORDX1")
         print(live_player_scores_df)
 
-    # Update scores
-    update_scores.main(Player, PlayerRanking,PlayerRankingPerDay, pod, totd, "", live_players_list, live_player_scores_df)    
+        # Update scores
+        update_scores.main(Player, PlayerRanking,PlayerRankingPerDay, pod, totd, "", live_players_list, live_player_scores_df)    
 
-    # update scores for JAL
-    update_scores.main(JALPlayer, PlayerRanking, PlayerRankingPerDay, pod_jal, totd_jal, "JAL")  
+        # update scores for JAL
+        update_scores.main(JALPlayer, PlayerRanking, PlayerRankingPerDay, pod_jal, totd_jal, "JAL")  
 
 def get_cricbattle_data():
     # URL and headers extracted from HAR file    
@@ -1620,6 +1620,8 @@ def extract_match_details(html_file):
 # New schedule data extracted from your IPL new schedule
 # Format: (matchId, date, match_info, time)
 new_schedule = [
+        (118810, 'May 16, Fri', 'Royal Challengers Bengaluru vs Kolkata Knight Riders, 58th Match', '02:00 PM GMT / 07:30 PM LOCAL'),
+
     (118811, 'May 17, Sat', 'Royal Challengers Bengaluru vs Kolkata Knight Riders, 58th Match', '02:00 PM GMT / 07:30 PM LOCAL'),
     (118820, 'May 18, Sun', 'Rajasthan Royals vs Punjab Kings, 59th Match', '10:00 AM GMT / 03:30 PM LOCAL'),
     (118829, 'May 18, Sun', 'Delhi Capitals vs Gujarat Titans, 60th Match', '02:00 PM GMT / 07:30 PM LOCAL'),

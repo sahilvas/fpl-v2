@@ -547,7 +547,7 @@ def generate_html_report(team_points_df, player_team_points_df, series_stats_df,
         template_filename = "FPL-IPL2025-Points.html"
 
     start_date = "22.03.25"
-    end_date = "25.05.25"
+    end_date = "03.06.25"
     todays_date = datetime.now().strftime("%d.%m.%y")
     percent_days_completed = round((datetime.now() - datetime.strptime(start_date, "%d.%m.%y")).days / (datetime.strptime(end_date, "%d.%m.%y") - datetime.strptime(start_date, "%d.%m.%y")).days * 100)
 
