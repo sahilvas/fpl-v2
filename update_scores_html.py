@@ -335,14 +335,15 @@ def create_player_performance_chart(player_team_points_df):
     top_players = player_team_points_df.nlargest(10, 'PlayerPoints')
     fig = px.bar(
         top_players,
-        x='Player Name',
+        x='Player Name', 
         y='PlayerPoints',
         color='Team Name',
         title='Top 10 MVPs',
         labels={'PlayerPoints': 'Points'},
-        text='PlayerPoints'
+        text='PlayerPoints',
+        text_auto=True
     )
-    fig.update_traces(textposition='outside')
+    #fig.update_traces(textposition='outside')  
     return fig.to_html(full_html=False)
 
 def create_role_distribution_chart(player_team_points_df):
@@ -490,7 +491,7 @@ def generate_html_report(team_points_df, player_team_points_df, series_stats_df,
         sb_tables += f"""
             <h2>{key}</h2>
             <div class="table-container">
-                {df.head().to_html(classes=['table', 'table-striped', 'table-hover'], 
+                {df.to_html(classes=['table', 'table-striped', 'table-hover'], 
                            index=True,
                            float_format=lambda x: '{:.2f}'.format(x) if pd.notnull(x) else '')}
             </div>
@@ -1734,6 +1735,8 @@ def main(Player, PlayerRanking, PlayerRankingPerDay, player_of_the_day, team_of_
                     #print(merged_df)
                     # For fielding stats, aggregate by player name first
                     player_catches = merged_df.groupby(['Team Name', 'Player'])['Catches'].sum().reset_index(name='Player Count')                    
+                    # keep only one player per team with max Player Count
+                    player_catches = player_catches.groupby('Team Name').apply(lambda x: x.nlargest(1, 'Player Count')).reset_index(drop=True)
                     player_catches = player_catches.sort_values('Player Count', ascending=False)
                     player_catches.index = range(1, len(player_catches) + 1)
                     df_scoreboard[key] = player_catches     
