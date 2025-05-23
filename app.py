@@ -270,6 +270,15 @@ class Notification(db.Model):
     # Define relationship
     user = db.relationship('User', backref='notifications')
 
+# model for ReplacedPlayer
+class ReplacedPlayer(db.Model):
+    __tablename__ = 'replaced_player'
+    id = db.Column(db.Integer, primary_key=True)
+    league = db.Column(db.String(150), nullable=False)
+    old_player_name = db.Column(db.String(150), nullable=False)
+    new_player_name = db.Column(db.String(150), nullable=False)
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+
 
 # Ensure upload folder exists
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
@@ -754,7 +763,7 @@ def refresh_scores():
 
         # make team_name "LORDX1" where NaN
         live_player_scores_df['Team'] = live_player_scores_df['Team'].fillna("LORDX1")
-        print(live_player_scores_df)
+        #print(live_player_scores_df)
 
         # Update scores
         update_scores.main(Player, PlayerRanking,PlayerRankingPerDay, pod, totd, "", live_players_list, live_player_scores_df)    
@@ -938,7 +947,7 @@ def allowed_file(filename):
 @app.route('/pay', methods=['GET', 'POST'])
 def pay():
     device_id = get_device_id()
-    print(device_id)
+    #print(device_id)
 
     new_device_id = request.cookies.get('device_id')  # Check if cookie exists
 
@@ -964,11 +973,11 @@ def pay():
 
     if is_paid_but_not_approved(device_id):
         flash("Your payment is under review. Please check back later.", "info")
-        print("Your payment is under review.")
+        #print("Your payment is under review.")
         return render_template('paid.html', table=None)
     
     if is_rejected(device_id):
-        print("Your payment is rejected")
+        #print("Your payment is rejected")
         return render_template('rejected.html', table=None)
     
     
@@ -1053,7 +1062,7 @@ def confirm_payment():
 
         return redirect(url_for('display_leaderboard'))
     else:
-        print("Invalid payment proof")
+        #print("Invalid payment proof")
         flash("Invalid payment proof file", "danger")
     
 def is_paid_but_not_approved(device_id):
@@ -1141,7 +1150,7 @@ def admin_review():
                 f.write(payment.txn_proof)
                 payment.txn_proof = url_for('static', filename=f"uploads/{payment.device_id}.png")
 
-    print(pending_payments)
+    #print(pending_payments)
     
     return render_template('paid_not_approved.html', payments=[{
     'device_id': payment.device_id,
@@ -1161,32 +1170,17 @@ def logs():
     if session.get('admin') != True:
         return redirect(url_for('admin_login'))
     
-    # save latest 2000 logs in temp table
-    latest_logs = Log.query.order_by(Log.timestamp.desc()).limit(3000).all()
-
-    # Run VACUUM in a separate connection outside transaction
-    engine = db.engine
-    connection = engine.raw_connection()
-
-    connection.execute('DROP TABLE IF EXISTS logs') 
-    
-    # Assuming you're using SQLAlchemy models, recreate the table
-    Log.__table__.create(bind=db.engine)
-
-    # Insert back the saved logs
-    for log in latest_logs:
-        db.session.expunge(log)
-        db.make_transient(log)
-        db.session.add(log)
+    # Keep only latest 10k rows and delete rest from Log table
+    db.session.execute(text('DELETE FROM logs WHERE id NOT IN (SELECT id FROM logs ORDER BY id DESC LIMIT 200)'))
 
     # commit changes
     db.session.commit()
 
     
     try:
-        connection.execute('VACUUM')
+        db.session.execute(text('VACUUM'))
     finally:
-        connection.close()
+        db.session.close()
     
     logging.info("Deleted logs older than 1 week")
 
@@ -1205,7 +1199,7 @@ def welcome():
 @app.route('/home')
 def display_leaderboard():
     device_id = get_device_id()
-    print(device_id)
+    #print(device_id)
 
     new_device_id = request.cookies.get('device_id')  # Check if cookie exists
 
@@ -1231,16 +1225,16 @@ def display_leaderboard():
 
     if is_paid_but_not_approved(device_id):
         flash("Your payment is under review. Please check back later.", "info")
-        print("Your payment is under review")
+        #print("Your payment is under review")
         return render_template('paid.html', table=None)
     
     if is_rejected(device_id):
-        print("Your payment is rejected")
+        #print("Your payment is rejected")
         return render_template('rejected.html', table=None)
     
     
     if not is_approved(device_id):
-        print("Your payment is not found")
+        #print("Your payment is not found")
         return redirect(url_for('pay'))
     
     return redirect(url_for('show_insights'))    
@@ -1286,7 +1280,7 @@ def delete_device(device_id):
 @app.route('/reset-payment', methods=['POST'])
 def reset_payment():
     device_id = get_device_id()
-    print(device_id)
+    #print(device_id)
 
     new_device_id = request.cookies.get('device_id')  # Check if cookie exists
 
@@ -1447,8 +1441,8 @@ def show_insights():
 def activate_trial():
     device_id = get_device_id()
     expiry_date = datetime.now() + pd.Timedelta(days=5)     
-    print(expiry_date)   
-    print(device_id)
+    #print(expiry_date)   
+    #print(device_id)
     logging.info(f"Activating free trial for device {device_id} not allowed")
     return redirect(url_for('display_leaderboard'))
     # Check if device already has active paid subscription
@@ -1652,15 +1646,15 @@ def update_schedule(session, schedule):
             match.date = date
             match.match_info = match_info
             match.time = time
-            print(f"Updated matchId {matchId}")
+            #print(f"Updated matchId {matchId}")
         else:
             # Insert new
             new_match = Match(matchId=matchId, date=date, match_info=match_info, time=time)
             session.add(new_match)
-            print(f"Inserted matchId {matchId}")
+            #print(f"Inserted matchId {matchId}")
 
     session.commit()
-    print("Schedule update complete.")
+    #print("Schedule update complete.")
 
 # Insert extracted data into SQLite
 def save_to_db(matches):
@@ -1699,7 +1693,7 @@ def show_matches():
     refresh = 'refresh' in request.path    
     if refresh:
         db.session.query(Match).delete()
-        print("Extracting matches")
+        #print("Extracting matches")
         matches = extract_match_details("static/matches.html")  
         save_to_db(matches)
         
@@ -3048,6 +3042,51 @@ def update_actual_result(match_id, event_type, event_result):
     # Settle side bets for this match and event type
     settle_side_bets(match_id, event_type, event_result)
 
+
+@app.route("/admin/replace-player/", defaults={'id': None}, methods=['GET', 'POST'])
+@app.route("/admin/replace-player/<int:id>", methods=['GET', 'POST'])
+@admin_required
+def replace_player(id):   
+    if id:
+        replacement = ReplacedPlayer.query.get(id)
+        if replacement:
+            db.session.delete(replacement)
+            db.session.commit()
+            flash('Replacement deleted successfully', 'success')
+            logging.info("Replacement deleted successfully")
+        return redirect(url_for('replace_player'))
+
+
+    if request.method == 'POST':
+
+        
+        # Get form data
+        league = request.form.get('league')
+        old_player_name = request.form.get('old_player')
+        new_player_name = request.form.get('new_player')
+        
+        if not league or not old_player_name or not new_player_name:
+            flash('Both players must be selected', 'error')
+            return redirect(url_for('replace_player'))
+            
+        # Create new replacement record
+        replacement = ReplacedPlayer(
+            league=league,
+            old_player_name=old_player_name,
+            new_player_name=new_player_name
+        )
+        
+        db.session.add(replacement)
+        db.session.commit()
+        
+        flash('Player replacement saved successfully', 'success')
+        return redirect(url_for('replace_player'))
+
+    # GET request handling
+    replaced_players = ReplacedPlayer.query.all()
+    
+    return render_template('replace_player.html', 
+                         replacements=replaced_players)
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=8000, debug=debug)

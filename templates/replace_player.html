@@ -1,0 +1,57 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Replaced Players</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+</head>
+<body>
+    <div class="container mt-5">
+        <h2>Replaced Players List</h2>
+        
+        <!-- Add New Replacement Form -->
+        <form method="POST" class="mb-4">
+            <div class="form-group">
+                <label for="league">League:</label>
+                <input type="text" class="form-control" id="league" name="league" required>
+            </div>
+            <div class="form-group">
+                <label for="old_player">Old Player Name:</label>
+                <input type="text" class="form-control" id="old_player" name="old_player" required>
+            </div>
+            <div class="form-group">
+                <label for="new_player">New Player Name:</label>
+                <input type="text" class="form-control" id="new_player" name="new_player" required>
+            </div>
+         
+            <button type="submit" class="btn btn-primary">Add Replacement</button>
+        </form>
+
+        <!-- Display Replacements Table -->
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>League</th>
+                    <th>Old Player</th>
+                    <th>New Player</th>
+                    <th>Updated</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for replacement in replacements %}
+                <tr>
+                    <td>{{ replacement.league }}</td>
+                    <td>{{ replacement.old_player_name }}</td>
+                    <td>{{ replacement.new_player_name }}</td>
+                    <td>{{ replacement.timestamp }}</td>
+                    <td>
+                        <a href="{{ url_for('replace_player', id=replacement.id) }}" class="btn btn-sm btn-danger" onclick="return confirm('Are you sure?')">Delete</a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</body>
+</html>

@@ -226,8 +226,23 @@ def calculate_best_11_old(df):
 import random
 from collections import defaultdict
 
-def calculate_best_11(df):  
+def calculate_best_11(df, league="FPL"):  
     best_11 = []  
+
+    if not league:
+        league = "FPL"   
+
+    #print(df)
+
+    for liga, old_player, new_player in player_id_mapping:
+        #print(liga, league, old_player, new_player)
+        if liga == league and league == "FPL": 
+            #print(df[df['Team Name'] == "KR"])
+            df = df[df['Player Name'] != old_player]
+            df = df[df['Player Name'] != new_player]
+            print("Removing old and new player from dataframe")
+
+            #print(df[df['Team Name'] == "KR"])
 
     for team, group in df.groupby('Team Name'):  
         players = group.copy()  
@@ -518,9 +533,9 @@ def generate_html_report(team_points_df, player_team_points_df, series_stats_df,
         'points': yesterday_player.TotalScore if yesterday_player else 0
     } """
 
-    print(player_of_the_day['today']['name'], player_of_the_day['today']['team'], player_of_the_day['today']['points'])
-    print(team_of_the_day['today']['team'], team_of_the_day['today']['score'])
-    print(live_players_list)
+    #print(player_of_the_day['today']['name'], player_of_the_day['today']['team'], player_of_the_day['today']['points'])
+    #print(team_of_the_day['today']['team'], team_of_the_day['today']['score'])
+    #print(live_players_list)
 
     if player_of_the_day['today']['points'] is  None or player_of_the_day['today']['points'] < 100:
         player_of_the_day_points = player_of_the_day['yesterday']['points']
@@ -1365,6 +1380,70 @@ def create_race_to_finish_chart(all_team_points_df):
 
     return fig.to_html(full_html=False)  
 
+
+def init_player_id_mapping():
+    # Connect to SQLite database
+    conn = sqlite3.connect('/mnt/sqlite/cricbattle.db' if os.environ.get("WEBSITE_SITE_NAME") else '/mnt/sqlite/cricbattle.db' if os.environ.get("GOOGLE_CLOUD_PROJECT") else 'instance/cricbattle.db')
+
+    # Query replaced_player table and save as list
+    cursor = conn.cursor()
+    cursor.execute("SELECT league, old_player_name, new_player_name FROM replaced_player")
+    player_id_mapping = cursor.fetchall()
+
+    # Close database connection
+    conn.close()
+
+    return player_id_mapping
+
+
+
+def merge_player_points(player_team_points_df, league="FPL"):
+
+    if not league:
+        league = "FPL"   
+
+    # For each mapping
+    for liga, old_player, new_player in player_id_mapping:
+        #print(" Merge player function - ", liga, league, old_player, new_player)
+        # Get old player row
+        if liga == league and league == "FPL":            
+            old_player_row = player_team_points_df[
+            player_team_points_df['Player Name'] == old_player
+            ]
+            
+            # Get new player row 
+            new_player_row = player_team_points_df[
+                player_team_points_df['Player Name'] == new_player
+            ]
+            
+            # If both players exist
+            if not old_player_row.empty and not new_player_row.empty:
+                # Sum the points
+                total_points = old_player_row.iloc[0]['TotalScore'] + new_player_row.iloc[0]['TotalScore']
+
+                # create duplicate row for new player and update the new row
+                # Create new row by copying the data
+                merged_player_row = pd.DataFrame([new_player_row.iloc[0]], columns=new_player_row.columns)
+                                
+                merged_player_row['Player Name'] = new_player + " ⭐"                
+                merged_player_row['TotalScore'] = total_points
+                merged_player_row['merged_player_flag'] = 'yes'
+
+                #print(merged_player_row)
+                #print(player_team_points_df)
+                #print(total_points)
+
+                logging.info(f"%s: Dataframe updated for replaced player %s with new player %s", league, old_player, new_player)
+
+                player_team_points_df = pd.concat([player_team_points_df, merged_player_row])
+
+                #print(player_team_points_df)
+
+
+    return player_team_points_df
+
+
+
 def main(Player, PlayerRanking, PlayerRankingPerDay, player_of_the_day, team_of_the_day, league="", live_players_list=pd.DataFrame(), live_player_scores_df=pd.DataFrame()):
     #players_df = read_excel_file("players.xlsx")
     #write code to extract players table from cricbattle.db sqllite database and save as dataframe
@@ -1425,6 +1504,10 @@ def main(Player, PlayerRanking, PlayerRankingPerDay, player_of_the_day, team_of_
             # keep only max timestamp entries per day in player_rankings_per_day_df
             # Convert timestamp to datetime if not already
 
+            # Initialize global variable
+            global player_id_mapping
+            player_id_mapping = init_player_id_mapping()
+
             # Extract date from timestamp 
             player_rankings_per_day_df['date'] = player_rankings_per_day_df['timestamp'].dt.date
             #print(player_rankings_per_day_df)  
@@ -1463,7 +1546,7 @@ def main(Player, PlayerRanking, PlayerRankingPerDay, player_of_the_day, team_of_
                 #print(merged_df_perday)
 
                 # Add Best 11 Points  
-                best_11_data_per_day = calculate_best_11(merged_df_perday)  
+                best_11_data_per_day = calculate_best_11(merged_df_perday, league)  
 
                 #print(best_11_data_per_day)
                 team_points_df_per_day = merged_df_perday.groupby('Team Name')['TotalScore'].sum().reset_index()  
@@ -1508,10 +1591,12 @@ def main(Player, PlayerRanking, PlayerRankingPerDay, player_of_the_day, team_of_
 
             #print(merged_df[merged_df['Player Name'].str.contains('Ben Dwarshuis', case=False)])    
 
-                  
+            # merge replaced players
+            player_team_points_df_merged = merge_player_points(merged_df, league)
               
             # Add Best 11 Points  
-            best_11_data = calculate_best_11(merged_df)  
+            #print("Calling new best 11")
+            best_11_data = calculate_best_11(player_team_points_df_merged, league)  
             team_points_df = merged_df.groupby('Team Name')['TotalScore'].sum().reset_index()  
             team_points_df.rename(columns={'TotalScore': 'TotalPoints'}, inplace=True)  
 
@@ -1543,12 +1628,13 @@ def main(Player, PlayerRanking, PlayerRankingPerDay, player_of_the_day, team_of_
             team_points_df.sort_values(by='Best11Points', ascending=False, inplace=True)
               
             # Second table: Points per player per team, grouped by team using team name from players_df  
-            player_team_points_df = merged_df.groupby(['PlayerId', 'Team Name', 'Player Name', 'Role', 'IPL Team'])['TotalScore'].sum().reset_index() 
+            player_team_points_df = player_team_points_df_merged.groupby(['PlayerId', 'Team Name', 'Player Name', 'Role', 'IPL Team'])['TotalScore'].sum().reset_index() 
             player_team_points_df.rename(columns={'TotalScore': 'PlayerPoints'}, inplace=True) 
             #print(player_team_points_df.head())
             # Add player profile URLs to the DataFrame
             player_team_points_df['PlayerId'] = player_team_points_df['PlayerId'].apply(generate_player_profile_url) 
-            #print(player_team_points_df.head())    
+            #print(player_team_points_df.head())   
+             
            
             # Get individual series stats
             #df_series = update_series_stats.main()
@@ -1600,7 +1686,7 @@ def main(Player, PlayerRanking, PlayerRankingPerDay, player_of_the_day, team_of_
 
                 
                 merge_column = df.columns[0] if len(df.columns) > 0 else None    
-                print("merge_column :", merge_column)            
+                #print("merge_column :", merge_column)            
 
                 
                 merged_df = pd.merge(players_df[['Team Name', 'Player Name']], df, left_on="Player Name", right_on=merge_column, how='right')  
@@ -1749,7 +1835,7 @@ def main(Player, PlayerRanking, PlayerRankingPerDay, player_of_the_day, team_of_
                     team_counts.index = range(1, len(team_counts) + 1)     
                     df_scoreboard[key] = team_counts           
                 
-                print(df_scoreboard[key])      
+                #print(df_scoreboard[key])      
 
 
             # add lead_by col to team_points_df which is difference between best11points of current team vs next team
@@ -1839,7 +1925,8 @@ def create_points_table(Player, PlayerRanking):
                 merged_df['TotalScore'] = merged_df.apply(lambda row: int(row['TotalScore'] - row['point_reduction']) if pd.notna(row['point_reduction']) else int(row['TotalScore']), axis=1)    
 
             # Add Best 11 Points  
-            best_11_data = calculate_best_11(merged_df)  
+            player_team_points_df_merged = merge_player_points(merged_df, "FPL")
+            best_11_data = calculate_best_11(player_team_points_df_merged, "FPL")  
             team_points_df = merged_df.groupby('Team Name')['TotalScore'].sum().reset_index()  
             team_points_df.rename(columns={'TotalScore': 'TotalPoints'}, inplace=True)  
 

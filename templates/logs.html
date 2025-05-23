@@ -98,7 +98,7 @@
 <body>
 
         <div class="log-container">
-            {% for log in logs[:100] %}
+            {% for log in logs[:200] %}
                 <div class="log-line">
                     <span class="timestamp">{{ log.timestamp }}</span>
                     <span class="message">{{ log.message|replace('NaN', '<span class="nan">NaN</span>')|replace('Player name alias not found for', '<span class="nan">Player name alias not found for</span>')|safe }}</span>                
