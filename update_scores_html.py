@@ -236,11 +236,11 @@ def calculate_best_11(df, league="FPL"):
 
     for liga, old_player, new_player in player_id_mapping:
         #print(liga, league, old_player, new_player)
-        if liga == league and league == "FPL": 
+        if liga == league: 
             #print(df[df['Team Name'] == "KR"])
             df = df[df['Player Name'] != old_player]
             df = df[df['Player Name'] != new_player]
-            print("Removing old and new player from dataframe")
+            #print("Removing old and new player from dataframe")
 
             #print(df[df['Team Name'] == "KR"])
 
@@ -1406,7 +1406,7 @@ def merge_player_points(player_team_points_df, league="FPL"):
     for liga, old_player, new_player in player_id_mapping:
         #print(" Merge player function - ", liga, league, old_player, new_player)
         # Get old player row
-        if liga == league and league == "FPL":            
+        if liga == league:            
             old_player_row = player_team_points_df[
             player_team_points_df['Player Name'] == old_player
             ]
