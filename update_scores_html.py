@@ -1905,6 +1905,10 @@ def init_player_df(Player, PlayerRanking):
         
         } for pr in PlayerRanking.query.all()])
     
+     # Initialize global variable
+    global player_id_mapping
+    player_id_mapping = init_player_id_mapping()
+    
     return players_df, player_rankings_df
 
 
