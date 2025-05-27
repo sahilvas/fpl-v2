@@ -1073,10 +1073,10 @@ def generate_html_report(team_points_df, player_team_points_df, series_stats_df,
             <div class="header-menu">
                 <nav style="display: flex; align-items: center;">
                     <a href="/" style="font-size: 14px; padding: 8px 15px;">Home</a>
-                    <a href="/points-table" style="font-size: 14px; padding: 8px 15px; position: relative;">
+                    <a href="/live-scoring" style="font-size: 14px; padding: 8px 15px; position: relative;">
                     Points Table
-                    <span style="position: absolute; top: -8px; right: -8px; background: #ff4444; color: white; font-size: 10px; padding: 2px 6px; border-radius: 10px; animation: pulse 1.5s infinite;">NEW</span>
-                </a>   
+                    <span style="position: absolute; top: -8px; right: -8px; background: #ff4444; color: white; font-size: 10px; padding: 2px 6px; border-radius: 10px; animation: pulse 1.5s infinite;">Recommended</span>
+                    </a> 
                 </nav>
                 <div class="theme-switch">
                     <button class="theme-switch-button" onclick="toggleTheme()">

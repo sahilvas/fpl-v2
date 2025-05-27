@@ -882,7 +882,7 @@ with app.app_context():
         # Initialize scheduler only if not already started
         if not app.config.get("SCHEDULER_STARTED", False):
             app.scheduler = BackgroundScheduler()
-            app.scheduler.add_job(func=scheduled_task, trigger="cron", minute="*/1", hour="9-22")    
+            app.scheduler.add_job(func=scheduled_task, trigger="cron", minute="*/1", hour="6-22")    
             app.scheduler.add_job(func=scheduled_task_cricbuzz, trigger="cron", minute="*/5", hour="9-22")                  
             app.scheduler.add_job(func=copy_data_from_player_ranking_to_player_ranking_per_day, trigger="cron", hour="17,18,19")               
             #app.scheduler.add_job(func=lambda: update_series_stats.main(Player), trigger="cron", minute="45", hour="12-22")                
@@ -1466,7 +1466,7 @@ def activate_trial():
     flash(f"Free trial activated until {expiry_date}", "success")
     return redirect(url_for('display_leaderboard'))
 
-@app.route('/live-scoring')
+@app.route('/points-table')
 def show_live_scoring():
     # check if user is paid and approved
     device_id = get_device_id()
@@ -1973,7 +1973,7 @@ def get_page_views(page):
 
 
 
-@app.route("/points-table")
+@app.route("/live-scoring")
 def points_table():
 
     device_id = get_device_id()
