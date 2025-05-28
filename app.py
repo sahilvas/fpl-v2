@@ -771,6 +771,13 @@ def refresh_scores():
         # update scores for JAL
         update_scores.main(JALPlayer, PlayerRanking, PlayerRankingPerDay, pod_jal, totd_jal, "JAL")  
 
+    else:
+        # Update scores
+        update_scores.main(Player, PlayerRanking,PlayerRankingPerDay, pod, totd, "", pd.DataFrame(), pd.DataFrame())    
+
+        # update scores for JAL
+        update_scores.main(JALPlayer, PlayerRanking, PlayerRankingPerDay, pod_jal, totd_jal, "JAL") 
+
 def get_cricbattle_data():
     # URL and headers extracted from HAR file    
     url = "https://m.cricbattle.com/PlayerRanking/GetTournamentPlayerRankingSummData"    
