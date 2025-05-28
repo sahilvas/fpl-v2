@@ -696,20 +696,28 @@ def get_players_in_knockouts(league=""):
 
 
     teams_in_action = ['Gujrat Titans', 'Punjab Kings', 'Mumbai Indians', 'Royal Challengers Bengaluru']
+    teams_to_fix = ['GT', 'PK', 'RCB', 'MI']
     players_in_action = []
+
 
     #print(team1, team2)
     for player in players:
+
+        if player.ipl_team in teams_to_fix:
+            player.ipl_team = player.ipl_team.replace('GT', 'Gujrat Titans').replace('PK', 'Punjab Kings').replace('RCB', 'Royal Challengers Bengaluru').replace('MI', 'Mumbai Indians')
+
         if player.ipl_team in teams_in_action:
+            
             #print(player.name, player.team_name, player.ipl_team)
+            player_team_name = player.team_name
             if not player.team_name:
-                player.team_name = "LORDXI"
+                player_team_name = "LORDXI"
             if player.ipl_team:
-                player.ipl_team = ''.join(word[0].upper() for word in player.ipl_team.split())            
+                player_ipl_team = ''.join(word[0].upper() for word in player.ipl_team.split())            
             players_in_action.append({
                 'name': player.name,
-                'ipl_team': player.ipl_team, 
-                'fpl_team': player.team_name
+                'ipl_team': player_ipl_team, 
+                'fpl_team': player_team_name
             })
 
     # check if players_in_action has data
@@ -2163,7 +2171,7 @@ def points_table():
         }
 
     knockout_players_list = get_players_in_knockouts()
-    print(knockout_players_list)
+    #print(knockout_players_list)
     #print(team_awards)
     
     return render_template("points_table.html", teams=teams_df, player_awards=player_awards, team_awards=team_awards, knockout_players=knockout_players_list)
