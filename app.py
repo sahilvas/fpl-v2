@@ -688,6 +688,45 @@ def get_players_in_action(league=""):
     return players_in_action  
 
 
+def get_players_in_knockouts(league=""):
+    if league == "JAL":
+        players = JALPlayer.query.all()
+    else:
+        players = Player.query.all()
+
+
+    teams_in_action = ['Gujrat Titans', 'Punjab Kings', 'Mumbai Indians', 'Royal Challengers Bengaluru']
+    players_in_action = []
+
+    #print(team1, team2)
+    for player in players:
+        if player.ipl_team in teams_in_action:
+            #print(player.name, player.team_name, player.ipl_team)
+            if not player.team_name:
+                player.team_name = "LORDXI"
+            if player.ipl_team:
+                player.ipl_team = ''.join(word[0].upper() for word in player.ipl_team.split())            
+            players_in_action.append({
+                'name': player.name,
+                'ipl_team': player.ipl_team, 
+                'fpl_team': player.team_name
+            })
+
+    # check if players_in_action has data
+    if not players_in_action:
+        logging.info("No players in knockouts")
+        return pd.DataFrame()
+
+    players_in_action = pd.DataFrame(players_in_action).sort_values('fpl_team')
+    # Move LORDXI entries to last
+    players_in_action = pd.concat([
+        players_in_action[players_in_action['fpl_team'] != 'LORDXI'],
+        players_in_action[players_in_action['fpl_team'] == 'LORDXI']
+    ]).reset_index(drop=True)
+
+    return players_in_action  
+
+
 EMOJI_LIST = ["🔥", "💀", "🤯", "🎯", "🤣", "👑", "🚀", "🏆", "💩", "⚡"]
 
 def assign_daily_emoji():
@@ -739,6 +778,7 @@ def reset_emojis():
 def refresh_scores():
 
     live_players_list = get_players_in_action()
+    knockout_players_list = get_players_in_knockouts()
 
     # call player of the day and team of the day methods in app.py
     # The variables are unbound because the function names are the same as the variable names
@@ -766,7 +806,7 @@ def refresh_scores():
         #print(live_player_scores_df)
 
         # Update scores
-        update_scores.main(Player, PlayerRanking,PlayerRankingPerDay, pod, totd, "", live_players_list, live_player_scores_df)    
+        update_scores.main(Player, PlayerRanking,PlayerRankingPerDay, pod, totd, "", live_players_list, live_player_scores_df, knockout_players_list )    
 
         # update scores for JAL
         update_scores.main(JALPlayer, PlayerRanking, PlayerRankingPerDay, pod_jal, totd_jal, "JAL")  
@@ -1637,8 +1677,8 @@ new_schedule = [
     (118892, 'May 26, Mon', 'Punjab Kings vs Mumbai Indians, 69th Match', '02:00 PM GMT / 07:30 PM LOCAL'),
     (118898, 'May 27, Tue', 'Lucknow Super Giants vs Royal Challengers Bengaluru, 70th Match', '02:00 PM GMT / 07:30 PM LOCAL'),
     # Playoffs (TBC teams)
-    (118907, 'May 29, Thu', 'TBC vs TBC, Qualifier 1', '02:00 PM GMT / 07:30 PM LOCAL'),
-    (118916, 'May 30, Fri', 'TBC vs TBC, Eliminator', '02:00 PM GMT / 07:30 PM LOCAL'),
+    (118907, 'May 29, Thu', 'Punjab Kings vs Royal Challengers Bengaluru, Qualifier 1', '02:00 PM GMT / 07:30 PM LOCAL'),
+    (118916, 'May 30, Fri', 'Gujarat Titans vs Mumbai Indians, Eliminator', '02:00 PM GMT / 07:30 PM LOCAL'),
     (118919, 'Jun 01, Sun', 'TBC vs TBC, Qualifier 2', '02:00 PM GMT / 07:30 PM LOCAL'),
     (118928, 'Jun 03, Tue', 'TBC vs TBC, Final', '02:00 PM GMT / 07:30 PM LOCAL'),
 ]
@@ -2122,9 +2162,11 @@ def points_table():
             'points': df.iloc[0]['Player Count']
         }
 
+    knockout_players_list = get_players_in_knockouts()
+    print(knockout_players_list)
     #print(team_awards)
     
-    return render_template("points_table.html", teams=teams_df, player_awards=player_awards, team_awards=team_awards)
+    return render_template("points_table.html", teams=teams_df, player_awards=player_awards, team_awards=team_awards, knockout_players=knockout_players_list)
 
 # Hash password
 from werkzeug.security import generate_password_hash, check_password_hash   

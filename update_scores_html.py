@@ -1444,7 +1444,7 @@ def merge_player_points(player_team_points_df, league="FPL"):
 
 
 
-def main(Player, PlayerRanking, PlayerRankingPerDay, player_of_the_day, team_of_the_day, league="", live_players_list=pd.DataFrame(), live_player_scores_df=pd.DataFrame()):
+def main(Player, PlayerRanking, PlayerRankingPerDay, player_of_the_day, team_of_the_day, league="", live_players_list=pd.DataFrame(), live_player_scores_df=pd.DataFrame(), knockout_players_list=pd.DataFrame()):
     #players_df = read_excel_file("players.xlsx")
     #write code to extract players table from cricbattle.db sqllite database and save as dataframe
     # Connect to SQLite database
