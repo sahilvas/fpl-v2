@@ -695,7 +695,7 @@ def get_players_in_knockouts(league=""):
         players = Player.query.all()
 
 
-    teams_in_action = ['Gujrat Titans', 'Punjab Kings', 'Mumbai Indians', 'Royal Challengers Bengaluru']
+    teams_in_action = ['Gujarat Titans', 'Punjab Kings', 'Mumbai Indians', 'Royal Challengers Bengaluru']
     teams_to_fix = ['GT', 'PK', 'RCB', 'MI']
     players_in_action = []
 
@@ -704,11 +704,11 @@ def get_players_in_knockouts(league=""):
     for player in players:
 
         if player.ipl_team in teams_to_fix:
-            player.ipl_team = player.ipl_team.replace('GT', 'Gujrat Titans').replace('PK', 'Punjab Kings').replace('RCB', 'Royal Challengers Bengaluru').replace('MI', 'Mumbai Indians')
+            player.ipl_team = player.ipl_team.replace('GT', 'Gujarat Titans').replace('PK', 'Punjab Kings').replace('RCB', 'Royal Challengers Bengaluru').replace('MI', 'Mumbai Indians')
 
         if player.ipl_team in teams_in_action:
             
-            #print(player.name, player.team_name, player.ipl_team)
+            print(player.name, player.team_name, player.ipl_team)
             player_team_name = player.team_name
             if not player.team_name:
                 player_team_name = "LORDXI"
