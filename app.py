@@ -1688,7 +1688,7 @@ new_schedule = [
     (118907, 'May 29, Thu', 'Punjab Kings vs Royal Challengers Bengaluru, Qualifier 1', '02:00 PM GMT / 07:30 PM LOCAL'),
     (118916, 'May 30, Fri', 'Gujarat Titans vs Mumbai Indians, Eliminator', '02:00 PM GMT / 07:30 PM LOCAL'),
     (118919, 'Jun 01, Sun', 'Punjab Kings vs Mumbai Indians, Qualifier 2', '02:00 PM GMT / 07:30 PM LOCAL'),
-    (118928, 'Jun 03, Tue', 'TBC vs TBC, Final', '02:00 PM GMT / 07:30 PM LOCAL'),
+    (118928, 'Jun 03, Tue', 'Royal Challengers Bengaluru vs Punjab Kings, Final', '02:00 PM GMT / 07:30 PM LOCAL'),
 ]
 
 
