@@ -708,7 +708,7 @@ def get_players_in_knockouts(league=""):
 
         if player.ipl_team in teams_in_action:
             
-            print(player.name, player.team_name, player.ipl_team)
+            #print(player.name, player.team_name, player.ipl_team)
             player_team_name = player.team_name
             if not player.team_name:
                 player_team_name = "LORDXI"
@@ -2135,6 +2135,8 @@ def points_table():
             key = "Most 3fers"
         elif key == "Field":
             key = "Best Fielder"
+        elif key == "Field2":
+            key = "Most Catches"
         elif key == "POTM":
             key = "Most POTMs"
         else:
@@ -2173,8 +2175,10 @@ def points_table():
     knockout_players_list = get_players_in_knockouts()
     #print(knockout_players_list)
     #print(team_awards)
+
+    #print(player_team_points_df)
     
-    return render_template("points_table.html", teams=teams_df, player_awards=player_awards, team_awards=team_awards, knockout_players=knockout_players_list)
+    return render_template("points_table.html", teams=teams_df, player_awards=player_awards, team_awards=team_awards, knockout_players=knockout_players_list, player_team_points=player_team_points_df)
 
 # Hash password
 from werkzeug.security import generate_password_hash, check_password_hash   

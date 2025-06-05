@@ -1827,6 +1827,8 @@ def main(Player, PlayerRanking, PlayerRankingPerDay, player_of_the_day, team_of_
                     player_catches.index = range(1, len(player_catches) + 1)
                     df_scoreboard[key] = player_catches     
                     #print(player_catches)
+                
+                    
                 else:
                     #df_scoreboard[key] = merged_df
                     #print(merged_df)
@@ -2061,6 +2063,11 @@ def get_scoreboard_stats(Player, PlayerRanking):
                 SELECT * from cricket_field
             """, conn)
 
+            # Query fielding stats
+            df_scoreboard["Field2"] = pd.read_sql_query("""
+                SELECT * from cricket_field
+            """, conn)
+
              # Query potm stats
             df_scoreboard["POTM"] = pd.read_sql_query("""
                 SELECT * from cricket_potm
@@ -2098,7 +2105,22 @@ def get_scoreboard_stats(Player, PlayerRanking):
 
                     logging.info(f"Removed entries for replaced players for {key}")       
                 
-                if "Field" in key:
+                if "Field2" in key:
+                    # For fielding stats, aggregate by player name first
+                    #print("Calcuing field2 now")
+                    player_team_catches = merged_df.groupby(['Team Name', 'Player'])['Catches'].sum().reset_index(name='Player Count')
+                    #print(player_team_catches.to_string(index=True))                                        
+                    #print(player_team_catches)
+                    # aggregate by team name
+                    team_catches = player_team_catches.groupby('Team Name')['Player Count'].sum().reset_index(name='Player Count')
+                    #print(team_catches)
+                    team_catches = team_catches.sort_values('Player Count', ascending=False)
+                    #print(team_catches)
+                    team_catches.index = range(1, len(team_catches) + 1)
+                    #print(team_catches)
+                    df_scoreboard[key] = team_catches
+                    #print(df_scoreboard[key])
+                elif "Field" in key:
                     #print(merged_df)
                     # For fielding stats, aggregate by player name first
                     player_catches = merged_df.groupby(['Team Name', 'Player'])['Catches'].sum().reset_index(name='Player Count')                    
