@@ -182,16 +182,6 @@ class PlayerRankingPerDay(db.Model):
 class FantasyTeam(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     team_name = db.Column(db.String(100), nullable=False)
-    emoji = db.Column(db.String(10), default=None)  # Store emoji
-    emoji_expiry = db.Column(db.DateTime, default=None)  # Expiry time
-
-
-class EmojiReaction(db.Model):
-    __tablename__ = 'emoji_reactions_v1'
-    id = db.Column(db.Integer, primary_key=True)
-    key = db.Column(db.String, nullable=False)
-    value = db.Column(db.String, nullable=False)
-    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
 
 class PageView(db.Model):
     __tablename__ = 'page_views_v1'
@@ -735,53 +725,6 @@ def get_players_in_knockouts(league=""):
     return players_in_action  
 
 
-EMOJI_LIST = ["🔥", "💀", "🤯", "🎯", "🤣", "👑", "🚀", "🏆", "💩", "⚡"]
-
-def assign_daily_emoji():
-    """Assign a new emoji to all teams, valid until midnight."""
-    now = datetime.now()
-    midnight = now.replace(hour=23, minute=59, second=59)  
-
-    # insert all team names using the Player model
-    teams_fpl = Player.query.with_entities(Player.team_name).distinct().all()
-    #teams_jal = JALPlayer.query.with_entities(JALPlayer.team_name).distinct().all()
-
-    # concat both the above teams
-    teams = teams_fpl
-
-    # remove duplicates
-    teams = list(set(teams))
-
-    # remove None values
-    teams = [team for team in teams if team[0] is not None]
-
-    # insert teams into FantasyTeam model 
-    # insert teams into FantasyTeam model
-    for team in teams:
-        # Check if team already exists
-        existing_team = FantasyTeam.query.filter_by(team_name=team[0]).first()
-        if not existing_team:
-            fantasy_team = FantasyTeam(team_name=team[0])
-            db.session.add(fantasy_team)
-
-    db.session.commit()    
-
-    teams = FantasyTeam.query.all()
-    for team in teams:
-        team.emoji = random.choice(EMOJI_LIST)
-        team.emoji_expiry = midnight
-        team
-
-    db.session.commit()
-    
-
-def reset_emojis():
-    """Reset all emojis at midnight."""
-    FantasyTeam.query.update({FantasyTeam.emoji: None, FantasyTeam.emoji_expiry: None})
-    db.session.commit()
-
-
-
 # Add this in the refresh_scores() function:
 def refresh_scores():
 
@@ -846,7 +789,7 @@ def get_cricbattle_data():
     }    
   
     payload = {  
-        "tid": 12746,  
+        "tid": 13385,  
         "ptype": "0",  
         "roundorday": "",  
         "phaseid": "0"  
@@ -913,12 +856,25 @@ def scheduled_task_cricbuzz():
         df_series = update_series_stats.main(Player)
         df_scoreboard = update_scores_from_scoreboard.main(Match)
 
+def scheduled_series_and_scoreboard():
+    """Dedicated job: refresh series stats + scoreboard stats at 04:00 and 08:00 CET."""
+    with app.app_context():
+        logging.info("Running scheduled_series_and_scoreboard (4/8 CET job)")
+        try:
+            update_series_stats.main(Player)
+        except Exception as e:
+            logging.error(f"Series stats update failed: {e}")
+        try:
+            update_scores_from_scoreboard.main(Match)
+        except Exception as e:
+            logging.error(f"Scoreboard stats update failed: {e}")
+
 INIT_FILE = "app_initialized.lock"
 
 # The code is likely being called multiple times due to Flask's development server behavior
 # Add a check to prevent multiple initializations
 with app.app_context():
-    # Only run initialization if not already done
+    # One-time initialization (heavy data load): only runs on first startup
     if not os.path.exists(INIT_FILE):
         logging.info("Starting app initialization")
         db.create_all()
@@ -932,23 +888,24 @@ with app.app_context():
         df_scoreboard = update_scores_from_scoreboard.main(Match)
         #copy_data_from_player_ranking_to_player_ranking_per_day()
         player_of_the_day()
-        assign_daily_emoji()
-
-        # Initialize scheduler only if not already started
-        if not app.config.get("SCHEDULER_STARTED", False):
-            app.scheduler = BackgroundScheduler()
-            app.scheduler.add_job(func=scheduled_task, trigger="cron", minute="*/1", hour="6-22")    
-            app.scheduler.add_job(func=scheduled_task_cricbuzz, trigger="cron", minute="*/5", hour="9-22")                  
-            app.scheduler.add_job(func=copy_data_from_player_ranking_to_player_ranking_per_day, trigger="cron", hour="17,18,19")               
-            #app.scheduler.add_job(func=lambda: update_series_stats.main(Player), trigger="cron", minute="45", hour="12-22")                
-            #app.scheduler.add_job(func=lambda: update_scores_from_scoreboard.main(Match), trigger="cron", minute="43", hour="12-22")                     
-            app.scheduler.start()
-            app.config["SCHEDULER_STARTED"] = True
 
         # Mark initialization as complete
         with open(INIT_FILE, "w") as f:
             f.write("initialized")
         logging.info("App initialization complete")
+
+    # Scheduler always starts on every process launch (survives restarts)
+    if not app.config.get("SCHEDULER_STARTED", False):
+        app.scheduler = BackgroundScheduler()
+        app.scheduler.add_job(func=scheduled_task, trigger="cron", minute="*/1", hour="6-22")
+        app.scheduler.add_job(func=scheduled_task_cricbuzz, trigger="cron", minute="*/5", hour="9-22")
+        app.scheduler.add_job(func=copy_data_from_player_ranking_to_player_ranking_per_day, trigger="cron", hour="17,18,19")
+        # Dedicated series + scoreboard stats refresh at 04:00 and 08:00 CET/CEST
+        app.scheduler.add_job(func=scheduled_series_and_scoreboard, trigger="cron", hour="4", minute="0", timezone="Europe/Paris")
+        app.scheduler.add_job(func=scheduled_series_and_scoreboard, trigger="cron", hour="8", minute="0", timezone="Europe/Paris")
+        app.scheduler.start()
+        app.config["SCHEDULER_STARTED"] = True
+        logging.info("Scheduler started with 5 jobs (incl. 04:00 and 08:00 CET)")
 
 
 def get_device_id():
@@ -1249,7 +1206,7 @@ def logs():
 
 @app.route('/')
 def welcome():
-    return render_template('welcome.html')
+    return redirect(url_for('show_live_scoring'))
 
 @app.route('/home')
 def display_leaderboard():
@@ -1726,7 +1683,7 @@ def save_to_db(matches):
         elif not match["date"]:
             match["date"] = last_match_date
             new_match = Match(matchId=match["matchId"], date=match["date"], match_info=match["match_info"], time=match["time"])
-            logging.info(f"Last match date set up to : {last_match_date} for match : {match["match_info"]}")
+            logging.info(f"Last match date set up to : {last_match_date} for match : {match['match_info']}")
         elif match["match_info"] in "Kolkata Knight Riders vs Lucknow Super Giants, 19th Match":
             match["date"] = "Apr 08, Tue"
             new_match = Match(matchId=match["matchId"], date=match["date"], match_info=match["match_info"], time=match["time"])
@@ -1934,48 +1891,6 @@ def edit_jal_player(id):
             db.session.commit()
             return {'message': 'JAL Player updated successfully'}, 200
     return render_template('edit_jal_player.html', player=player)
-
-
-@app.route('/emoji-reactions/<key>', methods=['POST'])
-def add_emoji_reaction(key):
-    if not key:
-        return {'error': 'key is required'}, 400
-    
-    # Save to localStorage
-    # const key = `reaction_${{teamName}}_${{emoji}}`;
-    # localStorage.setItem(key, count);
-
-    value = request.json.get('value')
-        
-    # Get existing reactions for team
-    team_reactions = EmojiReaction.query.filter_by(key=key).first()
-    
-    if team_reactions:
-        # Update existing reaction count
-        current_reactions = team_reactions.value
-        if int(current_reactions) < 100:
-            team_reactions.value = int(current_reactions) + 1    
-    else:
-        # Create new reaction entry
-        team_reactions = EmojiReaction(
-            key=key,
-            value=value
-        )
-        
-    db.session.merge(team_reactions)
-    db.session.commit()
-    
-    return {'message': 'Reaction added successfully'}, 200
-
-@app.route('/emoji-reactions/<key>', methods=['GET']) 
-def get_emoji_reactions(key):
-    team_reactions = EmojiReaction.query.filter_by(key=key).first()
-    
-    if not team_reactions:
-        return {'reactions': 0}
-        
-    reactions = team_reactions.value
-    return {'reactions': reactions}
 
 
 @app.route('/page-views/<page>', methods=['POST'])
