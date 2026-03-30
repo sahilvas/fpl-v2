@@ -10,14 +10,16 @@ import logging
 import update_scores_html
 
 # Define the list of Cricbuzz API URLs
+CRICBUZZ_SERIES_ID = "9241"  # IPL 2026
+
 cricbuzz_urls = [
-    #"https://www.cricbuzz.com/api/html/series/9237/highest-score/0/0/0",
-    "https://www.cricbuzz.com/api/html/series/9237/most-runs/0/0/0",
-    #"https://www.cricbuzz.com/api/html/series/9237/most-hundreds/0/0/0", 
-    #"https://www.cricbuzz.com/api/html/series/9237/most-fifties/0/0/0",
-    "https://www.cricbuzz.com/api/html/series/9237/most-sixes/0/0/0",
-    "https://www.cricbuzz.com/api/html/series/9237/most-wickets/0/0/0",
-    #"https://www.cricbuzz.com/api/html/series/9237/most-five-wickets/0/0/0"    
+    #f"https://www.cricbuzz.com/api/html/series/{CRICBUZZ_SERIES_ID}/highest-score/0/0/0",
+    f"https://www.cricbuzz.com/api/html/series/{CRICBUZZ_SERIES_ID}/most-runs/0/0/0",
+    #f"https://www.cricbuzz.com/api/html/series/{CRICBUZZ_SERIES_ID}/most-hundreds/0/0/0",
+    #f"https://www.cricbuzz.com/api/html/series/{CRICBUZZ_SERIES_ID}/most-fifties/0/0/0",
+    f"https://www.cricbuzz.com/api/html/series/{CRICBUZZ_SERIES_ID}/most-sixes/0/0/0",
+    f"https://www.cricbuzz.com/api/html/series/{CRICBUZZ_SERIES_ID}/most-wickets/0/0/0",
+    #f"https://www.cricbuzz.com/api/html/series/{CRICBUZZ_SERIES_ID}/most-five-wickets/0/0/0"
 ]
 
 # Configure logging
@@ -41,23 +43,49 @@ def read_excel_file(filename):
     return None  
 
 # Function to fetch data from API
-def fetch_data(url):
-    # Define request headers (modify if needed)
-    headers = {
-        "User-Agent": "Mozilla/5.0",
-        "Accept": "application/json, text/html",
-    }
+_cb_session = None
 
+def _get_cb_session():
+    """Return a requests Session pre-warmed with a visit to Cricbuzz homepage."""
+    global _cb_session
+    if _cb_session is None:
+        _cb_session = requests.Session()
+        _cb_session.headers.update({
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+            "Accept-Language": "en-US,en;q=0.9",
+            "Accept-Encoding": "gzip, deflate, br",
+            "Connection": "keep-alive",
+            "sec-ch-ua": '"Chromium";v="122", "Not(A:Brand";v="24", "Google Chrome";v="122"',
+            "sec-ch-ua-mobile": "?0",
+            "sec-ch-ua-platform": '"Windows"',
+        })
+        try:
+            _cb_session.get("https://www.cricbuzz.com/", timeout=10)
+        except Exception:
+            pass
+    return _cb_session
+
+
+def fetch_data(url):
+    session = _get_cb_session()
+    headers = {
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        "Referer": f"https://www.cricbuzz.com/cricket-series/{CRICBUZZ_SERIES_ID}/indian-premier-league-2026/stats",
+        "Sec-Fetch-Site": "same-origin",
+        "Sec-Fetch-Mode": "navigate",
+        "Sec-Fetch-Dest": "document",
+    }
     try:
-        response = requests.get(url, headers=headers, timeout=10)
+        response = session.get(url, headers=headers, timeout=15)
         response.raise_for_status()
-        
         content_type = response.headers.get("Content-Type", "")
-        if "text/html" in content_type:
-            soup = BeautifulSoup(response.text, "html.parser")
-            return soup
-        else:
+        body = response.text.strip()
+        if not body:
+            logging.warning(f"Empty response from {url}")
             return None
+        if "text/html" in content_type or body.startswith("<"):
+            return BeautifulSoup(body, "html.parser")
+        return None
     except requests.RequestException as e:
         logging.error(f"Error fetching {url}: {e}")
         
