@@ -182,16 +182,6 @@ class PlayerRankingPerDay(db.Model):
 class FantasyTeam(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     team_name = db.Column(db.String(100), nullable=False)
-    emoji = db.Column(db.String(10), default=None)  # Store emoji
-    emoji_expiry = db.Column(db.DateTime, default=None)  # Expiry time
-
-
-class EmojiReaction(db.Model):
-    __tablename__ = 'emoji_reactions_v1'
-    id = db.Column(db.Integer, primary_key=True)
-    key = db.Column(db.String, nullable=False)
-    value = db.Column(db.String, nullable=False)
-    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
 
 class PageView(db.Model):
     __tablename__ = 'page_views_v1'
@@ -674,53 +664,6 @@ def get_players_in_action(league=""):
     return players_in_action  
 
 
-EMOJI_LIST = ["🔥", "💀", "🤯", "🎯", "🤣", "👑", "🚀", "🏆", "💩", "⚡"]
-
-def assign_daily_emoji():
-    """Assign a new emoji to all teams, valid until midnight."""
-    now = datetime.now()
-    midnight = now.replace(hour=23, minute=59, second=59)  
-
-    # insert all team names using the Player model
-    teams_fpl = Player.query.with_entities(Player.team_name).distinct().all()
-    #teams_jal = JALPlayer.query.with_entities(JALPlayer.team_name).distinct().all()
-
-    # concat both the above teams
-    teams = teams_fpl
-
-    # remove duplicates
-    teams = list(set(teams))
-
-    # remove None values
-    teams = [team for team in teams if team[0] is not None]
-
-    # insert teams into FantasyTeam model 
-    # insert teams into FantasyTeam model
-    for team in teams:
-        # Check if team already exists
-        existing_team = FantasyTeam.query.filter_by(team_name=team[0]).first()
-        if not existing_team:
-            fantasy_team = FantasyTeam(team_name=team[0])
-            db.session.add(fantasy_team)
-
-    db.session.commit()    
-
-    teams = FantasyTeam.query.all()
-    for team in teams:
-        team.emoji = random.choice(EMOJI_LIST)
-        team.emoji_expiry = midnight
-        team
-
-    db.session.commit()
-    
-
-def reset_emojis():
-    """Reset all emojis at midnight."""
-    FantasyTeam.query.update({FantasyTeam.emoji: None, FantasyTeam.emoji_expiry: None})
-    db.session.commit()
-
-
-
 # Add this in the refresh_scores() function:
 def refresh_scores():
 
@@ -777,7 +720,7 @@ def get_cricbattle_data():
     }    
   
     payload = {  
-        "tid": 12746,  
+        "tid": 13385,  
         "ptype": "0",  
         "roundorday": "",  
         "phaseid": "0"  
@@ -844,12 +787,25 @@ def scheduled_task_cricbuzz():
         df_series = update_series_stats.main(Player)
         df_scoreboard = update_scores_from_scoreboard.main(Match)
 
+def scheduled_series_and_scoreboard():
+    """Dedicated job: refresh series stats + scoreboard stats at 04:00 and 08:00 CET."""
+    with app.app_context():
+        logging.info("Running scheduled_series_and_scoreboard (4/8 CET job)")
+        try:
+            update_series_stats.main(Player)
+        except Exception as e:
+            logging.error(f"Series stats update failed: {e}")
+        try:
+            update_scores_from_scoreboard.main(Match)
+        except Exception as e:
+            logging.error(f"Scoreboard stats update failed: {e}")
+
 INIT_FILE = "app_initialized.lock"
 
 # The code is likely being called multiple times due to Flask's development server behavior
 # Add a check to prevent multiple initializations
 with app.app_context():
-    # Only run initialization if not already done
+    # One-time initialization (heavy data load): only runs on first startup
     if not os.path.exists(INIT_FILE):
         logging.info("Starting app initialization")
         db.create_all()
@@ -863,23 +819,24 @@ with app.app_context():
         df_scoreboard = update_scores_from_scoreboard.main(Match)
         #copy_data_from_player_ranking_to_player_ranking_per_day()
         player_of_the_day()
-        assign_daily_emoji()
-
-        # Initialize scheduler only if not already started
-        if not app.config.get("SCHEDULER_STARTED", False):
-            app.scheduler = BackgroundScheduler()
-            app.scheduler.add_job(func=scheduled_task, trigger="cron", minute="*/1", hour="9-22")    
-            app.scheduler.add_job(func=scheduled_task_cricbuzz, trigger="cron", minute="*/5", hour="9-22")                  
-            app.scheduler.add_job(func=copy_data_from_player_ranking_to_player_ranking_per_day, trigger="cron", hour="17,18,19")               
-            #app.scheduler.add_job(func=lambda: update_series_stats.main(Player), trigger="cron", minute="45", hour="12-22")                
-            #app.scheduler.add_job(func=lambda: update_scores_from_scoreboard.main(Match), trigger="cron", minute="43", hour="12-22")                     
-            app.scheduler.start()
-            app.config["SCHEDULER_STARTED"] = True
 
         # Mark initialization as complete
         with open(INIT_FILE, "w") as f:
             f.write("initialized")
         logging.info("App initialization complete")
+
+    # Scheduler always starts on every process launch (survives restarts)
+    if not app.config.get("SCHEDULER_STARTED", False):
+        app.scheduler = BackgroundScheduler()
+        app.scheduler.add_job(func=scheduled_task, trigger="cron", minute="*/1", hour="9-22")
+        app.scheduler.add_job(func=scheduled_task_cricbuzz, trigger="cron", minute="*/5", hour="9-22")
+        app.scheduler.add_job(func=copy_data_from_player_ranking_to_player_ranking_per_day, trigger="cron", hour="17,18,19")
+        # Dedicated series + scoreboard stats refresh at 04:00 and 08:00 CET/CEST
+        app.scheduler.add_job(func=scheduled_series_and_scoreboard, trigger="cron", hour="4", minute="0", timezone="Europe/Paris")
+        app.scheduler.add_job(func=scheduled_series_and_scoreboard, trigger="cron", hour="8", minute="0", timezone="Europe/Paris")
+        app.scheduler.start()
+        app.config["SCHEDULER_STARTED"] = True
+        logging.info("Scheduler started with 5 jobs (incl. 04:00 and 08:00 CET)")
 
 
 def get_device_id():
@@ -1181,7 +1138,7 @@ def logs():
 
 @app.route('/')
 def welcome():
-    return render_template('welcome.html')
+    return redirect(url_for('show_live_scoring'))
 
 @app.route('/home')
 def display_leaderboard():
@@ -1210,20 +1167,6 @@ def display_leaderboard():
     device_id = new_device_id
     logging.info(f"Setting new super device_id: {device_id}")
 
-    if is_paid_but_not_approved(device_id):
-        flash("Your payment is under review. Please check back later.", "info")
-        print("Your payment is under review")
-        return render_template('paid.html', table=None)
-    
-    if is_rejected(device_id):
-        print("Your payment is rejected")
-        return render_template('rejected.html', table=None)
-    
-    
-    if not is_approved(device_id):
-        print("Your payment is not found")
-        return redirect(url_for('pay'))
-    
     return redirect(url_for('show_insights'))    
 
 
@@ -1329,12 +1272,6 @@ def show_insights():
     #device_id = device_id + "--" + new_device_id
     device_id = new_device_id
     logging.info(f"Setting new super device_id: {device_id}")
-
-    if not is_approved(device_id):
-        return redirect(url_for('pay'))
-
-    if not is_approved(device_id):
-        return redirect(url_for('pay'))
 
     players = Player.query.all()
     df = pd.DataFrame([{
@@ -1480,13 +1417,6 @@ def show_live_scoring():
     device_id = new_device_id
     logging.info(f"Setting new super device_id: {device_id}")
 
-    if not is_approved(device_id):
-        return redirect(url_for('pay'))
-    
-    
-
-    #refresh_scores()
-
     latest_timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
     return render_template('FPL-IPL2025-Points.html', timestamp=latest_timestamp)
@@ -1517,10 +1447,6 @@ def show_jal_live_scoring():
     #device_id = device_id + "--" + new_device_id
     device_id = new_device_id
     logging.info(f"Setting new super device_id: {device_id}")
-
-    if not is_approved(device_id):
-        return redirect(url_for('pay'))
-    
 
     latest_timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
@@ -1620,16 +1546,125 @@ def save_to_db(matches):
     db.session.commit()
 
 
+def fetch_ipl2026_matches_from_cricbuzz():
+    """Fetch IPL 2026 match IDs and details from Cricbuzz series page and insert into DB."""
+    import re as _re
+    import json as _json
+    from datetime import timezone as _tz, timedelta as _td
+    from time import sleep as _sleep
+
+    IST = _tz(_td(hours=5, minutes=30))
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36"
+    }
+
+    try:
+        # Get series page to find all match IDs
+        resp = requests.get(
+            "https://www.cricbuzz.com/cricket-series/9965/indian-premier-league-2026/matches",
+            headers=headers, timeout=15
+        )
+        html = resp.text
+        raw_ids = _re.findall(r'cricket-scores/(\d{6,})', html)
+        candidate_ids = sorted(set(raw_ids))
+        logging.info(f"Found {len(candidate_ids)} candidate match IDs from Cricbuzz series page")
+    except Exception as e:
+        logging.error(f"Error fetching Cricbuzz series page: {e}")
+        candidate_ids = []
+
+    ipl_matches = []
+    for match_id_str in candidate_ids:
+        match_id = int(match_id_str)
+        url = f"https://www.cricbuzz.com/cricket-scores/{match_id}/"
+        try:
+            resp = requests.get(url, headers=headers, timeout=8, allow_redirects=True)
+            if resp.status_code != 200:
+                continue
+            html = resp.text
+
+            # Must be an IPL 2026 match
+            if 'Indian Premier League 2026' not in html and 'IPL' not in html[:5000]:
+                continue
+
+            # Extract JSON-LD structured data for date/time
+            jsonld_blocks = _re.findall(r'<script type="application/ld\+json">(.*?)</script>', html, re.DOTALL)
+            start_dt_utc = None
+            for jld in jsonld_blocks:
+                try:
+                    d = _json.loads(jld)
+                    if isinstance(d, dict) and d.get('@type') in ['SportsEvent', 'Event']:
+                        start_dt_utc = d.get('startDate', '')
+                except Exception:
+                    pass
+
+            # Extract clean match info from og:title
+            title_m = _re.search(r'<meta property="og:title" content="([^"]+)"', html)
+            title = title_m.group(1) if title_m else ""
+            title = _re.sub(r'\s+', ' ', title.replace('\n', ' ')).strip()
+            clean_match = _re.search(r'([A-Z][A-Za-z\s]+) vs ([A-Z][A-Za-z\s]+), (\d+(?:st|nd|rd|th) Match[^,]*)', title)
+            if clean_match:
+                match_info = f"{clean_match.group(1).strip()} vs {clean_match.group(2).strip()}, {clean_match.group(3).strip()}, Indian Premier League 2026"
+            elif 'Indian Premier League 2026' in title:
+                match_info = _re.sub(r' Live Cricket Stream.*$', '', title)
+                match_info = _re.sub(r'^IPL \| ', '', match_info)
+                match_info = _re.sub(r' \| Cricbuzz$', '', match_info).strip()
+            else:
+                continue  # Skip non-IPL matches
+
+            # Convert UTC to IST
+            if start_dt_utc:
+                try:
+                    from datetime import datetime as _dt
+                    dt_utc = _dt.fromisoformat(start_dt_utc.replace('Z', '+00:00'))
+                    dt_ist = dt_utc.astimezone(IST)
+                    date_str = dt_ist.strftime("%b %d, %a")
+                    time_str = dt_ist.strftime("%I:%M %p IST")
+                except Exception:
+                    date_str = ""
+                    time_str = ""
+            else:
+                date_str = ""
+                time_str = ""
+
+            ipl_matches.append({
+                'matchId': match_id,
+                'match_info': match_info,
+                'date': date_str,
+                'time': time_str
+            })
+            logging.info(f"Found IPL 2026 match: {match_id} - {match_info[:60]}")
+            _sleep(0.2)
+        except Exception as e:
+            logging.error(f"Error fetching match {match_id}: {e}")
+
+    if ipl_matches:
+        # Upsert: insert new, keep existing
+        existing_ids = {m.matchId for m in Match.query.all()}
+        added = 0
+        for m in ipl_matches:
+            if m['matchId'] not in existing_ids:
+                db.session.add(Match(
+                    matchId=m['matchId'],
+                    date=m['date'],
+                    match_info=m['match_info'],
+                    time=m['time']
+                ))
+                added += 1
+        db.session.commit()
+        logging.info(f"Added {added} new IPL 2026 matches to DB (total: {len(ipl_matches)} found)")
+    else:
+        logging.warning("No IPL 2026 matches found from Cricbuzz")
+
+    return ipl_matches
+
+
 # Flask Route to display matches
 @app.route("/matches")
 @app.route("/matches/refresh")
 def show_matches():
     refresh = 'refresh' in request.path    
     if refresh:
-        db.session.query(Match).delete()
-        print("Extracting matches")
-        matches = extract_match_details("static/matches.html")  
-        save_to_db(matches)
+        fetch_ipl2026_matches_from_cricbuzz()
         
     matches = db.session.query(Match.date, Match.match_info, Match.time).all()    
     return render_template("matches.html", matches=matches)
@@ -1815,46 +1850,6 @@ def edit_jal_player(id):
     return render_template('edit_jal_player.html', player=player)
 
 
-@app.route('/emoji-reactions/<key>', methods=['POST'])
-def add_emoji_reaction(key):
-    if not key:
-        return {'error': 'key is required'}, 400
-    
-    # Save to localStorage
-    # const key = `reaction_${{teamName}}_${{emoji}}`;
-    # localStorage.setItem(key, count);
-
-    value = request.json.get('value')
-        
-    # Get existing reactions for team
-    team_reactions = EmojiReaction.query.filter_by(key=key).first()
-    
-    if team_reactions:
-        # Update existing reaction count
-        current_reactions = team_reactions.value
-        if int(current_reactions) < 100:
-            team_reactions.value = int(current_reactions) + 1    
-    else:
-        # Create new reaction entry
-        team_reactions = EmojiReaction(
-            key=key,
-            value=value
-        )
-        
-    db.session.merge(team_reactions)
-    db.session.commit()
-    
-    return {'message': 'Reaction added successfully'}, 200
-
-@app.route('/emoji-reactions/<key>', methods=['GET']) 
-def get_emoji_reactions(key):
-    team_reactions = EmojiReaction.query.filter_by(key=key).first()
-    
-    if not team_reactions:
-        return {'reactions': 0}
-        
-    reactions = team_reactions.value
-    return {'reactions': reactions}
 
 
 @app.route('/page-views/<page>', methods=['POST'])
@@ -1933,10 +1928,6 @@ def points_table():
     #device_id = device_id + "--" + new_device_id
     device_id = new_device_id
     logging.info(f"Setting new super device_id: {device_id}")
-
-    if not is_approved(device_id):
-        return redirect(url_for('pay'))
-    
 
     teams_df, player_team_points_df = update_scores.create_points_table(Player, PlayerRanking)
     teams_df.rename(columns={
@@ -2051,7 +2042,8 @@ def points_table():
 
     #print(team_awards)
     
-    return render_template("points_table.html", teams=teams_df, player_awards=player_awards, team_awards=team_awards)
+    knockout_players = pd.DataFrame(columns=['fpl_team', 'name', 'ipl_team'])
+    return render_template("points_table.html", teams=teams_df, player_awards=player_awards, team_awards=team_awards, knockout_players=knockout_players)
 
 # Hash password
 from werkzeug.security import generate_password_hash, check_password_hash   
@@ -2978,5 +2970,5 @@ def update_actual_result(match_id, event_type, event_result):
 
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=8080, debug=debug)
+    app.run(host='0.0.0.0', port=5000, debug=debug)
 
