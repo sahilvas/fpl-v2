@@ -12,5 +12,3 @@ apscheduler==3.11.0
 gunicorn==21.2.0
 pytz
 sqlalchemy
-playwright
-playwright-stealth
