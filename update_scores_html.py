@@ -49,34 +49,6 @@ def insert_log_message(message):
         logging.error(f"Error inserting logs: {str(e)}") 
 
 
-def get_team_name_and_emoji(team_name=None):
-    try:
-        #logging.info("Extracting team_name and emoji")
-        # Create SQLite connection
-        #conn = sqlite3.connect('/mnt/sqlite/cricbattle.db' if os.environ.get("WEBSITE_SITE_NAME") else 'instance/cricbattle.db')
-
-        conn = sqlite3.connect('/mnt/sqlite/cricket_stats.db' if os.environ.get("WEBSITE_SITE_NAME") else '/mnt/sqlite/cricket_stats.db' if os.environ.get("GOOGLE_CLOUD_PROJECT") else 'instance/cricket_stats.db')  
-
-
-        # Create a cursor object
-        cursor = conn.cursor()
-        
-        if team_name:
-            # Execute query for specific team
-            cursor.execute("SELECT emoji FROM fantasy_team WHERE team_name = ?", (team_name,))
-            # Fetch one row
-            row = cursor.fetchone()
-            # Close connection
-            conn.close()
-            # Return emoji if found, else None
-            return team_name + row[0] if row else None
-        return None
-            
-    except Exception as e:
-        logging.error(f"Error extracting team_name and emoji: {str(e)}")
-        return None
-
-
 def adjust_column_widths(sheet):  
     logging.info("Adjusting column widths")  
     for column in sheet.columns:  
@@ -119,7 +91,7 @@ def calculate_best_11_old(df):
         all_needed = 1  
         bowl_needed = 3  
         max_overseas = 4
-        max_ipl_team = 3  # Max 4 players per IPL team
+        max_ipl_team = 3  
           
         # Create best 11 list  
         selected = []  
@@ -234,7 +206,12 @@ def calculate_best_11(df, league="FPL"):
 
     #print(df)
 
-    for liga, old_player, new_player in player_id_mapping:
+    try:
+        mapping = init_player_id_mapping()
+    except Exception:
+        mapping = []
+
+    for liga, old_player, new_player in mapping:
         #print(liga, league, old_player, new_player)
         if liga == league: 
             #print(df[df['Team Name'] == "KR"])
@@ -327,6 +304,46 @@ def calculate_best_11(df, league="FPL"):
                 break
             add_player(player)  
 
+        # **Step 4: Post-selection optimisation — swap out 0-pt blockers for excluded high-scorers**
+        # If a player with actual points couldn't be selected only because their IPL team slot
+        # was already full (occupied by a 0-pt player), swap the dead weight out.
+        unselected = players[~players['PlayerId'].isin(selected_ids)]
+        for _, candidate in unselected.sort_values('TotalScore', ascending=False).iterrows():
+            if candidate['TotalScore'] <= 0:
+                break  # nothing useful left to try
+            # Only interested in candidates blocked by the IPL-team cap
+            if ipl_team_counts[candidate['IPL Team']] < max_ipl_team:
+                continue  # wasn't the team cap that blocked them; skip
+            # Look for a 0-pt selected player from the same IPL team to evict
+            for i, sel in enumerate(selected):
+                if sel['IPL Team'] != candidate['IPL Team']:
+                    continue
+                if sel['TotalScore'] > 0:
+                    continue  # don't evict a scorer
+                # Simulate the swap and check all minimums are still satisfied
+                new_wk   = wk_count   - (1 if sel['Role'] == 'Wicket-Keeper' else 0) \
+                                       + (1 if candidate['Role'] == 'Wicket-Keeper' else 0)
+                new_bat  = bat_count  - (1 if sel['Role'] in ['Batsman', 'Wicket-Keeper'] else 0) \
+                                       + (1 if candidate['Role'] in ['Batsman', 'Wicket-Keeper'] else 0)
+                new_all  = all_count  - (1 if sel['Role'] == 'All-Rounder' else 0) \
+                                       + (1 if candidate['Role'] == 'All-Rounder' else 0)
+                new_bowl = bowl_count - (1 if sel['Role'] == 'Bowler' else 0) \
+                                       + (1 if candidate['Role'] == 'Bowler' else 0)
+                # Overseas check
+                new_overseas = overseas_counter \
+                               - (1 if sel['foreign_player'] else 0) \
+                               + (1 if candidate['foreign_player'] else 0)
+                if (new_wk >= min_wk and new_bat >= min_bat and
+                        new_all >= min_all and new_bowl >= min_bowl and
+                        new_overseas <= max_overseas):
+                    # Perform swap
+                    selected[i] = candidate
+                    selected_ids.discard(sel['PlayerId'])
+                    selected_ids.add(candidate['PlayerId'])
+                    wk_count, bat_count, all_count, bowl_count = new_wk, new_bat, new_all, new_bowl
+                    overseas_counter = new_overseas
+                    break  # move on to next unselected candidate
+
         # Calculate best 11 total score  
         best_11_points = sum(player['TotalScore'] for player in selected)  
         best_11.append((team, best_11_points, selected))  
@@ -385,17 +402,23 @@ def generate_html_report(team_points_df, player_team_points_df, series_stats_df,
     role_chart = create_role_distribution_chart(player_team_points_df)
     race_to_finish_chart = create_race_to_finish_chart(all_team_points_df)
 
+    # Pre-compute ticker content (list of live players scrolling across top)
+    if not live_players_list.empty:
+        ticker_content = ''.join([
+            f'<div class="ticker-item"><span class="player-name">{row["name"]}</span> <span class="score">{row["fpl_team"]}</span></div>'
+            for _ in range(2) for _, row in live_players_list.iterrows()
+        ])
+    else:
+        ticker_content = ''
+
+    # Pre-compute conditional heading for live scores section
+    scores_live_heading = '' if league == "JAL" else '<h2>Scores Live Today</h2>'
+
     # Create clickable player names with URLs and add background color for best 11 players
     player_team_points_df = player_team_points_df.sort_values(['Team Name', 'PlayerPoints'])
     
     # Create a set of (team, player) tuples from best_11_df for faster lookup
     best_11_set = set(zip(best_11_df['Team Name'], best_11_df['Player Name']))
-
-    # update team name value in team_points_df suffixing it by emoji using get_team_name_and_emoji function
-    # if "JAL" not in  league:
-    #    team_points_df['Team Name'] = team_points_df['Team Name'].apply(get_team_name_and_emoji) 
-         
-    
 
     styled_df = player_team_points_df.copy()
     styled_df['Playing11'] = styled_df.apply(lambda x: 'Yes' if (x['Team Name'], x['Player Name']) in best_11_set else '', axis=1)    
@@ -423,34 +446,6 @@ def generate_html_report(team_points_df, player_team_points_df, series_stats_df,
                                    float_format=lambda x: '{:.2f}'.format(x) if pd.notnull(x) else '',
                                    escape=False)    
 
-    # add emoji buttons to team names
-    import re
-
-    team_table = re.sub(
-        r'<tr[^>]*>(\s*)<td>([^<]+)</td>',
-        lambda m: f"""
-        <tr{' ' if m.group(1) else ''}>
-            <td>
-                <span class="team-name">{m.group(2)}</span>
-                <div class="reaction-container">
-                    <button class="emoji-button" onclick="addReaction(this, '👍')" title="Like">👍
-                        <span class="emoji-count">0</span>
-                    </button>
-                    <button class="emoji-button" onclick="addReaction(this, '❤️')" title="Love">❤️
-                    <span class="emoji-count">0</span>
-                    </button>
-                    <button class="emoji-button" onclick="addReaction(this, '🔥')" title="Fire">🔥
-                        <span class="emoji-count">0</span>
-                    </button>
-                    <button class="emoji-button" onclick="addReaction(this, '👎')" title="Dislike">👎
-                        <span class="emoji-count">0</span>
-                    </button>
-                </div>
-            </td>
-        """,
-        team_table
-    )         
-    
     # Convert series stats DataFrames to HTML tables
     series_tables = ""
     for key, df in series_stats_df.items():
@@ -556,748 +551,639 @@ def generate_html_report(team_points_df, player_team_points_df, series_stats_df,
         team_of_the_day_name = team_of_the_day['today']['team']
 
     if league == "JAL":
-        leaderboard_title = "JAL IPL 2025"
+        leaderboard_title = "JAL IPL 2026"
         template_filename = "JAL-IPL2025-Points.html"
     else:
-        leaderboard_title = "FPL IPL 2025"
+        leaderboard_title = "FPL IPL 2026"
         template_filename = "FPL-IPL2025-Points.html"
 
-    start_date = "22.03.25"
-    end_date = "03.06.25"
+    start_date = "22.03.26"
+    end_date = "01.06.26"
     todays_date = datetime.now().strftime("%d.%m.%y")
     percent_days_completed = round((datetime.now() - datetime.strptime(start_date, "%d.%m.%y")).days / (datetime.strptime(end_date, "%d.%m.%y") - datetime.strptime(start_date, "%d.%m.%y")).days * 100)
 
 
-    html_content = f"""
+    html_content = """
     <!DOCTYPE html>
-    <html data-theme="light">
+    <html lang="en">
     <head>
         <title>{leaderboard_title} Leaderboard</title>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+        <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Oswald:wght@400;500;600;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
        <style>
-    :root[data-theme="light"] {{
-        --bg-color: #f5f5f5;
-        --text-color: #333;
-        --card-bg: white;
-        --table-header-bg: #f8f9fa;
-        --table-border: #dee2e6;
-        --highlight-text: #1e3c72;
-        --table-text: #333;
-    }}
+        /* ── Design Tokens ─────────────────────────────────── */
+        :root {{
+            --gold:    #FFD700;
+            --silver:  #C0C0C0;
+            --bronze:  #CD7F32;
+            --fire:    #FF6B00;
+            --danger:  #FF1744;
+            --accent:  #00B4FF;
+            --green:   #00E676;
+        }}
 
-    :root[data-theme="dark"] {{
-        --bg-color: #1a1a1a;
-        --text-color: #e0e0e0;
-        --card-bg: #2d2d2d;
-        --table-header-bg: #333;
-        --table-border: #404040;
-        --highlight-text: #7aa2e8;
-        --table-text: #e0e0e0;
-    }}
+        /* ── Light Theme ────────────────────────────────────── */
+        :root, [data-theme="light"] {{
+            --bg:          #F0F2F8;
+            --surface:     #FFFFFF;
+            --surface2:    #F7F8FC;
+            --border:      #E2E6F0;
+            --text:        #1A1A2E;
+            --text-muted:  #6B7A99;
+            --nav-bg:      linear-gradient(135deg, #0F3460 0%, #1A237E 100%);
+            --ticker-bg:   linear-gradient(90deg, #0F3460 0%, #162550 50%, #0F3460 100%);
+            --card-shadow: 0 4px 24px rgba(26,35,126,0.10);
+            --table-head:  #1A237E;
+            --table-head-text: #fff;
+            --row-hover:   rgba(0,180,255,0.06);
+            --rank1-bg:    linear-gradient(90deg, rgba(255,215,0,0.22) 0%, rgba(255,215,0,0.05) 100%);
+            --rank2-bg:    linear-gradient(90deg, rgba(192,192,192,0.22) 0%, rgba(192,192,192,0.05) 100%);
+            --rank3-bg:    linear-gradient(90deg, rgba(205,127,50,0.22) 0%, rgba(205,127,50,0.05) 100%);
+            --danger-bg:   linear-gradient(90deg, rgba(255,23,68,0.12) 0%, rgba(255,23,68,0.03) 100%);
+        }}
 
-    .chart-container {{ 
-        margin: 20px 0; 
-    }}
-    .table-container {{ 
-        margin: 20px 0; 
-    }}
-    .timestamp {{ 
-        color: var(--text-color); 
-        font-style: italic; 
-        margin: 20px 0; 
-    }}
-    .table {{ 
-        width: 100%; 
-        border-collapse: collapse; 
-        margin-bottom: 1rem;
-        color: var(--table-text) !important;
-    }}
-    .table th {{ 
-        background-color: var(--table-header-bg);
-        padding: 12px 8px;
-        text-align: left;
-        font-weight: bold;
-        border-bottom: 2px solid var(--table-border);
-        color: var(--table-text) !important;
-    }}
-    .table td {{ 
-        padding: 8px;
-        vertical-align: middle;
-        border-bottom: 1px solid var(--table-border);
-        color: var(--table-text) !important;
-    }}
-    .table tbody tr:hover {{ 
-        background-color: rgba(0,0,0,.075); 
-    }}
+        /* ── Dark Theme ─────────────────────────────────────── */
+        [data-theme="dark"] {{
+            --bg:          #0D0D1A;
+            --surface:     #161628;
+            --surface2:    #1E1E35;
+            --border:      #2A2A45;
+            --text:        #E8EAFF;
+            --text-muted:  #8890BB;
+            --nav-bg:      linear-gradient(135deg, #080818 0%, #0F0F2A 100%);
+            --ticker-bg:   linear-gradient(90deg, #0A0A20 0%, #14142E 50%, #0A0A20 100%);
+            --card-shadow: 0 4px 32px rgba(0,0,0,0.5);
+            --table-head:  #0F0F2A;
+            --table-head-text: #A0A8D8;
+            --row-hover:   rgba(0,180,255,0.07);
+            --rank1-bg:    linear-gradient(90deg, rgba(255,215,0,0.18) 0%, rgba(255,215,0,0.04) 100%);
+            --rank2-bg:    linear-gradient(90deg, rgba(192,192,192,0.14) 0%, rgba(192,192,192,0.03) 100%);
+            --rank3-bg:    linear-gradient(90deg, rgba(205,127,50,0.16) 0%, rgba(205,127,50,0.03) 100%);
+            --danger-bg:   linear-gradient(90deg, rgba(255,23,68,0.14) 0%, rgba(255,23,68,0.03) 100%);
+        }}
 
-    /* Background color for the top 3 rows in light mode */
-    [data-theme="light"] #team-table tbody tr:nth-child(1) {{ 
-        background-color: gold !important; 
-        color: #000 !important;
-        font-weight: bold;
-    }}
-    [data-theme="light"] #team-table tbody tr:nth-child(2) {{ 
-        background-color: silver !important; 
-        color: #000 !important;
-        font-weight: bold;
-    }}
-    [data-theme="light"] #team-table tbody tr:nth-child(3) {{
-        background-color: #cd7f32 !important; /* Bronze */
-        color: #000 !important;
-        font-weight: bold;
-    }}
-    [data-theme="light"] #team-table tbody tr:nth-child(9) {{
-        background-color: #FF0000 !important; /* red */
-        font-weight: bold;
-    }}
+        /* ── Base ───────────────────────────────────────────── */
+        *, *::before, *::after {{ box-sizing: border-box; margin: 0; padding: 0; }}
 
-    /* Background color for the top 3 rows in dark mode */
-    [data-theme="dark"] #team-table tbody tr:nth-child(1) {{
-        background-color: #FFD700 !important; /* Bright gold */
-        font-weight: bold;
-        color: var(--text-color);
-    }}
-    [data-theme="dark"] #team-table tbody tr:nth-child(2) {{
-        background-color: #A9A9A9 !important; /* Darker silver for contrast */
-        font-weight: bold;
-        color: var(--text-color);
-    }}
-    [data-theme="dark"] #team-table tbody tr:nth-child(3) {{ 
-        background-color: #DAA520 !important; /* Goldenrod (better than burlywood) */
-        font-weight: bold;
-        color: var(--text-color);
-        
-    }}
-    [data-theme="dark"] #team-table tbody tr:nth-child(9) {{
-        background-color: #FF0000 !important; /* red */
-        font-weight: bold;
-    }}
+        body {{
+            font-family: 'Inter', 'Segoe UI', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            padding-top: 48px;
+            transition: background 0.35s, color 0.35s;
+        }}
 
-    /* Top 3 rows styling */
-    [data-theme="light"] #team-table tbody tr:nth-child(1),
-    [data-theme="light"] #team-table tbody tr:nth-child(2),
-    [data-theme="light"] #team-table tbody tr:nth-child(3) {{
-        background: linear-gradient(90deg, rgba(255,215,0,0.3) 0%, rgba(255,215,0,0.1) 100%);
-        font-weight: bold;
-        position: relative;
-    }}
+        h1, h2, h3 {{
+            font-family: 'Oswald', 'Rajdhani', sans-serif;
+            letter-spacing: 0.03em;
+        }}
 
-    [data-theme="light"] #team-table tbody tr:nth-child(1)::after,
-    [data-theme="light"] #team-table tbody tr:nth-child(2)::after,
-    [data-theme="light"] #team-table tbody tr:nth-child(3)::after {{
-        content: "";
-        position: absolute;
-        font-size: 2em;
-        opacity: 0.1;
-        color: #000;
-        z-index: 1;
-        left: 50%;
-        top: 50%;
-        transform: translate(-50%, -50%);
-        pointer-events: none;
-    }}   
+        a {{ color: var(--accent); text-decoration: none; }}
+        a:hover {{ text-decoration: underline; }}
 
-    /* Middle 3 rows styling */
-    [data-theme="light"] #team-table tbody tr:nth-child(4),
-    [data-theme="light"] #team-table tbody tr:nth-child(5), 
-    [data-theme="light"] #team-table tbody tr:nth-child(6) {{
-        background: linear-gradient(90deg, rgba(192,192,192,0.3) 0%, rgba(192,192,192,0.1) 100%);
-         font-weight: bold;
-        position: relative;
-    }}   
-    [data-theme="light"] #team-table tbody tr:nth-child(4)::after,
-    [data-theme="light"] #team-table tbody tr:nth-child(5)::after,
-    [data-theme="light"] #team-table tbody tr:nth-child(6)::after {{
-        content: "";
-        position: absolute;
-        font-size: 2em;
-        opacity: 0.1;
-        color: #000;
-        z-index: 1;
-        left: 50%;
-        top: 50%;
-        transform: translate(-50%, -50%);
-        pointer-events: none;
-    }}  
+        /* ── Ticker ─────────────────────────────────────────── */
+        .ticker-wrap {{
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%;
+            background: var(--ticker-bg);
+            border-bottom: 2px solid var(--fire);
+            padding: 8px 0;
+            overflow: hidden;
+            z-index: 9999;
+            white-space: nowrap;
+        }}
+        .ticker {{
+            display: flex;
+            width: max-content;
+            animation: ticker-scroll 60s linear infinite;
+        }}
+        .ticker:hover {{ animation-play-state: paused; }}
+        .ticker-item {{
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 0 28px;
+            font-size: 13px;
+            font-weight: 500;
+            color: #C8D0F0;
+        }}
+        .ticker-item::before {{
+            content: "▸";
+            color: var(--fire);
+            font-size: 10px;
+        }}
+        .ticker-item .player-name {{
+            font-weight: 700;
+            color: #fff;
+            font-family: 'Rajdhani', sans-serif;
+            font-size: 14px;
+            letter-spacing: 0.04em;
+        }}
+        .ticker-item .team-tag {{
+            color: var(--accent);
+            font-size: 11px;
+            font-weight: 600;
+            background: rgba(0,180,255,0.15);
+            padding: 1px 6px;
+            border-radius: 4px;
+        }}
+        .ticker-item .score {{
+            color: var(--green);
+            font-weight: 700;
+            font-size: 14px;
+        }}
+        @keyframes ticker-scroll {{
+            from {{ transform: translateX(0); }}
+            to   {{ transform: translateX(-50%); }}
+        }}
 
-    /* Bottom 3 rows styling */
-    [data-theme="light"] #team-table tbody tr:nth-child(7),
-    [data-theme="light"] #team-table tbody tr:nth-child(8),
-    [data-theme="light"] #team-table tbody tr:nth-child(9) {{
-        background: linear-gradient(90deg, rgba(255,0,0,0.3) 0%, rgba(255,0,0,0.1) 100%);
-        font-weight: bold;
-        position: relative;
-    }}   
-    [data-theme="light"] #team-table tbody tr:nth-child(7)::after,
-    [data-theme="light"] #team-table tbody tr:nth-child(8)::after,
-    [data-theme="light"] #team-table tbody tr:nth-child(9)::after {{
-        content: "";
-        position: absolute;
-        font-size: 2em;
-        opacity: 0.1;
-        color: #000;
-        z-index: 1;
-        left: 50%;
-        top: 50%;
-        transform: translate(-50%, -50%);
-        pointer-events: none;
-    }}   
+        /* ── Nav ────────────────────────────────────────────── */
+        .site-nav {{
+            background: var(--nav-bg);
+            padding: 0 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            height: 56px;
+            box-shadow: 0 2px 16px rgba(0,0,0,0.25);
+        }}
+        .nav-links {{ display: flex; align-items: center; gap: 4px; }}
+        .nav-links a {{
+            color: rgba(255,255,255,0.78);
+            font-size: 13px;
+            font-weight: 500;
+            padding: 6px 14px;
+            border-radius: 6px;
+            transition: background 0.2s, color 0.2s;
+            letter-spacing: 0.02em;
+        }}
+        .nav-links a:hover {{ background: rgba(255,255,255,0.1); color: #fff; text-decoration: none; }}
+        .nav-links a.active {{
+            background: rgba(255,107,0,0.25);
+            color: var(--fire);
+            border: 1px solid rgba(255,107,0,0.35);
+        }}
+        .nav-badge {{
+            background: var(--danger);
+            color: #fff;
+            font-size: 9px;
+            font-weight: 700;
+            padding: 2px 5px;
+            border-radius: 8px;
+            margin-left: 4px;
+            vertical-align: middle;
+            letter-spacing: 0.05em;
+        }}
+        .theme-btn {{
+            background: rgba(255,255,255,0.08);
+            border: 1px solid rgba(255,255,255,0.15);
+            border-radius: 8px;
+            color: rgba(255,255,255,0.8);
+            cursor: pointer;
+            padding: 7px 11px;
+            font-size: 16px;
+            transition: background 0.2s;
+        }}
+        .theme-btn:hover {{ background: rgba(255,255,255,0.15); }}
 
-    /* Dark theme variants */
-    [data-theme="dark"] #team-table tbody tr:nth-child(1),
-    [data-theme="dark"] #team-table tbody tr:nth-child(2),
-    [data-theme="dark"] #team-table tbody tr:nth-child(3) {{
-        background: linear-gradient(90deg, rgba(255,215,0,0.4) 0%, rgba(255,215,0,0.2) 100%);
-        color: var(--text-color);
-        font-weight: bold;
-    }}   
+        /* ── Page Container ─────────────────────────────────── */
+        .page-wrap {{
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 28px 20px 60px;
+        }}
 
-    [data-theme="dark"] #team-table tbody tr:nth-child(4),
-    [data-theme="dark"] #team-table tbody tr:nth-child(5),
-    [data-theme="dark"] #team-table tbody tr:nth-child(6) {{
-        background: linear-gradient(90deg, rgba(169,169,169,0.4) 0%, rgba(169,169,169,0.2) 100%);
-        color: var(--text-color);
-    }}   
+        /* ── Page Header ────────────────────────────────────── */
+        .page-header {{
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 16px;
+            margin-bottom: 6px;
+        }}
+        .page-title {{
+            font-size: clamp(1.6rem, 4vw, 2.6rem);
+            font-weight: 700;
+            color: var(--text);
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+        }}
+        .page-title span {{
+            background: linear-gradient(90deg, var(--fire), var(--gold));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }}
+        .timestamp {{
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-bottom: 28px;
+            font-style: italic;
+        }}
+        .refresh-btn {{
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: linear-gradient(135deg, var(--fire), #FF9800);
+            color: #fff;
+            border: none;
+            padding: 10px 22px;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            box-shadow: 0 4px 16px rgba(255,107,0,0.35);
+            transition: transform 0.2s, box-shadow 0.2s;
+            letter-spacing: 0.03em;
+        }}
+        .refresh-btn:hover {{
+            transform: translateY(-2px);
+            box-shadow: 0 6px 22px rgba(255,107,0,0.5);
+        }}
+        .refresh-btn i {{ transition: transform 0.5s; }}
+        .refresh-btn:hover i {{ transform: rotate(180deg); }}
 
-    [data-theme="dark"] #team-table tbody tr:nth-child(7),
-    [data-theme="dark"] #team-table tbody tr:nth-child(8),
-    [data-theme="dark"] #team-table tbody tr:nth-child(9) {{
-        background: linear-gradient(90deg, rgba(255,0,0,0.4) 0%, rgba(255,0,0,0.2) 100%);
-        color: var(--text-color);
-    }}    
+        /* ── Hero Cards ─────────────────────────────────────── */
+        .hero-grid {{
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 20px;
+            margin-bottom: 36px;
+        }}
+        .hero-card {{
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 18px;
+            padding: 24px;
+            position: relative;
+            overflow: hidden;
+            box-shadow: var(--card-shadow);
+            transition: transform 0.25s, box-shadow 0.25s;
+        }}
+        .hero-card:hover {{
+            transform: translateY(-4px);
+            box-shadow: 0 10px 40px rgba(0,0,0,0.18);
+        }}
+        .hero-card::before {{
+            content: "";
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 4px;
+        }}
+        .hero-card.team::before  {{ background: linear-gradient(90deg, var(--gold), var(--fire)); }}
+        .hero-card.player::before {{ background: linear-gradient(90deg, var(--accent), var(--green)); }}
+        .hero-icon {{
+            font-size: 28px;
+            margin-bottom: 12px;
+            display: block;
+        }}
+        .hero-label {{
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: var(--text-muted);
+            margin-bottom: 2px;
+        }}
+        .hero-value {{
+            font-family: 'Oswald', sans-serif;
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--text);
+            line-height: 1.1;
+        }}
+        .hero-value.score {{
+            font-size: 2.6rem;
+            background: linear-gradient(135deg, var(--gold), var(--fire));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }}
+        .hero-card.player .hero-value.score {{
+            background: linear-gradient(135deg, var(--accent), var(--green));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }}
+        .hero-sub {{ font-size: 12px; color: var(--text-muted); margin-top: 4px; }}
 
+        /* ── Section Headers ────────────────────────────────── */
+        .section-head {{
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            margin: 36px 0 16px;
+            flex-wrap: wrap;
+        }}
+        .section-head h2 {{
+            font-size: 1.35rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: var(--text);
+        }}
+        .season-bar {{
+            flex: 1;
+            min-width: 120px;
+        }}
+        .progress {{
+            height: 8px;
+            background: var(--border);
+            border-radius: 99px;
+            overflow: hidden;
+        }}
+        .progress-bar {{
+            height: 100%;
+            background: linear-gradient(90deg, var(--fire), var(--gold));
+            border-radius: 99px;
+            transition: width 0.8s ease;
+        }}
+        .season-pct {{
+            font-size: 11px;
+            color: var(--text-muted);
+            margin-top: 4px;
+        }}
 
-    body {{
-        margin: 0;
-        min-height: 100vh;
-        display: flex;
-        flex-direction: column;
-        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-        background-color: var(--bg-color);
-        color: var(--text-color);
-        line-height: 1.6;
-        padding: 20px;
-        transition: background-color 0.3s, color 0.3s;
-    }}
+        /* ── Tables ─────────────────────────────────────────── */
+        .table-container {{ margin: 0 0 28px; overflow-x: auto; }}
 
-    .header-menu {{
-        background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
-        padding: 10px 0;
-        margin-bottom: 20px;
-        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 10px 20px;
-    }}
+        .table {{
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0 4px;
+            color: var(--text) !important;
+            font-size: 14px;
+        }}
+        .table thead tr {{
+            background: transparent;
+        }}
+        .table th {{
+            background: var(--table-head) !important;
+            color: var(--table-head-text) !important;
+            padding: 12px 16px;
+            font-family: 'Rajdhani', sans-serif;
+            font-size: 12px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            border: none !important;
+        }}
+        .table th:first-child {{ border-radius: 8px 0 0 8px; }}
+        .table th:last-child  {{ border-radius: 0 8px 8px 0; }}
 
-    .header-menu a {{
-        color: white;
-        text-decoration: none;
-        padding: 10px 20px;
-        font-size: 16px;
-    }}
+        .table td {{
+            background: var(--surface);
+            padding: 13px 16px;
+            vertical-align: middle;
+            border: none !important;
+            border-top: 1px solid var(--border) !important;
+            color: var(--text) !important;
+            transition: background 0.15s;
+        }}
+        .table td:first-child {{ border-radius: 8px 0 0 8px; border-left: 3px solid transparent !important; }}
+        .table td:last-child  {{ border-radius: 0 8px 8px 0; }}
+        .table tbody tr:hover td {{ background: var(--row-hover) !important; }}
 
-    .header-menu a:hover {{
-        background-color: #34495e;
-    }}
+        /* ── Leaderboard Row Colors ─────────────────────────── */
+        #team-table tbody tr:nth-child(1) td {{
+            background: var(--rank1-bg) !important;
+            font-weight: 700;
+        }}
+        #team-table tbody tr:nth-child(1) td:first-child {{
+            border-left-color: var(--gold) !important;
+        }}
+        #team-table tbody tr:nth-child(2) td {{
+            background: var(--rank2-bg) !important;
+            font-weight: 700;
+        }}
+        #team-table tbody tr:nth-child(2) td:first-child {{
+            border-left-color: var(--silver) !important;
+        }}
+        #team-table tbody tr:nth-child(3) td {{
+            background: var(--rank3-bg) !important;
+            font-weight: 700;
+        }}
+        #team-table tbody tr:nth-child(3) td:first-child {{
+            border-left-color: var(--bronze) !important;
+        }}
+        #team-table tbody tr:nth-child(8) td,
+        #team-table tbody tr:nth-child(9) td {{
+            background: var(--danger-bg) !important;
+        }}
+        #team-table tbody tr:nth-child(8) td:first-child,
+        #team-table tbody tr:nth-child(9) td:first-child {{
+            border-left-color: var(--danger) !important;
+        }}
 
-    .theme-switch {{
-        display: flex;
-        align-items: center;
-        gap: 8px;
-    }}
+        /* ── Chart & Series Sections ────────────────────────── */
+        .chart-container {{ margin: 0 0 28px; }}
+        .section-label {{
+            font-family: 'Oswald', sans-serif;
+            font-size: 1.2rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: var(--text);
+            margin: 36px 0 14px;
+            padding-bottom: 8px;
+            border-bottom: 2px solid var(--border);
+        }}
 
-    .theme-switch-button {{
-        background: none;
-        border: none;
-        color: white;
-        cursor: pointer;
-        padding: 5px;
-        font-size: 20px;
-    }}
+        /* ── View Counter ───────────────────────────────────── */
+        .view-counter {{
+            position: fixed;
+            bottom: 20px; right: 20px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            color: var(--text-muted);
+            padding: 7px 14px;
+            border-radius: 20px;
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            z-index: 1000;
+            box-shadow: var(--card-shadow);
+            animation: fadeUp 0.4s ease;
+        }}
+        @keyframes fadeUp {{
+            from {{ opacity:0; transform: translateY(10px); }}
+            to   {{ opacity:1; transform: translateY(0); }}
+        }}
 
-    .content {{
-        flex: 1;
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        width: 100%;
-        overflow: auto;
-        padding: 20px;
-        box-sizing: border-box;
-    }}
+        /* ── Responsive ─────────────────────────────────────── */
+        @media (max-width: 640px) {{
+            .ticker-item {{ padding: 0 16px; font-size: 12px; }}
+            .hero-grid {{ grid-template-columns: 1fr; }}
+            .page-wrap {{ padding: 20px 14px 50px; }}
+        }}
 
-    #pdf-container {{
-        width: 100%;
-        height: 100%;
-        background: var(--card-bg);
-        border-radius: 8px;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-    }}
+        /* ── Dark mode link color ───────────────────────────── */
+        [data-theme="dark"] .table a {{ color: var(--accent); }}
+        [data-theme="dark"] .table a:hover {{ color: #7FDDFF; }}
 
-    nav a {{
-        color: white;
-        text-decoration: none;
-        padding: 5px 10px;
-        border-radius: 4px;
-        transition: background-color 0.3s;
-    }}
-
-    nav a:hover {{
-        background-color: rgba(255,255,255,0.1);
-    }}
-
-    .highlight-card {{
-        background: var(--card-bg);
-        border-radius: 15px;
-        padding: 20px;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-        margin-bottom: 20px;
-        transition: transform 0.3s ease;
-    }}
-
-    .highlight-card:hover {{
-        transform: translateY(-5px);
-    }}
-
-    .highlight-card h3 {{
-        color: var(--highlight-text);
-        margin-bottom: 15px;
-        font-size: 1.5rem;
-    }}
-
-    .highlight-card .score {{
-        font-size: 2rem;
-        font-weight: bold;
-        color: var(--highlight-text);
-    }}
-
-    .highlight-card .label {{
-        color: var(--text-color);
-        font-size: 0.9rem;
-        margin-bottom: 5px;
-    }}
-
-    .highlights-container {{
-        display: flex;
-        gap: 20px;
-        margin-bottom: 30px;
-    }}
-
-    .refresh-button {{
-        background: #2a5298;
-        color: white;
-        border: none;
-        padding: 10px 20px;
-        border-radius: 8px;
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        cursor: pointer;
-        transition: all 0.3s ease;
-        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-        margin-left: auto;
-        z-index: 999;
-        position: relative;
-        opacity: 1;
-        visibility: visible;
-    }}
-
-    .refresh-button:hover {{
-        background: #1e3c72;
-        transform: translateY(-2px);
-        box-shadow: 0 4px 8px rgba(0,0,0,0.2);
-    }}
-
-    .refresh-button i {{
-        transition: transform 0.5s ease;
-    }}
-
-    .refresh-button:hover i {{
-        transform: rotate(180deg);
-    }}
-
-    .header-content {{
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        margin-bottom: 20px;
-    }}
-
-    /* Add styles for links in dark mode */
-    [data-theme="dark"] .table a {{
-        color: #7aa2e8;
-    }}
-
-    [data-theme="dark"] .table a:hover {{
-        color: #a8c4f3;
-    }}
-
-        /* New ticker styles */
-            .ticker-wrap {{
-                position: fixed;
-                top: 0;
-                left: 0;
-                width: 100%;
-                background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
-                padding: 10px 0;
-                overflow: hidden;
-                z-index: 9999;
-                box-shadow: 0 2px 10px rgba(0,0,0,0.2);
-                white-space: nowrap;
-            }}
-
-            .ticker {{
-                display: flex;
-                width: max-content;
-                animation: ticker-scroll 60s linear infinite;
-            }}
-
-            .ticker-item {{
-                display: inline-flex;
-                align-items: center;
-                padding: 0 30px;
-                color: white;
-                font-weight: 500;
-            }}
-
-            .ticker-item .player-name {{
-                margin-right: 10px;
-                font-weight: bold;
-            }}
-
-            .ticker-item .score {{
-                color: #7fff00;
-            }}
-
-            @keyframes ticker-scroll {{
-                from {{
-                    transform: translateX(0);
-                }}
-                to {{
-                    transform: translateX(-50%);
-                }}
-            }}
-
-
-            /* Adjust body padding to account for ticker */
-            body {{
-                padding-top: 60px;
-            }}
-
-            @media (max-width: 768px) {{
-                .ticker-item {{
-                    padding: 0 15px;
-                    font-size: 14px;
-                }}
-            }}
-
-            <!-- CSS for the reaction buttons -->
-                .reaction-container {{
-                    display: inline-flex;
-                    margin-left: 10px;
-                }}
-                .emoji-button {{
-                    background: none;
-                    border: none;
-                    padding: 5px;
-                    cursor: pointer;
-                    font-size: 1.2em;
-                    transition: transform 0.2s;
-                }}
-                .emoji-button:hover {{
-                    transform: scale(1.2);
-                }}
-                .emoji-count {{
-                    font-size: 0.8em;
-                    margin-left: 2px;
-                }}
-
-                /* Add view counter styles */
-                .view-counter {{
-                    position: fixed;
-                    bottom: 20px;
-                    right: 20px;
-                    background: rgba(0,0,0,0.7);
-                    color: white;
-                    padding: 8px 15px;
-                    border-radius: 20px;
-                    font-size: 14px;
-                    display: flex;
-                    align-items: center;
-                    gap: 5px;
-                    z-index: 1000;
-                }}
-
-                .view-counter i {{
-                    font-size: 16px;
-                }}
-
-                /* Animation for view counter */
-                @keyframes fadeIn {{
-                    from {{
-                        opacity: 0;
-                        transform: translateY(20px);
-                    }}
-                    to {{
-                        opacity: 1;
-                        transform: translateY(0);
-                    }}
-                }}
-
-                .view-counter {{
-                    animation: fadeIn 0.5s ease-out;
-                }}   
-
-            
-            
-            
         </style>
-        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     </head>
     <body>
+
+        <!-- ── Ticker ───────────────────────────────────────── -->
         <div class="ticker-wrap">
-            <div class="ticker">
-                {
-                    ''.join([
-                        f'<div class="ticker-item"><span class="player-name">{row["name"]}</span> <span class="score">{row["fpl_team"]}</span></div>'
-                        for _ in range(2) for _, row in live_players_list.iterrows()  # Repeat the list 3 times
-                    ])
-                }
-            </div>
+            <div class="ticker">{ticker_content}</div>
         </div>
 
-
-        <header>
-            <div class="header-menu">
-                <nav style="display: flex; align-items: center;">
-                    <a href="/" style="font-size: 14px; padding: 8px 15px;">Home</a>
-                    <a href="/live-scoring" style="font-size: 14px; padding: 8px 15px; position: relative;">
-                    Points Table
-                    <span style="position: absolute; top: -8px; right: -8px; background: #ff4444; color: white; font-size: 10px; padding: 2px 6px; border-radius: 10px; animation: pulse 1.5s infinite;">Recommended</span>
-                    </a> 
-                </nav>
-                <div class="theme-switch">
-                    <button class="theme-switch-button" onclick="toggleTheme()">
-                        <i class="fas fa-moon"></i>
-                    </button>
-                </div>
+        <!-- ── Nav ──────────────────────────────────────────── -->
+        <nav class="site-nav">
+            <div class="nav-links">
+                <a href="/">Home</a>
+                <a href="/live-scoring" class="active">
+                    Points Table <span class="nav-badge">LIVE</span>
+                </a>
             </div>
-        </header>
+            <button class="theme-btn" onclick="toggleTheme()" title="Toggle theme">
+                <i class="fas fa-moon" id="theme-icon"></i>
+            </button>
+        </nav>
 
-        <div class="container">
-            <div class="header-content">
-                <h1 class="mt-4 mb-4">{leaderboard_title} Leaderboard</h1>
-                <button class="refresh-button" onclick="window.location.reload()">
-                    <i class="fas fa-sync-alt"></i>
-                    Refresh
+        <!-- ── Main Content ─────────────────────────────────── -->
+        <div class="page-wrap">
+
+            <!-- Page Header -->
+            <div class="page-header">
+                <h1 class="page-title">
+                    <span>{leaderboard_title}</span> Leaderboard
+                </h1>
+                <button class="refresh-btn" onclick="window.location.reload()">
+                    <i class="fas fa-sync-alt"></i> Refresh
                 </button>
             </div>
-            <p class="timestamp"> {timestamp} </p>
+            <p class="timestamp">{timestamp}</p>
 
-            <div class="highlights-container">
-                <div class="highlight-card">
-                    <h3><i class="fas fa-trophy"></i> Team of the Day</h3>
-                    <div class="label">Team Name</div>
-                    <div class="score">{team_of_the_day_name}</div>
-                    <div class="label">Score</div>
-                    <div class="score">{team_of_the_day_score}</div>
+            <!-- Hero Cards -->
+            <div class="hero-grid">
+                <div class="hero-card team">
+                    <span class="hero-icon">🏆</span>
+                    <div class="hero-label">Team of the Day</div>
+                    <div class="hero-value">{team_of_the_day_name}</div>
+                    <div class="hero-value score">{team_of_the_day_score}</div>
+                    <div class="hero-sub">pts today</div>
                 </div>
-
-                <div class="highlight-card">
-                    <h3><i class="fas fa-star"></i> Player of the Day</h3>
-                    <div class="label">Player Name</div>
-                    <div class="score">{player_of_the_day_name}</div>
-                    <div class="label">Team</div>
-                    <div class="score">{player_of_the_day_team}</div>
-                    <div class="label">Score</div>
-                    <div class="score">{player_of_the_day_points}</div>
-                </div>            
+                <div class="hero-card player">
+                    <span class="hero-icon">⚡</span>
+                    <div class="hero-label">Player of the Day</div>
+                    <div class="hero-value">{player_of_the_day_name}</div>
+                    <div class="hero-sub">{player_of_the_day_team}</div>
+                    <div class="hero-value score">{player_of_the_day_points}</div>
+                    <div class="hero-sub">pts today</div>
                 </div>
-
-                
-
-                <div style="display: flex; align-items: center; gap: 20px;">
-                    <h2>Points Table</h2>
-                    <div class="progress" style="flex: 1;">
-                        <div class="progress-bar progress-bar-striped active" role="progressbar"
-                        aria-valuenow={percent_days_completed} aria-valuemin="0" aria-valuemax="100" style="width:{percent_days_completed}%">
-                            {percent_days_completed}% Complete
-                        </div>
-                    </div>
-                </div>   
-            
-            <div id="team-table" class="table-container">{team_table}
-            
             </div>
 
-            {'' if league == "JAL" else '<h2>Scores Live Today</h2>'}                
-                <div class="table-container">{daily_scores_table}
-            
+            <!-- Points Table -->
+            <div class="section-head">
+                <h2>Points Table</h2>
+                <div class="season-bar">
+                    <div class="progress">
+                        <div class="progress-bar" style="width:{percent_days_completed}%"></div>
+                    </div>
+                    <div class="season-pct">{percent_days_completed}% of season complete</div>
                 </div>
-            
-           
+            </div>
+            <div id="team-table" class="table-container">{team_table}</div>
+
+            <!-- Today's Scores -->
+            {scores_live_heading}
+            <div class="table-container">{daily_scores_table}</div>
+
+            <!-- Charts -->
             <div class="chart-container">{team_chart}</div>
             <div class="chart-container">{race_to_finish_chart}</div>
 
+            <!-- Scoreboard & Series Stats -->
+            <div class="section-label">Match Stats</div>
             <div class="table-container">{sb_tables}</div>
             <div class="table-container">{series_tables}</div>
-            
-            <h2>MVPs</h2>
+
+            <!-- MVPs -->
+            <div class="section-label">MVPs</div>
             <div class="chart-container">{player_chart}</div>
             <div class="chart-container">{role_chart}</div>
             <div class="table-container">{player_table}</div>
-        </div>
+
+        </div><!-- /page-wrap -->
 
         <script>
-         <!-- JavaScript to handle reactions -->
-  
-            function addReaction(button, emoji) {{
-                let countSpan = button.querySelector('.emoji-count');
-                let currentCount = parseInt(countSpan.textContent || '0');
-                countSpan.textContent = currentCount + 1;
-                
-                // Optional: Save the reaction count
-                const teamCell = button.closest('tr').querySelector('td').textContent;
-                const teamName = teamCell.split("\\n")[1].trim();    
-                if (currentCount && parseInt(currentCount) < 100) {{                               
-                    saveReaction(teamName, emoji, currentCount + 1);
-                }}
-            }}
-
-            function saveReaction(teamName, emoji, count) {{
-                // Save to localStorage
-                const key = `reaction_${{teamName}}_${{emoji}}`;
-                // localStorage.setItem(key, count);
-                // Send to server using api endpoint /emoji-reactions/<key>
-            
-                        
-    
-                    fetch(`/emoji-reactions/${{key}}`, {{
-                        method: 'POST',
-                        headers: {{
-                            'Content-Type': 'application/json',
-                        }},
-                        body: JSON.stringify({{ value: count }}),
-                    }})
-                    .then(response => response.json())
-                    .then(data => console.log(data.message))
-                    .catch((error) => {{
-                        console.error('Error:', error);
-                    }});
-
-           
-
-            }}
-
-            // Load saved reactions on page load 
-            document.addEventListener('DOMContentLoaded', function() {{
-                const reactionButtons = document.querySelectorAll('.emoji-button');
-                reactionButtons.forEach(button => {{
-                    const teamCell = button.closest('tr').querySelector('td').textContent;    
-                    const teamName = teamCell.split("\\n")[1].trim();                
-                    const emoji = button.textContent.trim().split(' ')[0].trim();
-                    const key = `reaction_${{teamName}}_${{emoji}}`;
-                    const savedCount = localStorage.getItem(key) || '0';
-       
-                    if (savedCount && parseInt(savedCount) > 0) {{
-                        saveReaction(teamName, emoji, parseInt(savedCount));
-                        localStorage.removeItem(key);
-                    }}
-                    
-                    // get count from server using api endpoint /emoji-reactions/<key>
-                    fetch(`/emoji-reactions/${{key}}`)
-                    .then(response => response.json())
-                    .then(data => {{
-                        const count = data.reactions ? data.reactions : savedCount;
-                        button.querySelector('.emoji-count').textContent = count;
-                    }})
-                    .catch((error) => {{
-                        console.error('Error:', error);
-                        button.querySelector('.emoji-count').textContent = savedCount;
-                    }});
-                
-                }});
-            }});         
             function toggleTheme() {{
-                const html = document.documentElement;
-                const currentTheme = html.getAttribute('data-theme');
-                const newTheme = currentTheme === 'light' ? 'dark' : 'light';
-                html.setAttribute('data-theme', newTheme);
-                
-                const themeIcon = document.querySelector('.theme-switch-button i');
-                themeIcon.className = newTheme === 'light' ? 'fas fa-moon' : 'fas fa-sun';
-                
-                // Store theme preference
-                localStorage.setItem('theme', newTheme);
+                const root = document.documentElement;
+                const cur  = root.getAttribute('data-theme') || 'dark';
+                const next = cur === 'dark' ? 'light' : 'dark';
+                root.setAttribute('data-theme', next);
+                document.getElementById('theme-icon').className =
+                    next === 'dark' ? 'fas fa-moon' : 'fas fa-sun';
+                localStorage.setItem('theme', next);
             }}
+            // Restore saved theme
+            (function() {{
+                const saved = localStorage.getItem('theme') || 'dark';
+                document.documentElement.setAttribute('data-theme', saved);
+                document.getElementById('theme-icon').className =
+                    saved === 'dark' ? 'fas fa-moon' : 'fas fa-sun';
+            }})();
 
-            // Set initial theme based on stored preference
-            const storedTheme = localStorage.getItem('theme') || 'light';
-            document.documentElement.setAttribute('data-theme', storedTheme);
-            const themeIcon = document.querySelector('.theme-switch-button i');
-            themeIcon.className = storedTheme === 'light' ? 'fas fa-moon' : 'fas fa-sun';
-
-            // Function to update page views
-            async function updatePageViews() {{
-              try {{
-                const response = await fetch('/page-views/live-scoring', {{
-                  method: 'POST',
-                  headers: {{
-                    'Content-Type': 'application/json'
-                  }}
-                }});
-                const data = await response.json();
-                
-                // Update view counter if it exists
-                const viewCounter = document.querySelector('.view-counter');
-                if (viewCounter) {{
-                  viewCounter.innerHTML = `
-                    <i class="fas fa-eye"></i>
-                    <span>${{data.views}} views</span>
-                  `;
-                }}
-              }} catch (error) {{
-                console.error('Error updating page views:', error);
-              }}
-            }}
-
-            // Call update function when page loads
-            document.addEventListener('DOMContentLoaded', updatePageViews);            
-            // Add this to your JavaScript code
-          async function fetchPageViews() {{
-              try {{
-                    const response = await fetch('/page-views/live-scoring');
-                    const data = await response.json();
-                    const viewCount = data.views || 100; // Default to 100 if undefined
-                    
-                    // Only create counter if we have a valid view count
-                    if (typeof viewCount === 'number' && !isNaN(viewCount)) {{
-                        // Create view counter element
-                        const viewCounter = document.createElement('div');
-                        viewCounter.className = 'view-counter';
-                        viewCounter.innerHTML = `
-                            <i class="fas fa-eye"></i>
-                            <span>${{viewCount}} views</span>
-                        `;
-                        
-                        // Add to document
-                        document.body.appendChild(viewCounter);
-                    }} else {{
-                        console.warn('Invalid view count received:', viewCount);
+            // Page view counter
+            async function fetchPageViews() {{
+                try {{
+                    const res  = await fetch('/page-views/live-scoring');
+                    const data = await res.json();
+                    const n = parseInt(data.views || 0);
+                    if (!isNaN(n)) {{
+                        const el = document.createElement('div');
+                        el.className = 'view-counter';
+                        el.innerHTML = '<i class="fas fa-eye"></i><span>' + n + ' views</span>';
+                        document.body.appendChild(el);
                     }}
-                }} catch (error) {{
-                    console.error('Error fetching page views:', error);
-                }}          }}
-
-          // Call function when page loads
-          document.addEventListener('DOMContentLoaded', fetchPageViews);     
-
+                }} catch(e) {{}}
+            }}
+            async function postPageView() {{
+                try {{
+                    await fetch('/page-views/live-scoring', {{
+                        method: 'POST',
+                        headers: {{'Content-Type': 'application/json'}}
+                    }});
+                }} catch(e) {{}}
+            }}
+            document.addEventListener('DOMContentLoaded', function() {{
+                postPageView();
+                fetchPageViews();
+            }});
         </script>
     </body>
     </html>
-    """
+    """.format(
+        leaderboard_title=leaderboard_title,
+        percent_days_completed=percent_days_completed,
+        player_chart=player_chart,
+        player_of_the_day_name=player_of_the_day_name,
+        player_of_the_day_points=player_of_the_day_points,
+        player_of_the_day_team=player_of_the_day_team,
+        player_table=player_table,
+        race_to_finish_chart=race_to_finish_chart,
+        role_chart=role_chart,
+        sb_tables=sb_tables,
+        series_tables=series_tables,
+        team_chart=team_chart,
+        team_of_the_day_name=team_of_the_day_name,
+        team_of_the_day_score=team_of_the_day_score,
+        team_table=team_table,
+        ticker_content=ticker_content,
+        scores_live_heading=scores_live_heading,
+        timestamp=timestamp,
+        daily_scores_table=daily_scores_table
+    )
     
     with open(f"templates/{template_filename}", "w", encoding='utf-8') as f:        
         f.write(html_content)
@@ -1360,7 +1246,7 @@ def generate_player_profile_url(player_id):
     """
     Generates a player profile URL using a fixed base URL and player ID
     """
-    base_url = "https://m.cricbattle.com/Player-Profile?TournamentId=12746&PlayerId="
+    base_url = "https://m.cricbattle.com/Player-Profile?TournamentId=13385&PlayerId="
     return f"{base_url}{player_id}" 
 
 
@@ -1400,7 +1286,13 @@ def init_player_id_mapping():
 def merge_player_points(player_team_points_df, league="FPL"):
 
     if not league:
-        league = "FPL"   
+        league = "FPL"
+
+    try:
+        player_id_mapping = init_player_id_mapping()
+    except Exception as e:
+        logging.warning(f"Could not load player_id_mapping: {e}")
+        player_id_mapping = []
 
     # For each mapping
     for liga, old_player, new_player in player_id_mapping:
@@ -1497,6 +1389,8 @@ def main(Player, PlayerRanking, PlayerRankingPerDay, player_of_the_day, team_of_
         'timestamp': pr.timestamp
         } for pr in PlayerRankingPerDay.query.all()])
     
+    all_team_points = pd.DataFrame(columns=['date', 'Team Name', 'Best11Points'])
+
     #print(player_rankings_per_day_df.head())
     if not players_df.empty and not player_rankings_per_day_df.empty:
         try:
@@ -1570,7 +1464,7 @@ def main(Player, PlayerRanking, PlayerRankingPerDay, player_of_the_day, team_of_
             traceback.print_exception(type(e), e, e.__traceback__)
 
         # Combine all daily points
-        all_team_points = pd.concat(daily_team_points)
+        all_team_points = pd.concat(daily_team_points) if daily_team_points else pd.DataFrame(columns=['date', 'Team Name', 'Best11Points'])
         #print(all_team_points)
         #exit()
 
@@ -1701,24 +1595,28 @@ def main(Player, PlayerRanking, PlayerRankingPerDay, player_of_the_day, team_of_
             df_scoreboard = {}
 
             # Query batting stats
-            df_scoreboard["Bat"] = pd.read_sql_query("""
-                SELECT * from cricket_bat 
-            """, conn)
+            try:
+                df_scoreboard["Bat"] = pd.read_sql_query("SELECT * from cricket_bat", conn)
+            except Exception:
+                df_scoreboard["Bat"] = pd.DataFrame()
 
             # Query bowling stats  
-            df_scoreboard["Bowl"] = pd.read_sql_query("""
-                SELECT * from cricket_bowl
-            """, conn)
+            try:
+                df_scoreboard["Bowl"] = pd.read_sql_query("SELECT * from cricket_bowl", conn)
+            except Exception:
+                df_scoreboard["Bowl"] = pd.DataFrame()
 
             # Query fielding stats
-            df_scoreboard["Field"] = pd.read_sql_query("""
-                SELECT * from cricket_field
-            """, conn)
+            try:
+                df_scoreboard["Field"] = pd.read_sql_query("SELECT * from cricket_field", conn)
+            except Exception:
+                df_scoreboard["Field"] = pd.DataFrame()
 
-             # Query potm stats
-            df_scoreboard["POTM"] = pd.read_sql_query("""
-                SELECT * from cricket_potm
-            """, conn)
+            # Query potm stats
+            try:
+                df_scoreboard["POTM"] = pd.read_sql_query("SELECT * from cricket_potm", conn)
+            except Exception:
+                df_scoreboard["POTM"] = pd.DataFrame()
 
             conn.close()  
 
@@ -1727,15 +1625,14 @@ def main(Player, PlayerRanking, PlayerRankingPerDay, player_of_the_day, team_of_
                 #print(f"\n=== {key} ===")
                 #print(df.head())
 
-                # Merge the dataframes
-                # Get the column name in df based on position (assuming the column to merge on is always in position 0)
-                merge_column = df.columns[0]  # Get the first column in each DataFrame (e.g., 'Batter', 'Player', 'Bowler')
-                #print(merge_column)
-
                 # check if df has no rows
                 if df.empty:
                     continue
 
+                # Merge the dataframes
+                # Get the column name in df based on position (assuming the column to merge on is always in position 0)
+                merge_column = df.columns[0]  # Get the first column in each DataFrame (e.g., 'Batter', 'Player', 'Bowler')
+                #print(merge_column)
 
                 edit_dataframe_values(df, "Kohli", "Virat Kohli")
                 edit_dataframe_values(df, "Mitchell Santner (c)", "Mitchell Santner")
@@ -1846,9 +1743,12 @@ def main(Player, PlayerRanking, PlayerRankingPerDay, player_of_the_day, team_of_
 
             # add avg points per day col to team_points_df which is average points per day of current team
             # days is number of distinct days in date col in all_team_points df
-            all_team_points_days = all_team_points['Best11Points'].groupby(all_team_points['date']).sum().reset_index()
+            if not all_team_points.empty and 'date' in all_team_points.columns:
+                all_team_points_days = all_team_points['Best11Points'].groupby(all_team_points['date']).sum().reset_index()
+                days = max(len(all_team_points_days), 1)
+            else:
+                days = 1
             #print(all_team_points)
-            days = len(all_team_points_days)
             team_points_df['DailyAvg'] = team_points_df['Best11Points'] / days
             #print(team_points_df)
                                      
@@ -2049,29 +1949,33 @@ def get_scoreboard_stats(Player, PlayerRanking):
             df_scoreboard = {}
 
             # Query batting stats
-            df_scoreboard["Bat"] = pd.read_sql_query("""
-                SELECT * from cricket_bat 
-            """, conn)
+            try:
+                df_scoreboard["Bat"] = pd.read_sql_query("SELECT * from cricket_bat", conn)
+            except Exception:
+                df_scoreboard["Bat"] = pd.DataFrame()
 
             # Query bowling stats  
-            df_scoreboard["Bowl"] = pd.read_sql_query("""
-                SELECT * from cricket_bowl
-            """, conn)
+            try:
+                df_scoreboard["Bowl"] = pd.read_sql_query("SELECT * from cricket_bowl", conn)
+            except Exception:
+                df_scoreboard["Bowl"] = pd.DataFrame()
 
             # Query fielding stats
-            df_scoreboard["Field"] = pd.read_sql_query("""
-                SELECT * from cricket_field
-            """, conn)
+            try:
+                df_scoreboard["Field"] = pd.read_sql_query("SELECT * from cricket_field", conn)
+            except Exception:
+                df_scoreboard["Field"] = pd.DataFrame()
 
-            # Query fielding stats
-            df_scoreboard["Field2"] = pd.read_sql_query("""
-                SELECT * from cricket_field
-            """, conn)
+            try:
+                df_scoreboard["Field2"] = pd.read_sql_query("SELECT * from cricket_field", conn)
+            except Exception:
+                df_scoreboard["Field2"] = pd.DataFrame()
 
-             # Query potm stats
-            df_scoreboard["POTM"] = pd.read_sql_query("""
-                SELECT * from cricket_potm
-            """, conn)
+            # Query potm stats
+            try:
+                df_scoreboard["POTM"] = pd.read_sql_query("SELECT * from cricket_potm", conn)
+            except Exception:
+                df_scoreboard["POTM"] = pd.DataFrame()
 
             conn.close()  
 
@@ -2079,6 +1983,9 @@ def get_scoreboard_stats(Player, PlayerRanking):
             for key, df in df_scoreboard.items():
                 #print(f"\n=== {key} ===")
                 #print(df.head())
+
+                if df.empty:
+                    continue
 
                 # Merge the dataframes
                 # Get the column name in df based on position (assuming the column to merge on is always in position 0)
