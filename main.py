@@ -24,8 +24,6 @@ import logging
 from datetime import datetime  
 import update_scores_html as update_scores
 from apscheduler.schedulers.background import BackgroundScheduler
-import update_series_stats
-import update_scores_from_scoreboard
 from datetime import timedelta
 from datetime import timedelta
 from flask import flash
@@ -777,28 +775,7 @@ def scheduled_task():
         get_cricbattle_data()
         #jal_app.main()
         refresh_scores()
-        #df_series = update_series_stats.main(Player)
-        #df_scoreboard = update_scores_from_scoreboard.main(Match)
 
-# Schedule get_cricbattle_data to run every 5 minutes with app context
-def scheduled_task_cricbuzz():
-    with app.app_context():
-        logging.info("Running scheduled_task_cricbuzz")
-        df_series = update_series_stats.main(Player)
-        df_scoreboard = update_scores_from_scoreboard.main(Match)
-
-def scheduled_series_and_scoreboard():
-    """Dedicated job: refresh series stats + scoreboard stats at 04:00 and 08:00 CET."""
-    with app.app_context():
-        logging.info("Running scheduled_series_and_scoreboard (4/8 CET job)")
-        try:
-            update_series_stats.main(Player)
-        except Exception as e:
-            logging.error(f"Series stats update failed: {e}")
-        try:
-            update_scores_from_scoreboard.main(Match)
-        except Exception as e:
-            logging.error(f"Scoreboard stats update failed: {e}")
 
 INIT_FILE = "app_initialized.lock"
 
@@ -814,9 +791,6 @@ with app.app_context():
         #jal_app.main()
         #refresh_scores()
         get_players_in_action()
-        #exit()
-        df_series = update_series_stats.main(Player)
-        df_scoreboard = update_scores_from_scoreboard.main(Match)
         #copy_data_from_player_ranking_to_player_ranking_per_day()
         player_of_the_day()
 
@@ -829,14 +803,10 @@ with app.app_context():
     if not app.config.get("SCHEDULER_STARTED", False):
         app.scheduler = BackgroundScheduler()
         app.scheduler.add_job(func=scheduled_task, trigger="cron", minute="*/1", hour="9-22")
-        app.scheduler.add_job(func=scheduled_task_cricbuzz, trigger="cron", minute="*/5", hour="9-22")
         app.scheduler.add_job(func=copy_data_from_player_ranking_to_player_ranking_per_day, trigger="cron", hour="17,18,19")
-        # Dedicated series + scoreboard stats refresh at 04:00 and 08:00 CET/CEST
-        app.scheduler.add_job(func=scheduled_series_and_scoreboard, trigger="cron", hour="4", minute="0", timezone="Europe/Paris")
-        app.scheduler.add_job(func=scheduled_series_and_scoreboard, trigger="cron", hour="8", minute="0", timezone="Europe/Paris")
         app.scheduler.start()
         app.config["SCHEDULER_STARTED"] = True
-        logging.info("Scheduler started with 5 jobs (incl. 04:00 and 08:00 CET)")
+        logging.info("Scheduler started with 2 jobs")
 
 
 def get_device_id():
@@ -1546,126 +1516,9 @@ def save_to_db(matches):
     db.session.commit()
 
 
-def fetch_ipl2026_matches_from_cricbuzz():
-    """Fetch IPL 2026 match IDs and details from Cricbuzz series page and insert into DB."""
-    import re as _re
-    import json as _json
-    from datetime import timezone as _tz, timedelta as _td
-    from time import sleep as _sleep
-
-    IST = _tz(_td(hours=5, minutes=30))
-    headers = {
-        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36"
-    }
-
-    try:
-        # Get series page to find all match IDs
-        resp = requests.get(
-            "https://www.cricbuzz.com/cricket-series/9965/indian-premier-league-2026/matches",
-            headers=headers, timeout=15
-        )
-        html = resp.text
-        raw_ids = _re.findall(r'cricket-scores/(\d{6,})', html)
-        candidate_ids = sorted(set(raw_ids))
-        logging.info(f"Found {len(candidate_ids)} candidate match IDs from Cricbuzz series page")
-    except Exception as e:
-        logging.error(f"Error fetching Cricbuzz series page: {e}")
-        candidate_ids = []
-
-    ipl_matches = []
-    for match_id_str in candidate_ids:
-        match_id = int(match_id_str)
-        url = f"https://www.cricbuzz.com/cricket-scores/{match_id}/"
-        try:
-            resp = requests.get(url, headers=headers, timeout=8, allow_redirects=True)
-            if resp.status_code != 200:
-                continue
-            html = resp.text
-
-            # Must be an IPL 2026 match
-            if 'Indian Premier League 2026' not in html and 'IPL' not in html[:5000]:
-                continue
-
-            # Extract JSON-LD structured data for date/time
-            jsonld_blocks = _re.findall(r'<script type="application/ld\+json">(.*?)</script>', html, re.DOTALL)
-            start_dt_utc = None
-            for jld in jsonld_blocks:
-                try:
-                    d = _json.loads(jld)
-                    if isinstance(d, dict) and d.get('@type') in ['SportsEvent', 'Event']:
-                        start_dt_utc = d.get('startDate', '')
-                except Exception:
-                    pass
-
-            # Extract clean match info from og:title
-            title_m = _re.search(r'<meta property="og:title" content="([^"]+)"', html)
-            title = title_m.group(1) if title_m else ""
-            title = _re.sub(r'\s+', ' ', title.replace('\n', ' ')).strip()
-            clean_match = _re.search(r'([A-Z][A-Za-z\s]+) vs ([A-Z][A-Za-z\s]+), (\d+(?:st|nd|rd|th) Match[^,]*)', title)
-            if clean_match:
-                match_info = f"{clean_match.group(1).strip()} vs {clean_match.group(2).strip()}, {clean_match.group(3).strip()}, Indian Premier League 2026"
-            elif 'Indian Premier League 2026' in title:
-                match_info = _re.sub(r' Live Cricket Stream.*$', '', title)
-                match_info = _re.sub(r'^IPL \| ', '', match_info)
-                match_info = _re.sub(r' \| Cricbuzz$', '', match_info).strip()
-            else:
-                continue  # Skip non-IPL matches
-
-            # Convert UTC to IST
-            if start_dt_utc:
-                try:
-                    from datetime import datetime as _dt
-                    dt_utc = _dt.fromisoformat(start_dt_utc.replace('Z', '+00:00'))
-                    dt_ist = dt_utc.astimezone(IST)
-                    date_str = dt_ist.strftime("%b %d, %a")
-                    time_str = dt_ist.strftime("%I:%M %p IST")
-                except Exception:
-                    date_str = ""
-                    time_str = ""
-            else:
-                date_str = ""
-                time_str = ""
-
-            ipl_matches.append({
-                'matchId': match_id,
-                'match_info': match_info,
-                'date': date_str,
-                'time': time_str
-            })
-            logging.info(f"Found IPL 2026 match: {match_id} - {match_info[:60]}")
-            _sleep(0.2)
-        except Exception as e:
-            logging.error(f"Error fetching match {match_id}: {e}")
-
-    if ipl_matches:
-        # Upsert: insert new, keep existing
-        existing_ids = {m.matchId for m in Match.query.all()}
-        added = 0
-        for m in ipl_matches:
-            if m['matchId'] not in existing_ids:
-                db.session.add(Match(
-                    matchId=m['matchId'],
-                    date=m['date'],
-                    match_info=m['match_info'],
-                    time=m['time']
-                ))
-                added += 1
-        db.session.commit()
-        logging.info(f"Added {added} new IPL 2026 matches to DB (total: {len(ipl_matches)} found)")
-    else:
-        logging.warning("No IPL 2026 matches found from Cricbuzz")
-
-    return ipl_matches
-
-
 # Flask Route to display matches
 @app.route("/matches")
-@app.route("/matches/refresh")
 def show_matches():
-    refresh = 'refresh' in request.path    
-    if refresh:
-        fetch_ipl2026_matches_from_cricbuzz()
-        
     matches = db.session.query(Match.date, Match.match_info, Match.time).all()    
     return render_template("matches.html", matches=matches)
 
