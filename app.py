@@ -24,8 +24,6 @@ import logging
 from datetime import datetime  
 import update_scores_html as update_scores
 from apscheduler.schedulers.background import BackgroundScheduler
-import update_series_stats
-import update_scores_from_scoreboard
 from datetime import timedelta
 from datetime import timedelta
 from flask import flash
@@ -846,28 +844,7 @@ def scheduled_task():
         get_cricbattle_data()
         #jal_app.main()
         refresh_scores()
-        #df_series = update_series_stats.main(Player)
-        #df_scoreboard = update_scores_from_scoreboard.main(Match)
 
-# Schedule get_cricbattle_data to run every 5 minutes with app context
-def scheduled_task_cricbuzz():
-    with app.app_context():
-        logging.info("Running scheduled_task_cricbuzz")
-        df_series = update_series_stats.main(Player)
-        df_scoreboard = update_scores_from_scoreboard.main(Match)
-
-def scheduled_series_and_scoreboard():
-    """Dedicated job: refresh series stats + scoreboard stats at 04:00 and 08:00 CET."""
-    with app.app_context():
-        logging.info("Running scheduled_series_and_scoreboard (4/8 CET job)")
-        try:
-            update_series_stats.main(Player)
-        except Exception as e:
-            logging.error(f"Series stats update failed: {e}")
-        try:
-            update_scores_from_scoreboard.main(Match)
-        except Exception as e:
-            logging.error(f"Scoreboard stats update failed: {e}")
 
 INIT_FILE = "app_initialized.lock"
 
@@ -883,9 +860,6 @@ with app.app_context():
         #jal_app.main()
         #refresh_scores()
         get_players_in_action()
-        #exit()
-        df_series = update_series_stats.main(Player)
-        df_scoreboard = update_scores_from_scoreboard.main(Match)
         #copy_data_from_player_ranking_to_player_ranking_per_day()
         player_of_the_day()
 
@@ -898,14 +872,10 @@ with app.app_context():
     if not app.config.get("SCHEDULER_STARTED", False):
         app.scheduler = BackgroundScheduler()
         app.scheduler.add_job(func=scheduled_task, trigger="cron", minute="*/1", hour="6-22")
-        app.scheduler.add_job(func=scheduled_task_cricbuzz, trigger="cron", minute="*/5", hour="9-22")
         app.scheduler.add_job(func=copy_data_from_player_ranking_to_player_ranking_per_day, trigger="cron", hour="17,18,19")
-        # Dedicated series + scoreboard stats refresh at 04:00 and 08:00 CET/CEST
-        app.scheduler.add_job(func=scheduled_series_and_scoreboard, trigger="cron", hour="4", minute="0", timezone="Europe/Paris")
-        app.scheduler.add_job(func=scheduled_series_and_scoreboard, trigger="cron", hour="8", minute="0", timezone="Europe/Paris")
         app.scheduler.start()
         app.config["SCHEDULER_STARTED"] = True
-        logging.info("Scheduler started with 5 jobs (incl. 04:00 and 08:00 CET)")
+        logging.info("Scheduler started with 2 jobs")
 
 
 def get_device_id():
